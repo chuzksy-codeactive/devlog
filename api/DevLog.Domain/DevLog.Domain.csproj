@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -10,7 +10,10 @@
     <!-- Just the Vector value type — not the EF Core integration package,
          which stays in DevLog.Infrastructure. Keeps Domain framework-light,
          same principle as everything else in this project. -->
-    <PackageReference Include="Pgvector" Version="0.2.1" />
+    <!-- 0.3.2 — Pgvector.EntityFrameworkCore 0.3.0 (DevLog.Infrastructure,
+         now that the solution targets .NET 10 / EF Core 10) requires
+         Pgvector >= 0.3.2. -->
+    <PackageReference Include="Pgvector" Version="0.3.2" />
   </ItemGroup>
 
 </Project>

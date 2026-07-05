@@ -10,7 +10,7 @@ Building DevLog: a developer career operating system, from architecture review t
 
 ## Delivered so far
 
-Sprint 0: multi-tenant schema, row-level security, and Clerk authentication, end to end and proven. Milestone 2: Sprint Journal entry creation plus the write-time anonymization pipeline, backed by Anthropic. Milestone 3: the first real UI — Home and Experience pages. Milestone 4: the embedding pipeline and a real, working Ask AI.
+Sprint 0: multi-tenant schema, row-level security, and Clerk authentication, end to end and proven. Milestone 2: Sprint Journal entry creation plus the write-time anonymization pipeline, backed by Anthropic. Milestone 3: the first real UI — Home and Experience pages. Milestone 4: the embedding pipeline and a real, working Ask AI, plus a configurable LLM generation provider and a full framework upgrade to .NET 10.
 
 ## Problem
 
@@ -46,6 +46,7 @@ A multi-tenant SaaS (ASP.NET Core + Postgres + Clerk + Next.js) where each devel
 - **`published_entries` and the new `embeddings` table needed a second, public-facing RLS policy** — 001's script deliberately only granted the owning tenant's session access and flagged this exact gap in a comment. Ask AI is the anonymous endpoint that finally needed it: Postgres combines multiple permissive policies with OR, so each table now allows "owning tenant's session" OR "portfolio is publicly visible."
 - **The LLM Gateway abstraction paid for itself within the same milestone it shipped in.** Getting an Anthropic console API key working hit friction, so generation needed to move to OpenAI — because `ILlmProvider` already existed as an interface with `AnthropicLlmProvider` as its only implementation, this was a config change (`Ai:GenerationProvider`), not a rewrite: added `OpenAiLlmProvider`, extracted the shared system prompts into `LlmSystemPrompts` so both vendors run identical sanitization rules and RAG safety framing, and DI now resolves whichever provider the config points at. Embeddings and generation also got consolidated onto one `OpenAiOptions`/one API key, since there's no reason to ask for two when a single OpenAI key covers both.
 - **Flagged, not fixed: table-owner RLS bypass.** In this local setup the app connects as the tables' owning Postgres role, and owners bypass RLS by default unless `FORCE ROW LEVEL SECURITY` is set. The isolation proof test still validates the policy logic itself, but before real traffic this needs a non-owner app role — written down in `sql/002` rather than silently assumed away.
+- **A NuGet downgrade error turned into a real "should we upgrade" question, and the obvious-seeming answer was wrong.** Pinning `Pgvector.EntityFrameworkCore` to a version compatible with EF Core 8 fixed the immediate restore error, but the instinct to "just move to .NET 9" turned out to be a bad trade once actually checked: Microsoft extended .NET 9's STS support window to 24 months, which lands its end-of-support on the exact same date as .NET 8's — November 10, 2026. .NET 10, the current LTS, runs to November 2028. Went with .NET 10 instead, which also let the `Pgvector.EntityFrameworkCore` pin come back off (0.3.0 needs a newer Npgsql provider that only exists on EF Core 9+).
 
 ## Challenges
 

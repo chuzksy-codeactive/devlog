@@ -1,21 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
-    <PackageReference Include="EFCore.NamingConventions" Version="8.0.3" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.2.1" />
+    <!-- Explicit, not just transitive via Npgsql.EntityFrameworkCore.PostgreSQL
+         below — Microsoft.EntityFrameworkCore itself doesn't reference
+         .Relational at all, and Npgsql's dependency floor is 10.0.4, not
+         10.0.8. Without this explicit pin, NuGet resolves .Relational to
+         the lowest satisfying version (10.0.4) for THIS project, while
+         DevLog.Api's direct Microsoft.EntityFrameworkCore.Design reference
+         requires .Relational >= 10.0.8 — a real cross-project version
+         mismatch (CS1705), not a stale-cache issue. Pinning it here forces
+         the same 10.0.8 everywhere. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.8" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
+    <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.8" />
+    <!-- 0.3.0 (latest) — safe now that Npgsql.EntityFrameworkCore.PostgreSQL
+         is on 10.0.1, which satisfies this package's requirement of
+         Npgsql.EntityFrameworkCore.PostgreSQL >= 9.0.1. Was pinned to 0.2.2
+         while the solution was on EF Core 8; removed that pin as part of
+         the .NET 10 upgrade (2026-07-05). -->
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
   </ItemGroup>
 
   <ItemGroup>

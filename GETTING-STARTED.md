@@ -228,6 +228,34 @@ git push
 
 ---
 
+## Framework upgrade — .NET 8 → .NET 10 (2026-07-05)
+
+Triggered by a NuGet downgrade error on `Pgvector.EntityFrameworkCore`. While fixing it, checked actual .NET support dates: .NET 8 and .NET 9 both go out of support November 10, 2026 (Microsoft extended .NET 9's STS window to 24 months, landing it on the same date as .NET 8's LTS end). .NET 10 is the current LTS, supported through November 2028 — so rather than patch around the version conflict, the whole solution moved to .NET 10.
+
+**What changed:** `TargetFramework` is now `net10.0` in all four projects. Package versions bumped to their 10.x releases (verified against NuGet's actual published version lists, not guessed): `Microsoft.EntityFrameworkCore`/`.Design` → 10.0.8, `Npgsql.EntityFrameworkCore.PostgreSQL` → 10.0.1, `EFCore.NamingConventions` → 10.0.1, `Microsoft.Extensions.Http` → 10.0.8, `Microsoft.AspNetCore.Authentication.JwtBearer` → 10.0.8, `Microsoft.NET.Test.Sdk` → 17.14.1, `xunit` → 2.9.3. `Pgvector.EntityFrameworkCore` moved back to `0.3.0` (the latest release) since Npgsql 10.0.1 now satisfies its `>= 9.0.1` requirement — the 0.2.2 pin from earlier is gone.
+
+### Step 18 — install the .NET 10 SDK if you don't have it, then rebuild
+
+Visual Studio 2026 should already support .NET 10 (check Tools → Get Tools and Features → verify the .NET 10 SDK component is installed, or run `dotnet --list-sdks` in a terminal). Then:
+
+```bash
+cd Devlog.os/api
+dotnet restore
+dotnet build
+```
+
+If restore/build come back clean, everything from Steps 1–17 still applies unchanged — this was a framework/package version change only, no application logic changed.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Upgrade solution to .NET 10 / EF Core 10"
+git push
+```
+
+---
+
 ## What comes after this
 
-Once Step 17 checks out, the next milestone per `DevLog-MVP-Roadmap.md` is Request Interview — the last Phase 1 feature and the product's actual conversion event. Come back and I'll help design and write that next.
+Once Step 18 checks out, the next milestone per `DevLog-MVP-Roadmap.md` is Request Interview — the last Phase 1 feature and the product's actual conversion event. Come back and I'll help design and write that next.
