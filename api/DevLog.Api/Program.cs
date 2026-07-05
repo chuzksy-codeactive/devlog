@@ -41,8 +41,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 
+// Section 9 Phase-1 must: "explicitly scoped to the Next.js frontend
+// origin(s) — the anonymous-browsing endpoints are public by design, which
+// makes a permissive CORS policy an easy mistake to make here specifically."
+// This is the first endpoint (Ask AI) actually called cross-origin from the
+// browser, so it's the right moment to add this rather than defer it.
+const string FrontendCorsPolicy = "FrontendCors";
+var frontendOrigins = builder.Configuration.GetSection("Cors:FrontendOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:3000" };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy.WithOrigins(frontendOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
+app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();

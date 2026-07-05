@@ -6,4 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Just the Vector value type — not the EF Core integration package,
+         which stays in DevLog.Infrastructure. Keeps Domain framework-light,
+         same principle as everything else in this project. -->
+    <PackageReference Include="Pgvector" Version="0.2.1" />
+  </ItemGroup>
+
 </Project>

@@ -40,3 +40,18 @@ public enum RawEntryStatus
     Approved,
     Rejected
 }
+
+// EMBEDDINGS.source_type — architecture doc Section 2 designed this as
+// polymorphic (published_entries and experiences as two source types), but
+// in the schema as actually built, an Experience's narrative content only
+// ever reaches the public/RAG layer by first passing through
+// raw_entries -> sanitize -> approve as a RawEntryType.Experience, which
+// lands in published_entries just like a sprint entry does (Section 3's
+// "applies uniformly" note). So PublishedEntry is the only source type that
+// exists in practice right now. Kept as an enum (not hard-coded) so a direct
+// Experience-row embedding path can be added later without a schema change,
+// if/when structured Experience data needs its own RAG representation.
+public enum EmbeddingSourceType
+{
+    PublishedEntry
+}

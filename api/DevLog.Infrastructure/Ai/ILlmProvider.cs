@@ -12,6 +12,15 @@ public interface ILlmProvider
         string rawContent,
         IReadOnlyList<string> blocklistTerms,
         CancellationToken cancellationToken = default);
+
+    // The "generate()" half of the RAG pipeline (Section 2) — answers a
+    // recruiter's question using only the retrieved chunks passed in, never
+    // the model's own general knowledge about the candidate (there is none;
+    // this guards against confident-sounding hallucination instead).
+    Task<string> AnswerQuestionAsync(
+        string question,
+        IReadOnlyList<string> contextChunks,
+        CancellationToken cancellationToken = default);
 }
 
 // ModelVersion is persisted onto RawEntry.SanitizationModelVersion and later

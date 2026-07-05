@@ -142,8 +142,6 @@ git push
 
 ---
 
----
-
 ## Milestone 3 — Home + Experience pages (first real UI)
 
 New: `web/src/app/[slug]/` (dynamic route per creator), a shared layout with persistent nav + Ask AI widget + Request Interview button, `web/src/lib/mock-portfolio.ts` (stand-in for the real API until `GET /api/portfolio/:slug` exists), and Home/Experience page components under `web/src/components/portfolio/`.
@@ -172,6 +170,64 @@ git push
 
 ---
 
+## Milestone 4 — embedding pipeline + real Ask AI
+
+New: `Embedding`/`AiQueryLog` entities (pgvector-backed), `IEmbeddingProvider`/`OpenAiEmbeddingProvider` (OpenAI `text-embedding-3-small`), `ILlmProvider.AnswerQuestionAsync` with both an `AnthropicLlmProvider` and an `OpenAiLlmProvider` implementation (switchable via `Ai:GenerationProvider`, see Step 15), `EmbeddingPipelineService` (wired into `SanitizationPipelineService.ApproveAsync`), `AskAiService`/`AskAiController` (`POST /api/portfolio/{slug}/ask`, anonymous), CORS, and `sql/002_public_read_policies.sql`. The frontend's Ask AI (Home hero + floating widget) now calls this endpoint for real instead of showing a placeholder.
+
+### Note on a sandbox quirk (already fixed, no action needed)
+
+Files edited more than once in the same build session were briefly landing corrupted on disk — either truncated mid-line, or padded with leftover null bytes past the real end of the file — even though the edit tool reported them as complete each time. Root cause: rewriting a file to shorter content didn't always truncate the old, longer file underneath it. Confirmed and fixed for every affected file (`[slug]/layout.tsx`, `AskAiForm.tsx`, `AskAiWidget.tsx`, `Hero.tsx`, `AnthropicLlmProvider.cs`) by writing them through a different path and verifying byte-for-byte. `tsc --noEmit` and `eslint` both come back clean now. Mentioned here in case you'd already opened one of these files and saw something odd — it's resolved.
+
+### Step 13 — new migration (pgvector + embeddings + ai_query_logs)
+
+New NuGet packages referenced: `Pgvector` (Domain), `Pgvector.EntityFrameworkCore` + `Microsoft.Extensions.Http` (Infrastructure, if not already restored from Milestone 2) — `dotnet restore` picks these up automatically.
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddEmbeddingsAndAiQueryLogs --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+This migration includes `CREATE EXTENSION IF NOT EXISTS vector` (via `HasPostgresExtension`) — the docker-compose Postgres image already has pgvector built in, this just enables it for the `devlog` database.
+
+### Step 14 — apply the new RLS policies
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/002_public_read_policies.sql
+```
+
+### Step 15 — OpenAI API key + CORS check
+
+Get a key from platform.openai.com → API keys, then in `DevLog.Api/appsettings.Development.json` replace `OpenAi:ApiKey`. This one key now covers both embeddings and generation — see the "generation provider is configurable" note below. Also confirm `Cors:FrontendOrigins` includes wherever your Next.js dev server actually runs (defaults to `http://localhost:3000`).
+
+**Generation provider is configurable (added 2026-07-05).** `Ai:GenerationProvider` in `appsettings.Development.json` picks which vendor answers sanitization and Ask AI requests — `"OpenAI"` (default, uses `OpenAi:GenerationModel`, currently `gpt-4o-mini`) or `"Anthropic"` (uses the `Anthropic` section). Added because Anthropic console API key access was blocked at the time — if that gets sorted later, switching back is just flipping this one value back to `"Anthropic"`, no code changes. Only the configured provider's API key actually needs to be real; the other section's placeholder can stay as-is.
+
+### Step 16 — frontend env var
+
+```bash
+cd Devlog.os/web
+cp .env.local.example .env.local
+```
+
+Edit `.env.local` if your API doesn't run on `http://localhost:5000`.
+
+### Step 17 — smoke-test end to end
+
+1. Create, sanitize, and approve an entry (Milestone 2's Step 11) so at least one `published_entries` row exists and gets embedded.
+2. Run both apps: `dotnet run` (API) and `npm run dev` (web).
+3. Visit `http://localhost:3000/<your-real-slug>` and ask a question in the hero's Ask AI box about something the approved entry actually covers.
+4. Confirm you get a real answer (not the old placeholder text), and that asking something unrelated gets an honest "I don't see specific evidence of that" instead of a hallucinated answer.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add embedding pipeline and real Ask AI (RAG over pgvector, OpenAI embeddings, configurable generation provider)"
+git push
+```
+
+---
+
 ## What comes after this
 
-Once Step 12 checks out, the next milestone per `DevLog-MVP-Roadmap.md` is the embedding pipeline + Ask AI (making the assistant real), unless you'd rather do Request Interview or Learning Lab first. Come back and I'll help design and write that next.
+Once Step 17 checks out, the next milestone per `DevLog-MVP-Roadmap.md` is Request Interview — the last Phase 1 feature and the product's actual conversion event. Come back and I'll help design and write that next.

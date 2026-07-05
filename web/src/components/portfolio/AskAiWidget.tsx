@@ -8,7 +8,7 @@ import { AskAiForm } from "./AskAiForm";
 // own inline copy (embedded in the hero) via the same AskAiForm; this
 // floating version is what's available on Experience/Sprint Journal/
 // Learning Lab once those exist.
-export function AskAiWidget({ displayName }: { displayName: string }) {
+export function AskAiWidget({ slug, displayName }: { slug: string; displayName: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -16,7 +16,7 @@ export function AskAiWidget({ displayName }: { displayName: string }) {
       {isOpen && (
         <div className="mb-3 w-80 rounded-2xl border border-black/10 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-zinc-900">
           <p className="mb-3 text-sm font-medium">Ask about {displayName}&apos;s experience</p>
-          <AskAiForm displayName={displayName} />
+          <AskAiForm slug={slug} displayName={displayName} />
         </div>
       )}
       <button

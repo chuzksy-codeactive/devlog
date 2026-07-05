@@ -88,7 +88,7 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Ask about {portfolio.displayName}&apos;s experience
             </p>
-            <AskAiForm displayName={portfolio.displayName} />
+            <AskAiForm slug={portfolio.slug} displayName={portfolio.displayName} />
           </div>
         </div>
       </div>

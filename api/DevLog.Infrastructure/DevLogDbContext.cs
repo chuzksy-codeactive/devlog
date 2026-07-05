@@ -16,9 +16,16 @@ public class DevLogDbContext : DbContext
     public DbSet<PublishedEntry> PublishedEntries => Set<PublishedEntry>();
     public DbSet<SanitizationAudit> SanitizationAudits => Set<SanitizationAudit>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<Embedding> Embeddings => Set<Embedding>();
+    public DbSet<AiQueryLog> AiQueryLogs => Set<AiQueryLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Required once, for the migration to emit CREATE EXTENSION — pgvector
+        // is preinstalled in the docker-compose image but still needs to be
+        // enabled per-database.
+        modelBuilder.HasPostgresExtension("vector");
+
         var stringListComparer = new ValueComparer<List<string>>(
             (a, b) => (a ?? new List<string>()).SequenceEqual(b ?? new List<string>()),
             v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
@@ -112,6 +119,33 @@ public class DevLogDbContext : DbContext
         {
             e.ToTable("subscriptions");
             e.HasKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<Embedding>(e =>
+        {
+            e.ToTable("embeddings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.SourceType).HasConversion<string>();
+            e.Property(x => x.Vector).HasColumnType("vector(1536)");
+            // Looked up by (tenant, source) on re-embedding (delete-then-insert)
+            // and scanned per-tenant during vector search — see
+            // EmbeddingPipelineService and AskAiController.
+            e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId });
+
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<AiQueryLog>(e =>
+        {
+            e.ToTable("ai_query_logs");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt });
+
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId);
         });
     }
 }

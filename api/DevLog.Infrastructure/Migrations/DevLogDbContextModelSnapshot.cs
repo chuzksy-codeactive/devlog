@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
 
@@ -20,7 +21,88 @@ namespace DevLog.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "8.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("DevLog.Domain.Entities.AiQueryLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AskerHash")
+                        .HasColumnType("text")
+                        .HasColumnName("asker_hash");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("question");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ai_query_logs");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_ai_query_logs_tenant_id_created_at");
+
+                    b.ToTable("ai_query_logs", (string)null);
+                });
+
+            modelBuilder.Entity("DevLog.Domain.Entities.Embedding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ChunkIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("chunk_index");
+
+                    b.Property<string>("ChunkText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("chunk_text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("SourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source_type");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Vector>("Vector")
+                        .IsRequired()
+                        .HasColumnType("vector(1536)")
+                        .HasColumnName("vector");
+
+                    b.HasKey("Id")
+                        .HasName("pk_embeddings");
+
+                    b.HasIndex("TenantId", "SourceType", "SourceId")
+                        .HasDatabaseName("ix_embeddings_tenant_id_source_type_source_id");
+
+                    b.ToTable("embeddings", (string)null);
+                });
 
             modelBuilder.Entity("DevLog.Domain.Entities.Experience", b =>
                 {
@@ -184,6 +266,14 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("raw_content");
 
+                    b.Property<string>("SanitizationModelVersion")
+                        .HasColumnType("text")
+                        .HasColumnName("sanitization_model_version");
+
+                    b.Property<string>("SanitizedPreview")
+                        .HasColumnType("text")
+                        .HasColumnName("sanitized_preview");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("text")
@@ -301,6 +391,30 @@ namespace DevLog.Infrastructure.Migrations
                         .HasDatabaseName("ix_tenants_slug");
 
                     b.ToTable("tenants", (string)null);
+                });
+
+            modelBuilder.Entity("DevLog.Domain.Entities.AiQueryLog", b =>
+                {
+                    b.HasOne("DevLog.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ai_query_logs_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("DevLog.Domain.Entities.Embedding", b =>
+                {
+                    b.HasOne("DevLog.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_embeddings_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("DevLog.Domain.Entities.Experience", b =>

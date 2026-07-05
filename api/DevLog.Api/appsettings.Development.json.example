@@ -6,10 +6,22 @@
     "Authority": "https://REPLACE-WITH-YOUR-CLERK-FRONTEND-API-URL",
     "AuthorizedParty": "REPLACE-WITH-THE-ORIGIN-YOU-ARE-TESTING-FROM"
   },
+  "Ai": {
+    "GenerationProvider": "OpenAI"
+  },
   "Anthropic": {
-    "ApiKey": "REPLACE-WITH-YOUR-ANTHROPIC-API-KEY",
+    "ApiKey": "REPLACE-WITH-YOUR-ANTHROPIC-API-KEY-IF-USING-Ai:GenerationProvider=Anthropic",
     "Model": "claude-haiku-4-5",
     "MaxTokens": 2048
+  },
+  "OpenAi": {
+    "ApiKey": "REPLACE-WITH-YOUR-OPENAI-API-KEY",
+    "EmbeddingModel": "text-embedding-3-small",
+    "GenerationModel": "gpt-4o-mini",
+    "MaxTokens": 2048
+  },
+  "Cors": {
+    "FrontendOrigins": ["http://localhost:3000"]
   },
   "Logging": {
     "LogLevel": {

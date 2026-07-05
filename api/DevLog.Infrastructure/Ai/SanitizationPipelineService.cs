@@ -13,11 +13,16 @@ public class SanitizationPipelineService
 {
     private readonly DevLogDbContext _db;
     private readonly ILlmProvider _llmProvider;
+    private readonly EmbeddingPipelineService _embeddingPipeline;
 
-    public SanitizationPipelineService(DevLogDbContext db, ILlmProvider llmProvider)
+    public SanitizationPipelineService(
+        DevLogDbContext db,
+        ILlmProvider llmProvider,
+        EmbeddingPipelineService embeddingPipeline)
     {
         _db = db;
         _llmProvider = llmProvider;
+        _embeddingPipeline = embeddingPipeline;
     }
 
     public async Task<RawEntry> SanitizeAsync(Guid rawEntryId, CancellationToken cancellationToken = default)
@@ -106,6 +111,13 @@ public class SanitizationPipelineService
         entry.Status = RawEntryStatus.Approved;
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Embedding pipeline triggered right here — Section 3's flowchart:
+        // "G --> I[Embedding pipeline triggered]." This is the single entry
+        // point (Section 1) that guards against unsanitized content ever
+        // being embedded: nothing reaches this line without having just
+        // become a published_entries row above.
+        await _embeddingPipeline.EmbedPublishedEntryAsync(published, cancellationToken);
 
         return published;
     }
