@@ -15,5 +15,12 @@ public class RawEntry
     public RawEntryStatus Status { get; set; } = RawEntryStatus.Draft;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // The LLM-sanitized draft, stored so the creator can review it across
+    // requests before approving — set when the sanitize pipeline runs,
+    // cleared/overwritten on re-sanitization. Not the same as
+    // PublishedEntry.SanitizedContent, which only exists after approval.
+    public string? SanitizedPreview { get; set; }
+    public string? SanitizationModelVersion { get; set; }
+
     public PublishedEntry? PublishedEntry { get; set; }
 }

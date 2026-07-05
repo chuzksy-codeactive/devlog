@@ -6,6 +6,11 @@
     "Authority": "https://REPLACE-WITH-YOUR-CLERK-FRONTEND-API-URL",
     "AuthorizedParty": "REPLACE-WITH-THE-ORIGIN-YOU-ARE-TESTING-FROM"
   },
+  "Anthropic": {
+    "ApiKey": "REPLACE-WITH-YOUR-ANTHROPIC-API-KEY",
+    "Model": "claude-haiku-4-5",
+    "MaxTokens": 2048
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",

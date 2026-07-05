@@ -97,6 +97,51 @@ Nothing meaningful renders yet — this just confirms the scaffold runs. The fir
 
 ---
 
+## Milestone 2 — Sprint Journal entries + anonymization pipeline
+
+New since Step 8: `RawEntry.SanitizedPreview`/`SanitizationModelVersion` fields, an `ILlmProvider`/`AnthropicLlmProvider` LLM Gateway, a `SanitizationPipelineService`, and `EntriesController` (`POST /api/entries`, `GET /api/entries/{id}`, `POST /api/entries/{id}/sanitize`, `POST /api/entries/{id}/approve`).
+
+### Step 9 — new migration for the entity change
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddSanitizedPreviewToRawEntry --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 10 — Anthropic API key
+
+Get a key from the Anthropic Console (console.anthropic.com → API Keys), then in `DevLog.Api/appsettings.Development.json` replace the `Anthropic:ApiKey` placeholder with it. Nothing else in that section needs changing — `claude-haiku-4-5` is the model used for sanitization (a structured find-and-replace task, not open-ended generation, so the cheaper/faster tier is the right fit per the architecture doc's cost strategy).
+
+### Step 11 — smoke-test the pipeline end to end
+
+With the API running and a valid Clerk bearer token (same as Step 7):
+
+```bash
+# 1. Create a draft entry
+curl.exe -X POST https://localhost:<port>/api/entries `
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" `
+  -d '{"entryType":"SprintEntry","rawContent":"Fixed a checkout latency bug at Acme Corp by rewriting the PaymentSync service..."}'
+
+# 2. Sanitize it (use the id returned above)
+curl.exe -X POST https://localhost:<port>/api/entries/<id>/sanitize -H "Authorization: Bearer <token>"
+
+# 3. Review the sanitizedPreview field in the response, then approve
+curl.exe -X POST https://localhost:<port>/api/entries/<id>/approve -H "Authorization: Bearer <token>"
+```
+
+Confirm the entry Acme Corp/PaymentSync references got replaced with generic descriptors in `sanitizedPreview`, and that a row landed in `published_entries` and `sanitization_audit`.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add Sprint Journal entry creation + Anthropic-backed anonymization pipeline"
+git push
+```
+
+---
+
 ## What comes after this
 
-Once Steps 1–7 all check out, the next milestone per `DevLog-MVP-Roadmap.md` is Sprint Journal entry creation plus the anonymization pipeline — that's where `raw_entries` starts getting written to for real and the LLM Gateway gets built for the first time. Come back and I'll help design and write that next.
+Once Steps 9–11 check out, the next milestone per `DevLog-MVP-Roadmap.md` is the Home and Experience pages (the first real UI), per the roadmap's stated build order. Come back and I'll help design and write that next.

@@ -1,0 +1,112 @@
+using DevLog.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
+
+namespace DevLog.Infrastructure.Ai;
+
+// Orchestrates the flow from architecture doc Section 3:
+// raw_entries -> sanitize -> sanitized_draft -> creator approves -> published_entries
+// + sanitization_audit. Synchronous for this milestone (no Hangfire job queue
+// built yet — see DevLog-MVP-Roadmap.md); the async-job version described in
+// the architecture doc's flowchart is a later refinement of the same steps,
+// not a different pipeline.
+public class SanitizationPipelineService
+{
+    private readonly DevLogDbContext _db;
+    private readonly ILlmProvider _llmProvider;
+
+    public SanitizationPipelineService(DevLogDbContext db, ILlmProvider llmProvider)
+    {
+        _db = db;
+        _llmProvider = llmProvider;
+    }
+
+    public async Task<RawEntry> SanitizeAsync(Guid rawEntryId, CancellationToken cancellationToken = default)
+    {
+        // No explicit tenant filter here, same pattern as PortfolioController —
+        // RLS is what actually stops a cross-tenant id from resolving to a row.
+        var entry = await _db.RawEntries.FirstOrDefaultAsync(e => e.Id == rawEntryId, cancellationToken)
+            ?? throw new InvalidOperationException($"Raw entry {rawEntryId} not found.");
+
+        if (entry.Status == RawEntryStatus.Approved)
+        {
+            throw new InvalidOperationException(
+                "Cannot re-sanitize an already-approved entry. Editing a published entry is a later milestone (Section 3's raw -> sanitize -> republish flow).");
+        }
+
+        entry.Status = RawEntryStatus.Sanitizing;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // Blocklist seed — Section 3, item 1: the creator's own
+        // experiences.company_label values, fed to the prompt as known
+        // must-strip terms rather than making the model guess at "the employer."
+        var blocklist = await _db.Experiences
+            .Where(e => e.TenantId == entry.TenantId && e.CompanyLabel != string.Empty)
+            .Select(e => e.CompanyLabel)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var result = await _llmProvider.SanitizeAsync(entry.RawContent, blocklist, cancellationToken);
+
+        entry.SanitizedPreview = result.SanitizedContent;
+        entry.SanitizationModelVersion = result.ModelVersion;
+        entry.Status = RawEntryStatus.PendingApproval;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return entry;
+    }
+
+    public async Task<PublishedEntry> ApproveAsync(Guid rawEntryId, string approvedBy, CancellationToken cancellationToken = default)
+    {
+        var entry = await _db.RawEntries
+            .Include(e => e.PublishedEntry)
+            .FirstOrDefaultAsync(e => e.Id == rawEntryId, cancellationToken)
+            ?? throw new InvalidOperationException($"Raw entry {rawEntryId} not found.");
+
+        if (entry.Status != RawEntryStatus.PendingApproval || entry.SanitizedPreview is null)
+        {
+            throw new InvalidOperationException("Entry must be sanitized (status PendingApproval) before it can be approved.");
+        }
+
+        if (entry.PublishedEntry is not null)
+        {
+            // Editing an already-published entry (re-sanitize + re-approve)
+            // is Section 3's "raw -> sanitize -> republish flow" — a later
+            // milestone. For now, approval is a one-way action per entry.
+            throw new InvalidOperationException("This entry has already been published.");
+        }
+
+        var published = new PublishedEntry
+        {
+            Id = Guid.NewGuid(),
+            RawEntryId = entry.Id,
+            TenantId = entry.TenantId,
+            SanitizedContent = entry.SanitizedPreview,
+            PublishedAt = DateTime.UtcNow
+        };
+        _db.PublishedEntries.Add(published);
+
+        // The audit row that makes the anonymization pipeline defensible
+        // after the fact (Section 3) — model version, a diff summary,
+        // approver, and timestamp. Deliberately NOT a full raw-vs-sanitized
+        // text diff: storing raw content verbatim here, even in a
+        // non-public table, would grow the exact leak surface this pipeline
+        // exists to shrink. A length delta is enough for a human reviewing
+        // a dispute to sanity-check that sanitization did something real.
+        var audit = new SanitizationAudit
+        {
+            Id = Guid.NewGuid(),
+            PublishedEntryId = published.Id,
+            ModelVersion = entry.SanitizationModelVersion ?? "unknown",
+            Diff = $"Raw length: {entry.RawContent.Length} chars -> Sanitized length: {entry.SanitizedPreview.Length} chars.",
+            ApprovedBy = approvedBy,
+            ApprovedAt = DateTime.UtcNow
+        };
+        _db.SanitizationAudits.Add(audit);
+
+        entry.Status = RawEntryStatus.Approved;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return published;
+    }
+}

@@ -1,3 +1,4 @@
+using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,6 +20,22 @@ public static class ServiceCollectionExtensions
                    .UseSnakeCaseNamingConvention()
                    .AddInterceptors(interceptor);
         });
+
+        // LLM Gateway — architecture doc Section 5's "Internal ILlmProvider
+        // abstraction over HttpClientFactory." Named client keeps the base
+        // address/auth header configured once, here, rather than per-call.
+        services.Configure<AnthropicOptions>(configuration.GetSection(AnthropicOptions.SectionName));
+        services.AddHttpClient<ILlmProvider, AnthropicLlmProvider>((serviceProvider, client) =>
+        {
+            var options = configuration.GetSection(AnthropicOptions.SectionName).Get<AnthropicOptions>()
+                ?? new AnthropicOptions();
+
+            client.BaseAddress = new Uri("https://api.anthropic.com");
+            client.DefaultRequestHeaders.Add("x-api-key", options.ApiKey);
+            client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+        });
+
+        services.AddScoped<SanitizationPipelineService>();
 
         return services;
     }

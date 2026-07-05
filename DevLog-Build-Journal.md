@@ -10,7 +10,7 @@ Building DevLog: a developer career operating system, from architecture review t
 
 ## Delivered so far
 
-Sprint 0: multi-tenant schema, row-level security, and Clerk authentication, end to end and proven.
+Sprint 0: multi-tenant schema, row-level security, and Clerk authentication, end to end and proven. Milestone 2: Sprint Journal entry creation plus the write-time anonymization pipeline, backed by Anthropic.
 
 ## Problem
 
@@ -26,6 +26,11 @@ A multi-tenant SaaS (ASP.NET Core + Postgres + Clerk + Next.js) where each devel
 - **Raw and sanitized content are physically separate tables**, not a status flag, so there is no code path — buggy or not — that can expose an unsanitized draft.
 - **Clerk over Auth0** for authentication, chosen primarily on cost at the expected mostly-free-tier user volume, accepting a less conventional JWT validation pattern (`azp` claim instead of `aud`) as the trade-off.
 - **Snake_case database columns** via EF Core's naming-convention package, so the C# entity model and the raw SQL (RLS policies, future analytics queries) stay in the same vocabulary rather than fighting a PascalCase/snake_case mismatch everywhere.
+
+- **The anonymization pipeline is the product's actual differentiator, so it got built before anything else on the roadmap** — `RawEntry` → LLM sanitization pass (Anthropic, model chosen for a structured find-and-replace-shaped task rather than open-ended generation) → creator review of a `SanitizedPreview` → approval writes a separate `PublishedEntry` row plus a `SanitizationAudit` (model version, a diff summary, approver, timestamp). Raw and published content stay in physically separate tables, same principle as Sprint 0's RLS design, just applied to content instead of tenant rows.
+- **The sanitization prompt does two jobs at once**: strip employer-identifying details (using the creator's own `Experience.CompanyLabel` values as a known-terms blocklist so the model isn't guessing) and screen for prompt-injection-shaped content, since a sprint entry is later retrieved as RAG context for every recruiter who queries that candidate — a malicious instruction hidden in an entry would otherwise be replayed to every future reader. A regex safety net (emails, ticket IDs, internal hostnames) runs after the LLM pass as a deterministic backstop.
+- **The sanitization audit trail deliberately doesn't store a raw-vs-sanitized text diff** — only a length delta plus model version/approver/timestamp. Storing the raw text anywhere outside `raw_entries`, even in a non-public audit table, would grow the exact leak surface the pipeline exists to shrink.
+- **Synchronous for now, async later**: sanitization runs inline on the API request rather than through a background job queue, since Hangfire isn't wired up yet. The architecture doc's flowchart describes the async version — this is the same steps, just not yet decoupled from the request/response cycle.
 
 ## Challenges
 
