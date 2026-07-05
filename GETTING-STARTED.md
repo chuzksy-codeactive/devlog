@@ -142,6 +142,36 @@ git push
 
 ---
 
+---
+
+## Milestone 3 — Home + Experience pages (first real UI)
+
+New: `web/src/app/[slug]/` (dynamic route per creator), a shared layout with persistent nav + Ask AI widget + Request Interview button, `web/src/lib/mock-portfolio.ts` (stand-in for the real API until `GET /api/portfolio/:slug` exists), and Home/Experience page components under `web/src/components/portfolio/`.
+
+### Step 12 — run it
+
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+Then visit:
+- `http://localhost:3000/chika` — Home, fully-staffed demo
+- `http://localhost:3000/chika/experience` — Experience timeline
+- `http://localhost:3000/new-grad-demo` — Home with the "no job yet" state (no title, no years-of-experience stat)
+
+Verified in the sandbox: `tsc --noEmit` and `eslint` both clean. `next build` itself wasn't verified there (sandbox has no network access to fetch the Linux SWC binary) — your local `npm run build` is the real first check, same caveat pattern as the C# backend.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add Home and Experience pages (mock-data backed, first real UI)"
+git push
+```
+
+---
+
 ## What comes after this
 
-Once Steps 9–11 check out, the next milestone per `DevLog-MVP-Roadmap.md` is the Home and Experience pages (the first real UI), per the roadmap's stated build order. Come back and I'll help design and write that next.
+Once Step 12 checks out, the next milestone per `DevLog-MVP-Roadmap.md` is the embedding pipeline + Ask AI (making the assistant real), unless you'd rather do Request Interview or Learning Lab first. Come back and I'll help design and write that next.
