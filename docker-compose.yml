@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: devlog
+      POSTGRES_PASSWORD: devlog_local
+      POSTGRES_DB: devlog
+    ports:
+      - "5432:5432"
+    volumes:
+      - devlog_pg_data:/var/lib/postgresql/data
+volumes:
+  devlog_pg_data:

@@ -1,0 +1,19 @@
+# .NET
+api/**/bin/
+api/**/obj/
+api/**/*.user
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+
+# Secrets — never commit real values
+api/DevLog.Api/appsettings.Development.json
+web/.env.local
+web/.env*.local
+
+# OS/editor
+.DS_Store
+.vs/
+.vscode/

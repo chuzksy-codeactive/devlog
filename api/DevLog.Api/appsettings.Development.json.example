@@ -1,0 +1,15 @@
+{
+  "ConnectionStrings": {
+    "DevLogDb": "Host=localhost;Port=5432;Database=devlog;Username=devlog;Password=devlog_local"
+  },
+  "Clerk": {
+    "Authority": "https://REPLACE-WITH-YOUR-CLERK-FRONTEND-API-URL",
+    "AuthorizedParty": "REPLACE-WITH-THE-ORIGIN-YOU-ARE-TESTING-FROM"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  }
+}

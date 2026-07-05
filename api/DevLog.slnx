@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="DevLog.Api/DevLog.Api.csproj" />
+  <Project Path="DevLog.Domain/DevLog.Domain.csproj" />
+  <Project Path="DevLog.Infrastructure/DevLog.Infrastructure.csproj" />
+  <Project Path="DevLog.Tests/DevLog.Tests.csproj" />
+</Solution>
