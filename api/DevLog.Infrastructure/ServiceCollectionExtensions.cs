@@ -1,4 +1,6 @@
 using DevLog.Infrastructure.Ai;
+using DevLog.Infrastructure.Email;
+using DevLog.Infrastructure.Interviews;
 using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -81,9 +83,24 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {options.ApiKey}");
         });
 
+        // Email (transactional) — backs InterviewRequestService's creator
+        // notification. Same typed-HttpClient shape as the LLM providers
+        // above, for the same swap-without-rewrite reason.
+        services.Configure<PostmarkOptions>(configuration.GetSection(PostmarkOptions.SectionName));
+        services.AddHttpClient<IEmailProvider, PostmarkEmailProvider>((serviceProvider, client) =>
+        {
+            var options = configuration.GetSection(PostmarkOptions.SectionName).Get<PostmarkOptions>()
+                ?? new PostmarkOptions();
+
+            client.BaseAddress = new Uri("https://api.postmarkapp.com/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            client.DefaultRequestHeaders.Add("X-Postmark-Server-Token", options.ApiKey);
+        });
+
         services.AddScoped<EmbeddingPipelineService>();
         services.AddScoped<SanitizationPipelineService>();
         services.AddScoped<AskAiService>();
+        services.AddScoped<InterviewRequestService>();
 
         return services;
     }

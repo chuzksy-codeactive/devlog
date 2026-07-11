@@ -24,7 +24,7 @@ export default async function PortfolioLayout({
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-white text-black dark:bg-black dark:text-white">
+    <div className="flex min-h-full flex-1 flex-col bg-white text-zinc-900">
       <PortfolioNav slug={slug} displayName={portfolio.displayName} />
       <main className="flex flex-1 flex-col">{children}</main>
       <AskAiWidget slug={slug} displayName={portfolio.displayName} />

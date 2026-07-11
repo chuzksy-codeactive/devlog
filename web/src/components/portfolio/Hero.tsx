@@ -24,9 +24,9 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
     years !== null ? `${years}+ years of experience` : null;
 
   return (
-    <section className="border-b border-black/10 px-6 py-16 dark:border-white/10">
-      <div className="mx-auto flex max-w-4xl flex-col gap-8 sm:flex-row sm:items-start">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-2xl font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+    <section className="bg-zinc-50 px-6 py-20">
+      <div className="mx-auto flex max-w-4xl flex-col gap-10 sm:flex-row sm:items-start">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-indigo-50 text-2xl font-semibold text-indigo-600">
           {portfolio.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -41,33 +41,33 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
 
         <div className="flex flex-1 flex-col gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{portfolio.displayName}</h1>
-            <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">{portfolio.displayName}</h1>
+            <p className="mt-1 text-zinc-500">
               {roleLine}
               {yearsLine ? ` · ${yearsLine}` : ""}
             </p>
           </div>
 
-          <p className="max-w-xl text-lg leading-relaxed">{portfolio.positioningLine}</p>
+          <p className="max-w-xl text-lg leading-relaxed text-zinc-900">{portfolio.positioningLine}</p>
 
           <div className="flex flex-wrap gap-2">
             {portfolio.coreTechnologies.map((tech) => (
               <span
                 key={tech}
-                className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600"
               >
                 {tech}
               </span>
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {portfolio.githubUrl && (
               <a
                 href={portfolio.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium underline underline-offset-2"
+                className="text-sm font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
               >
                 GitHub
               </a>
@@ -75,7 +75,7 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
             {portfolio.cvUrl ? (
               <a
                 href={portfolio.cvUrl}
-                className="rounded-full border border-black px-4 py-1.5 text-sm font-medium dark:border-white"
+                className="rounded-lg border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-900"
               >
                 Download CV
               </a>
@@ -84,8 +84,8 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
 
           {/* The AI ask-box embedded directly in the hero, per the Product
               Brief — "this is the hook; don't make them scroll to find it." */}
-          <div className="mt-2 max-w-md rounded-xl border border-black/10 bg-zinc-50 p-4 dark:border-white/10 dark:bg-zinc-900">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <div className="mt-2 max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-zinc-400">
               Ask about {portfolio.displayName}&apos;s experience
             </p>
             <AskAiForm slug={portfolio.slug} displayName={portfolio.displayName} />

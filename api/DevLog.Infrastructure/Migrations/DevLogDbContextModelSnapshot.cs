@@ -18,7 +18,7 @@ namespace DevLog.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.10")
+                .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
@@ -152,6 +152,57 @@ namespace DevLog.Infrastructure.Migrations
                     b.ToTable("experiences", (string)null);
                 });
 
+            modelBuilder.Entity("DevLog.Domain.Entities.InterviewRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContactInstructions")
+                        .HasColumnType("text")
+                        .HasColumnName("contact_instructions");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("note");
+
+                    b.Property<string>("RecruiterEmail")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("recruiter_email");
+
+                    b.Property<string>("RecruiterName")
+                        .HasColumnType("text")
+                        .HasColumnName("recruiter_name");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("responded_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_interview_requests");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_interview_requests_tenant_id_created_at");
+
+                    b.ToTable("interview_requests", (string)null);
+                });
+
             modelBuilder.Entity("DevLog.Domain.Entities.Portfolio", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -187,6 +238,10 @@ namespace DevLog.Infrastructure.Migrations
                     b.Property<string>("LinkedInUrl")
                         .HasColumnType("text")
                         .HasColumnName("linked_in_url");
+
+                    b.Property<string>("NotificationEmail")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_email");
 
                     b.Property<string>("Visibility")
                         .IsRequired()
@@ -425,6 +480,18 @@ namespace DevLog.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_experiences_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("DevLog.Domain.Entities.InterviewRequest", b =>
+                {
+                    b.HasOne("DevLog.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_interview_requests_tenants_tenant_id");
 
                     b.Navigation("Tenant");
                 });

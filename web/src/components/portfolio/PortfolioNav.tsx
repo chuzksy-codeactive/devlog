@@ -23,12 +23,12 @@ export function PortfolioNav({ slug, displayName }: { slug: string; displayName:
   const basePath = `/${slug}`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-black/10 bg-white/80 backdrop-blur dark:border-white/10 dark:bg-black/80">
+    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-        <Link href={basePath} className="font-semibold tracking-tight">
+        <Link href={basePath} className="font-semibold tracking-tight text-zinc-900">
           {displayName}
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <nav className="flex items-center gap-1">
             {NAV_ITEMS.map((item) => {
               const href = `${basePath}${item.href}`;
@@ -38,7 +38,7 @@ export function PortfolioNav({ slug, displayName }: { slug: string; displayName:
                 return (
                   <span
                     key={item.label}
-                    className="cursor-not-allowed rounded-full px-3 py-1.5 text-sm text-zinc-400 dark:text-zinc-600"
+                    className="cursor-not-allowed rounded-full px-3 py-1.5 text-sm text-zinc-400"
                     title="Coming soon"
                   >
                     {item.label}
@@ -52,8 +52,8 @@ export function PortfolioNav({ slug, displayName }: { slug: string; displayName:
                   href={href}
                   className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
                     isActive
-                      ? "bg-black text-white dark:bg-white dark:text-black"
-                      : "text-zinc-600 hover:bg-black/5 dark:text-zinc-400 dark:hover:bg-white/10"
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-zinc-500 hover:bg-zinc-100"
                   }`}
                 >
                   {item.label}
@@ -61,7 +61,7 @@ export function PortfolioNav({ slug, displayName }: { slug: string; displayName:
               );
             })}
           </nav>
-          <RequestInterviewButton />
+          <RequestInterviewButton slug={slug} />
         </div>
       </div>
     </header>

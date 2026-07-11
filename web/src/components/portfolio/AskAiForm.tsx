@@ -58,14 +58,14 @@ export function AskAiForm({
   if (answer) {
     return (
       <div className="text-sm">
-        <p className="text-zinc-500 dark:text-zinc-400">&ldquo;{question}&rdquo;</p>
-        <p className="mt-2">{answer}</p>
+        <p className="text-zinc-500">&ldquo;{question}&rdquo;</p>
+        <p className="mt-2 text-zinc-900">{answer}</p>
         <button
           onClick={() => {
             setAnswer(null);
             setQuestion("");
           }}
-          className="mt-2 text-xs font-medium underline"
+          className="mt-2 text-xs font-medium text-indigo-600 underline"
         >
           Ask another question
         </button>
@@ -81,18 +81,18 @@ export function AskAiForm({
           onChange={(e) => setQuestion(e.target.value)}
           placeholder={placeholder}
           disabled={isLoading}
-          className="flex-1 rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-black/30 disabled:opacity-50 dark:border-white/10 dark:bg-zinc-800 dark:focus:border-white/30"
+          className="flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400 focus:bg-white disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={isLoading}
-          className="shrink-0 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          className="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
         >
           {isLoading ? "Asking…" : "Ask"}
         </button>
       </div>
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-      <p className="text-xs text-zinc-400 dark:text-zinc-600">
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <p className="text-xs text-zinc-400">
         Answers are generated from {displayName}&apos;s published entries only.
       </p>
     </form>

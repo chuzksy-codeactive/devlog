@@ -55,3 +55,15 @@ public enum EmbeddingSourceType
 {
     PublishedEntry
 }
+
+// INTERVIEW_REQUESTS.status — architecture doc Section 6 ("Request
+// Interview"). Accepting is the only path that reveals the creator's
+// contact info (InterviewRequest.ContactInstructions); declining or
+// staying pending reveals nothing — DevLog never brokers contact info
+// without that explicit creator-initiated accept step.
+public enum InterviewRequestStatus
+{
+    Pending,
+    Accepted,
+    Declined
+}

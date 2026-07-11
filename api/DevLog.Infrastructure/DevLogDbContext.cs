@@ -18,6 +18,7 @@ public class DevLogDbContext : DbContext
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Embedding> Embeddings => Set<Embedding>();
     public DbSet<AiQueryLog> AiQueryLogs => Set<AiQueryLog>();
+    public DbSet<InterviewRequest> InterviewRequests => Set<InterviewRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -141,6 +142,18 @@ public class DevLogDbContext : DbContext
         {
             e.ToTable("ai_query_logs");
             e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt });
+
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<InterviewRequest>(e =>
+        {
+            e.ToTable("interview_requests");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Status).HasConversion<string>();
             e.HasIndex(x => new { x.TenantId, x.CreatedAt });
 
             e.HasOne(x => x.Tenant)

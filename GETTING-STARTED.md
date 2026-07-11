@@ -256,6 +256,97 @@ git push
 
 ---
 
+## Milestone 5 — Request Interview (last Phase 1 core feature)
+
+New: `InterviewRequest` entity (`interview_requests` table), `InterviewRequestService` (create/accept/decline), `InterviewRequestsController` (`POST /api/portfolio/{slug}/interview-requests`, anonymous — recruiter submission) and `CreatorInterviewRequestsController` (`GET /api/interview-requests`, `POST /api/interview-requests/{id}/accept`, `POST /api/interview-requests/{id}/decline`, all `[Authorize]`), `sql/003_interview_requests_policies.sql`. The frontend's `RequestInterviewButton` (in the persistent nav) is now a real form — recruiter email, optional name, a note — instead of the "not wired up yet" placeholder.
+
+No creator inbox UI ships with this milestone, deliberately — the roadmap's Phase 1 scope is "instrument everything, ship no dashboard... query the tables directly for now." The creator analytics dashboard (which would surface this inbox visually) is a Phase 2 item. For now, act on requests via `GET /api/interview-requests` and the accept/decline endpoints directly (curl/Postman), same as Milestone 2's entry pipeline before any UI existed for it.
+
+Accepting a request is the only thing that reveals contact info to the recruiter — the creator supplies `contactInstructions` (a scheduling link, email, whatever they choose) in the accept call itself, matching the architecture doc's "DevLog itself doesn't broker contact info without that explicit accept step."
+
+### Step 19 — new migration (interview_requests)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddInterviewRequests --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 20 — apply the new RLS policies
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/003_interview_requests_policies.sql
+```
+
+This one's different in shape from 001/002: it grants both a creator-scoped `tenant_isolation` policy (read/update your own tenant's requests) *and* a `public_insert` policy (anonymous recruiter submission, gated on the target portfolio not being Paused) — the first RLS policy in this schema that grants anonymous write access, not just anonymous read.
+
+### Step 21 — smoke-test end to end
+
+```bash
+# 1. Anonymous recruiter submits a request (no auth header)
+curl.exe -X POST https://localhost:<port>/api/portfolio/<your-slug>/interview-requests `
+  -H "Content-Type: application/json" `
+  -d '{"recruiterEmail":"recruiter@example.com","recruiterName":"Jordan","note":"Loved the Ask AI answer on your Postgres RLS work — got 20 min this week?"}'
+
+# 2. Creator checks the inbox (real Clerk bearer token, same as Step 7)
+curl.exe https://localhost:<port>/api/interview-requests -H "Authorization: Bearer <token>"
+
+# 3. Accept it (use the id from step 2) — this is what reveals contact info
+curl.exe -X POST https://localhost:<port>/api/interview-requests/<id>/accept `
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" `
+  -d '{"contactInstructions":"Grab time here: https://cal.com/your-handle"}'
+```
+
+Confirm step 1 succeeds with no auth header at all (proves the `public_insert` RLS policy is working, not just app-layer logic), and that a second creator's token can't see or accept the first creator's request (proves `tenant_isolation` still holds for a brand-new table, same as the very first isolation test).
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add Request Interview (last Phase 1 core feature)"
+git push
+```
+
+---
+
+## Milestone 6 — email integration (creator notification on new requests)
+
+New: `Portfolio.NotificationEmail` (creator-supplied, optional), `IEmailProvider`/`PostmarkEmailProvider` (Infrastructure/Email/), and `InterviewRequestService.CreateAsync` now sends a best-effort notification email to the creator on every new interview request instead of leaving Milestone 5's "no Hangfire yet, creator polls the inbox" gap unfilled. Scoped deliberately narrow: this covers creator notification only, not recruiter email verification (the other Phase-1 security item that touches email) — that's still open.
+
+The send is synchronous, inline on the request path (same "no Hangfire queue yet" simplification as sanitization and everything else in this codebase), and deliberately best-effort: if `NotificationEmail` isn't set, or the Postmark call fails for any reason, the recruiter's submission still succeeds and the request is still saved — the creator can always fall back to `GET /api/interview-requests`. Failures are logged, not surfaced to the recruiter.
+
+### Step 22 — new migration (Portfolio.NotificationEmail)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddNotificationEmailToPortfolio --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 23 — Postmark setup
+
+Get a Server Token from your Postmark account (Servers → your server → API Tokens), then in `DevLog.Api/appsettings.Development.json` replace `Postmark:ApiKey`. Also replace `Postmark:FromAddress` with a Sender Signature (or domain) you've verified in the Postmark dashboard — Postmark rejects sends from an unverified From address outright, it won't silently accept it.
+
+Since there's no portfolio-update endpoint yet (`PortfolioController` only has `GET /me` — a pre-existing gap, not new to this milestone), set your own `NotificationEmail` directly for now:
+
+```sql
+UPDATE portfolios SET notification_email = 'you@example.com' WHERE tenant_id = (SELECT id FROM tenants WHERE slug = '<your-slug>');
+```
+
+### Step 24 — smoke-test
+
+Repeat Milestone 5's Step 21, part 1 (submit an interview request anonymously) against a tenant whose `NotificationEmail` is now set, and confirm the email arrives. If it doesn't, check the API logs for the `LogWarning` `InterviewRequestService` emits on send failure before assuming the request itself failed — it won't have.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add email integration: creator notification on new interview requests (Postmark)"
+git push
+```
+
+---
+
 ## What comes after this
 
-Once Step 18 checks out, the next milestone per `DevLog-MVP-Roadmap.md` is Request Interview — the last Phase 1 feature and the product's actual conversion event. Come back and I'll help design and write that next.
+Phase 1 core features (per `DevLog-MVP-Roadmap.md`'s feature table) are complete, and the creator-notification gap Milestone 5 left open is now closed. What's left before this is genuinely launch-ready is the rest of the Phase 1 security/hardening list from the roadmap's "Security items that belong in Phase 1" section: the table-owner RLS bypass flagged since Milestone 4 (needs a non-owner app role + `FORCE ROW LEVEL SECURITY`), output sanitization on rendered entry content (stored XSS), and recruiter email verification (distinct from this milestone's creator notification — that one gates whether a request is trustworthy in the first place, not whether the creator hears about it). Come back and I'll help work through that list next, or if you'd rather dogfood first per the roadmap's recommendation, we can talk through what that looks like instead.

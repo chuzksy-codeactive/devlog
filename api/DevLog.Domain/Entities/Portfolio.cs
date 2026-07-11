@@ -21,4 +21,14 @@ public class Portfolio
 
     public PortfolioVisibility Visibility { get; set; } = PortfolioVisibility.Unlisted;
     public bool Discoverable { get; set; } = false;
+
+    // Creator-supplied — backs the interview-request notification email
+    // (architecture doc Section 6: "on insert, a job sends a notification
+    // email to the creator"). Optional: if unset, requests still save
+    // successfully, the creator just has to poll GET /api/interview-requests
+    // instead of getting notified. No dedicated update endpoint exists yet
+    // to set this via the API — same pre-existing gap as Portfolio having
+    // no PUT/PATCH endpoint at all (PortfolioController only has GET /me
+    // today); set directly via SQL/EF for now.
+    public string? NotificationEmail { get; set; }
 }

@@ -20,6 +20,10 @@
     "GenerationModel": "gpt-4o-mini",
     "MaxTokens": 2048
   },
+  "Postmark": {
+    "ApiKey": "REPLACE-WITH-YOUR-POSTMARK-SERVER-TOKEN",
+    "FromAddress": "REPLACE-WITH-A-VERIFIED-POSTMARK-SENDER-SIGNATURE"
+  },
   "Cors": {
     "FrontendOrigins": ["http://localhost:3000"]
   },
