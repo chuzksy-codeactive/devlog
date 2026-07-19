@@ -400,6 +400,48 @@ git push
 
 ---
 
+## Milestone 8 — RLS force-on-owner fix (the app stops connecting as a superuser)
+
+This is a correction, not just a fix. Every RLS script since `001` carried the same note: "needs a non-owner app role + `FORCE ROW LEVEL SECURITY`." Checking that against how the official Postgres Docker image actually behaves: `POSTGRES_USER` (this project's `devlog`, set in `docker-compose.yml`) is created as a genuine Postgres **superuser**, not just a table owner. Postgres unconditionally disables row security for superusers — `FORCE ROW LEVEL SECURITY` doesn't touch that at all, it only affects a non-superuser owner. So every prior note was aiming at the wrong lever. The real fix: stop the app from connecting as a superuser, full stop.
+
+New: `sql/005_create_app_role.sql` creates `devlog_app`, an ordinary non-superuser, non-owner role, with `SELECT`/`INSERT`/`UPDATE`/`DELETE` grants (plus `ALTER DEFAULT PRIVILEGES` so future migrations' tables are covered automatically, not just what exists today). `DevLogDbContextFactory` (new — an `IDesignTimeDbContextFactory<DevLogDbContext>`) keeps `dotnet ef` commands running as the owner (`devlog`, via `ConnectionStrings:DevLogDb`) since DDL needs those rights; `ServiceCollectionExtensions.AddDevLogInfrastructure` now points real app traffic at a new `ConnectionStrings:DevLogDbRuntime` connection instead, using `devlog_app`. `TenantIsolationTests` now connects as `devlog_app` too — worth being direct about what that means: every previous run of that "Sprint 0 exit criterion" test, from Sprint 0 through Milestone 7, connected as the superuser and could only ever have proven the policy SQL was internally consistent, not that RLS was blocking anything for the role real traffic actually uses. This is the first version of the test that can actually fail the way it's supposed to. Fixing it also surfaced a real bug in the test's own seed step (a mismatched tenant context that RLS's `WITH CHECK` would now correctly reject) — fixed alongside.
+
+### Step 28 — create the restricted role
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/005_create_app_role.sql
+```
+
+Run this after all migrations and `sql/001` through `sql/004` are applied.
+
+### Step 29 — re-run the isolation test for real
+
+```bash
+cd Devlog.os/api/DevLog.Tests
+dotnet test
+```
+
+Both tests must still pass — but this time they're actually proving something. If either fails now and didn't before, that's the fix working as intended: a real policy gap that superuser access was silently hiding.
+
+### Step 30 — confirm the app still runs against the restricted role
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet run
+```
+
+Exercise a few endpoints (Ask AI, `GET /api/portfolio/me`, submitting an interview request) to confirm nothing broke — the app should behave identically from the outside, since `devlog_app` has exactly the privileges the app ever legitimately needed.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Fix RLS force-on-owner gap: app connects as a restricted non-superuser role, not the migration owner"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1 core features (per `DevLog-MVP-Roadmap.md`'s feature table) are complete, and both the creator-notification gap and the "no real onboarding" gap are closed. What's left before this is genuinely launch-ready is the rest of the Phase 1 security/hardening list: the table-owner RLS bypass flagged since Milestone 4 (needs a non-owner app role + `FORCE ROW LEVEL SECURITY` — now covers `portfolios` too), output sanitization on rendered entry content (stored XSS), and recruiter email verification (a separate control from this milestone's onboarding — gates whether a request is trustworthy, not whether a tenant exists). Come back and I'll help work through that list next.
+Phase 1 core features are complete, and the three biggest infrastructure gaps — onboarding, missing `portfolios` RLS, and the superuser bypass — are all closed. What's left from the Phase 1 security list: output sanitization on rendered entry content (stored XSS — Sprint Journal content, including code snippets, renders on public pages today with no sanitization pass), and recruiter email verification (an anti-abuse control gating whether an interview request is trustworthy, separate from Milestone 6's creator-notification and Milestone 7's onboarding). Come back and I'll help work through whichever's next.

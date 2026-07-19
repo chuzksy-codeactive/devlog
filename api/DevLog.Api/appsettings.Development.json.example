@@ -1,6 +1,7 @@
 {
   "ConnectionStrings": {
-    "DevLogDb": "Host=localhost;Port=5432;Database=devlog;Username=devlog;Password=devlog_local"
+    "DevLogDb": "Host=localhost;Port=5432;Database=devlog;Username=devlog;Password=devlog_local",
+    "DevLogDbRuntime": "Host=localhost;Port=5432;Database=devlog;Username=devlog_app;Password=devlog_app_local"
   },
   "Clerk": {
     "Authority": "https://REPLACE-WITH-YOUR-CLERK-FRONTEND-API-URL",

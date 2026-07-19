@@ -25,6 +25,14 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
     <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.8" />
+    <!-- DevLogDbContextFactory (Milestone 8) reads appsettings via
+         SetBasePath/AddJsonFile for dotnet ef tooling — this project is a
+         plain Microsoft.NET.Sdk library, not Sdk.Web, so it doesn't get
+         these implicitly the way DevLog.Api does. Same 10.0.8 pin as
+         Microsoft.Extensions.Http above, for consistency within this
+         release train rather than picking an unrelated version number. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
     <!-- 0.3.0 (latest) — safe now that Npgsql.EntityFrameworkCore.PostgreSQL
          is on 10.0.1, which satisfies this package's requirement of
          Npgsql.EntityFrameworkCore.PostgreSQL >= 9.0.1. Was pinned to 0.2.2

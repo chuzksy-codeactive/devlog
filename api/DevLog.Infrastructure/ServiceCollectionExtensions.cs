@@ -23,7 +23,15 @@ public static class ServiceCollectionExtensions
         // `Vector` CLR type to Postgres's `vector` column type. Registered
         // as a singleton, which is the documented Npgsql lifetime for a
         // data source (it pools connections internally).
-        var dataSourceBuilder = new NpgsqlDataSourceBuilder(configuration.GetConnectionString("DevLogDb"));
+        //
+        // DevLogDbRuntime, not DevLogDb — Milestone 8's RLS force-on-owner
+        // fix. Real app traffic now connects as `devlog_app`, a deliberately
+        // unprivileged, non-owner, non-superuser role (sql/005), so RLS
+        // policies actually apply to it. `DevLogDb` (the `devlog` owner
+        // role) still exists in config, but only DevLogDbContextFactory
+        // (used by `dotnet ef` for migrations, which need DDL rights this
+        // role doesn't have) reads it now.
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(configuration.GetConnectionString("DevLogDbRuntime"));
         dataSourceBuilder.UseVector();
         services.AddSingleton(dataSourceBuilder.Build());
 
