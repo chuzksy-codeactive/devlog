@@ -25,6 +25,9 @@
     "ApiKey": "REPLACE-WITH-YOUR-POSTMARK-SERVER-TOKEN",
     "FromAddress": "REPLACE-WITH-A-VERIFIED-POSTMARK-SENDER-SIGNATURE"
   },
+  "Frontend": {
+    "BaseUrl": "http://localhost:3000"
+  },
   "Cors": {
     "FrontendOrigins": ["http://localhost:3000"]
   },

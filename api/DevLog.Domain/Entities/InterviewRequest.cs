@@ -25,6 +25,22 @@ public class InterviewRequest
     // creator explicitly chooses to.
     public string? ContactInstructions { get; set; }
 
+    // Milestone 10 — recruiter email verification (architecture doc Section
+    // 9's Phase 1 security item, deliberately deferred until now). Separate
+    // from Status on purpose: EmailVerified is "is this request even real,"
+    // Status is "what did the creator decide about it" — two independent
+    // dimensions, not one combined state machine. Unverified requests never
+    // appear in the creator's inbox (CreatorInterviewRequestsController) and
+    // never trigger the creator-notification email (Milestone 6) —
+    // verification is what makes a submission actually arrive, not just get
+    // stored.
+    public bool EmailVerified { get; set; }
+
+    // Null once verified (or once expired and abandoned) — a one-time,
+    // single-use token, not a reusable secret sitting on the row forever.
+    public string? VerificationToken { get; set; }
+    public DateTime? VerificationTokenExpiresAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? RespondedAt { get; set; }
 }

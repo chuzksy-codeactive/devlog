@@ -167,6 +167,10 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("EmailVerified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("email_verified");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("text")
@@ -193,6 +197,14 @@ namespace DevLog.Infrastructure.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<string>("VerificationToken")
+                        .HasColumnType("text")
+                        .HasColumnName("verification_token");
+
+                    b.Property<DateTime?>("VerificationTokenExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verification_token_expires_at");
 
                     b.HasKey("Id")
                         .HasName("pk_interview_requests");

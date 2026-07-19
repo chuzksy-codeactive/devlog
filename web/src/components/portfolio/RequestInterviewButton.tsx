@@ -70,9 +70,10 @@ export function RequestInterviewButton({ slug }: { slug: string }) {
         <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-zinc-200 bg-white p-4 text-sm shadow-lg">
           {status === "sent" ? (
             <div>
-              <p className="text-zinc-900">Request sent.</p>
+              <p className="text-zinc-900">Almost there — check your inbox.</p>
               <p className="mt-1 text-xs text-zinc-500">
-                They&apos;ll reach out at {recruiterEmail} if they accept.
+                We sent a confirmation link to {recruiterEmail}. Click it to send your request — we only notify
+                the creator once you&apos;ve confirmed it&apos;s really you.
               </p>
               <button onClick={reset} className="mt-3 text-xs font-medium text-indigo-600 underline">
                 Close

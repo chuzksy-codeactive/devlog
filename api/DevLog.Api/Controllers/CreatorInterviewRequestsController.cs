@@ -31,10 +31,18 @@ public class CreatorInterviewRequestsController : ControllerBase
     // deliberate pattern as PortfolioController/EntriesController: RLS's
     // tenant_isolation policy is what actually scopes this to the caller's
     // own tenant.
+    //
+    // WHERE EmailVerified is real filtering, though, not just defense in
+    // depth (Milestone 10) — an unconfirmed request shouldn't exist in the
+    // creator's world at all yet. A fabricated or mistyped recruiter email
+    // that never completes verification stays invisible here permanently,
+    // not just until it "expires" — this is the actual anti-abuse control,
+    // not a cosmetic filter.
     [HttpGet]
     public async Task<IActionResult> GetInbox(CancellationToken cancellationToken)
     {
         var requests = await _db.InterviewRequests
+            .Where(r => r.EmailVerified)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
 

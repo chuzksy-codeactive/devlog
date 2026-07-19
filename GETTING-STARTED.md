@@ -486,6 +486,59 @@ git push
 
 ---
 
+## Milestone 10 — recruiter email verification (last Phase 1 security item)
+
+Closes the last item on the original Phase 1 security list: nothing previously confirmed a recruiter's email address was real before a creator got notified about it — Milestone 6 sent the creator notification straight from `CreateAsync`, so a fabricated or mistyped address looked identical to a real one. This adds a verify-before-notify step: submitting a request now emails the recruiter a one-time confirmation link, and the creator only finds out once that link is clicked.
+
+New backend: `InterviewRequest` gains `EmailVerified` (bool), `VerificationToken` (a 64-char random hex string, `RandomNumberGenerator.GetHexString(64)`), and `VerificationTokenExpiresAt` (24-hour lifetime) — deliberately orthogonal to `Status`: verification answers "is this request real," `Status` answers "what did the creator decide," and a request can be verified-but-pending or (in theory) verified-and-declined. `InterviewRequestService.CreateAsync` no longer calls `NotifyCreatorAsync` directly — it generates the token and calls new `SendVerificationEmailAsync`, which emails the recruiter a link to `{Frontend:BaseUrl}/verify-interview-request` carrying `slug`, `requestId`, and `token` as query params. New `VerifyEmailAsync(requestId, token)` — anonymous, no tenant context, the token itself is the credential — checks the token matches and hasn't expired, flips `EmailVerified`, clears the token fields, and only then calls `NotifyCreatorAsync` (moved here from `CreateAsync`). New `POST /api/portfolio/{slug}/interview-requests/{id}/verify` on `InterviewRequestsController` (anonymous, same trust boundary as `Create`) wraps it. `CreatorInterviewRequestsController.GetInbox` now filters `WHERE EmailVerified` — this is real anti-abuse filtering, not just defense in depth: an unconfirmed request never appears in the creator's inbox at all, not even temporarily. New `FrontendOptions` (`Frontend:BaseUrl` in config) gives the backend the frontend's own base URL to build the confirmation link with, since that link is emailed, not returned in an API response.
+
+New frontend: `web/src/app/verify-interview-request/page.tsx` — a client component (query-param driven, wrapped in `Suspense` per Next.js's `useSearchParams` requirement) that reads `slug`/`requestId`/`token`, POSTs to the verify endpoint, and shows a confirmed / already-confirmed / expired / invalid-link / error state. `RequestInterviewButton`'s success copy now says to check email for a confirmation link instead of implying the creator was already notified.
+
+### Step 34 — new migration (email verification fields)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddEmailVerificationToInterviewRequests --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 35 — set the frontend base URL
+
+`appsettings.Development.json` already has a `Frontend:BaseUrl` section defaulted to `http://localhost:3000` — only change it if your Next.js dev server runs somewhere else.
+
+### Step 36 — smoke-test end to end
+
+```bash
+# 1. Anonymous recruiter submits a request (same as Milestone 5's Step 21)
+curl.exe -X POST https://localhost:<port>/api/portfolio/<your-slug>/interview-requests `
+  -H "Content-Type: application/json" `
+  -d '{"recruiterEmail":"recruiter@example.com","recruiterName":"Jordan","note":"Got 20 min this week?"}'
+
+# 2. Check the recruiter's inbox for "Confirm your DevLog interview request" — confirm no
+#    creator-notification email arrives yet, and the request does NOT show up in:
+curl.exe https://localhost:<port>/api/interview-requests -H "Authorization: Bearer <token>"
+
+# 3. Click the link in the email (lands on /verify-interview-request), or call the endpoint
+#    directly with the id from step 1's response and the token from the email URL:
+curl.exe -X POST https://localhost:<port>/api/portfolio/<your-slug>/interview-requests/<id>/verify `
+  -H "Content-Type: application/json" -d '{"token":"<token-from-email-link>"}'
+
+# 4. Now check both: the creator-notification email should have just arrived, and the
+#    request should now appear in GET /api/interview-requests.
+```
+
+Also confirm clicking the same link twice returns `alreadyVerified: true` rather than erroring, and that a token past 24 hours (or a tampered one) returns the expired/invalid state on the frontend page.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add recruiter email verification: verify-before-notify on interview requests"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1 core features are complete, all three biggest infrastructure gaps (onboarding, missing `portfolios` RLS, superuser bypass) are closed, and the Sprint Journal — the last of the 5 core IA surfaces — is real. What's left from the original Phase 1 security list: recruiter email verification, an anti-abuse control gating whether an interview request is trustworthy, separate from Milestone 6's creator-notification and Milestone 7's onboarding. Come back and I'll help with that, or whatever's next on your mind.
+Phase 1 is now fully closed: all five core IA surfaces are real, and every item on the original Phase 1 security list (output sanitization, RLS force-on-owner, real onboarding, recruiter email verification) is done except secrets management, which stays deliberately deferred to actual deployment time rather than built against a sandbox that will just be re-configured anyway. Come back when you're ready to deploy, or with whatever's next on your mind.

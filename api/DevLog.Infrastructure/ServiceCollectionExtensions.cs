@@ -106,6 +106,10 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Add("X-Postmark-Server-Token", options.ApiKey);
         });
 
+        // Milestone 10 — InterviewRequestService needs the frontend's own
+        // base URL to build the confirmation link it emails a recruiter.
+        services.Configure<FrontendOptions>(configuration.GetSection(FrontendOptions.SectionName));
+
         services.AddScoped<EmbeddingPipelineService>();
         services.AddScoped<SanitizationPipelineService>();
         services.AddScoped<AskAiService>();
