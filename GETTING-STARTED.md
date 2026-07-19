@@ -442,6 +442,50 @@ git push
 
 ---
 
+## Milestone 9 — Sprint Journal page + output sanitization
+
+Asked to close the "output sanitization on rendered entries" security item, but tracing it found there was nothing to sanitize yet — no Sprint Journal page existed at all (`/journal` was still Milestone 3's disabled "Coming soon" nav item), no entry-rendering component, no markdown library installed. Scoped up to building the real page, sanitized from day one, rather than shipping inert safety infrastructure with nothing using it yet.
+
+New backend: `RawEntry.Title` / `PublishedEntry.Title` (no title field existed anywhere in this schema before now — entries were designed as a single free-text blob from the start) and `PublishedEntry.SourceEntryType` (a denormalized copy of `RawEntry.EntryType`, not a join — `raw_entries` has zero RLS grant for the anon/public role, so the new public endpoint below can never join through to it). `EntriesController`'s `CreateEntryRequest` now requires `title`. New `SprintJournalController` — `GET /api/portfolio/{slug}/entries` (listing, `SourceEntryType == SprintEntry` only) and `GET /api/portfolio/{slug}/entries/{id}` (detail, includes the full `sanitizedContent`), both anonymous, same portfolio-by-slug + visibility-check pattern as `AskAiService`/`InterviewRequestService`.
+
+New frontend: `react-markdown` + `rehype-sanitize` + `remark-gfm` (pinned to 10.1.0/6.0.0/4.0.1, checked against the npm registry). `SanitizedMarkdown.tsx` is the actual fix — `react-markdown` parses markdown into real React elements and never calls `dangerouslySetInnerHTML` unless the `rehype-raw` plugin is added, which is deliberately never imported anywhere in this codebase; `rehype-sanitize`'s default allowlist schema adds a second, independent layer on top (blocks `javascript:` URIs in markdown links/images, event-handler attributes, and any `<style>`/`<script>` a plugin might otherwise introduce). Styled with explicit Tailwind utility classes via `react-markdown`'s `components` map, not the `@tailwindcss/typography` plugin's `prose` classes — that plugin isn't installed anywhere else in this project, and this was the only place that would have needed it. New pages: `[slug]/journal/page.tsx` (listing) and `[slug]/journal/[entryId]/page.tsx` (detail). `PortfolioNav`'s Journal link is enabled now; `ExperienceTimeline`'s "coming soon" placeholder link now goes to the journal for real (entries and experiences aren't associated with each other in the schema, so it links to the index, not a filtered view).
+
+Also new: `next.config.ts` now sets a `Content-Security-Policy` header on every response (architecture doc Section 9's second half of this fix, defense in depth alongside the renderer). `script-src`/`style-src` allow `'unsafe-inline'` deliberately — Next.js App Router hydration and Tailwind's critical CSS both rely on it, and a strict nonce-based policy is bigger scope than this milestone. Verify in an actual browser once running (`npm run dev`, check the console for CSP violations) — this is config the sandbox can't render and check itself, same caveat pattern as `next build`.
+
+### Step 31 — new migration (Title + SourceEntryType)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddTitleAndSourceEntryTypeToEntries --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 32 — install the new frontend packages
+
+```bash
+cd Devlog.os/web
+npm install
+```
+
+`package.json` already lists `react-markdown`/`rehype-sanitize`/`remark-gfm` — this just needs to actually pull them into your local `node_modules`.
+
+### Step 33 — smoke-test end to end
+
+1. Create, sanitize, and approve a `SprintEntry` (Milestone 2's Step 11, now with a `title` in the create request) so at least one row exists with `SourceEntryType = SprintEntry`.
+2. `npm run dev` and visit `http://localhost:3000/<your-slug>/journal` — confirm your entry appears, then click into it and confirm the markdown (headings, lists, a code block if your entry has one) renders correctly styled, not as raw text.
+3. Open browser dev tools → Network → pick the page request → confirm a `Content-Security-Policy` response header is present.
+4. As a deliberate check, try approving an entry whose raw content includes something like `` `<script>alert(1)</script>` `` or a markdown link with a `javascript:` URI, and confirm it renders as inert text/is stripped, not executed.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add Sprint Journal page with sanitized markdown rendering + CSP header"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1 core features are complete, and the three biggest infrastructure gaps — onboarding, missing `portfolios` RLS, and the superuser bypass — are all closed. What's left from the Phase 1 security list: output sanitization on rendered entry content (stored XSS — Sprint Journal content, including code snippets, renders on public pages today with no sanitization pass), and recruiter email verification (an anti-abuse control gating whether an interview request is trustworthy, separate from Milestone 6's creator-notification and Milestone 7's onboarding). Come back and I'll help work through whichever's next.
+Phase 1 core features are complete, all three biggest infrastructure gaps (onboarding, missing `portfolios` RLS, superuser bypass) are closed, and the Sprint Journal — the last of the 5 core IA surfaces — is real. What's left from the original Phase 1 security list: recruiter email verification, an anti-abuse control gating whether an interview request is trustworthy, separate from Milestone 6's creator-notification and Milestone 7's onboarding. Come back and I'll help with that, or whatever's next on your mind.

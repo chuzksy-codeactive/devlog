@@ -8,13 +8,14 @@ import { RequestInterviewButton } from "./RequestInterviewButton";
 // Journal, Learning Lab, plus the persistent Ask AI + Request Interview
 // actions (those two render separately — see AskAiWidget/RequestInterviewButton —
 // since they're not "pages," they're persistent across all of them).
-// Sprint Journal and Learning Lab routes don't exist yet (later milestones
-// per the roadmap); linking to them now with a "soon" badge keeps the nav
-// honest about what's actually built.
+// Sprint Journal shipped in Milestone 9 (real page, sanitized markdown
+// rendering). Learning Lab route still doesn't exist (a later roadmap
+// milestone); linking to it now with a "soon" badge keeps the nav honest
+// about what's actually built.
 const NAV_ITEMS = [
   { href: "", label: "Home", enabled: true },
   { href: "/experience", label: "Experience", enabled: true },
-  { href: "/journal", label: "Sprint Journal", enabled: false },
+  { href: "/journal", label: "Sprint Journal", enabled: true },
   { href: "/learning", label: "Learning Lab", enabled: false },
 ];
 

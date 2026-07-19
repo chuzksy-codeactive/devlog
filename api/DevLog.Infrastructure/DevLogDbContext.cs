@@ -100,6 +100,7 @@ public class DevLogDbContext : DbContext
         {
             e.ToTable("published_entries");
             e.HasKey(x => x.Id);
+            e.Property(x => x.SourceEntryType).HasConversion<string>();
             e.Property(x => x.Tags)
                 .HasColumnType("jsonb")
                 .HasConversion(

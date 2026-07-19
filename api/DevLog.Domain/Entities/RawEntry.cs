@@ -11,6 +11,15 @@ public class RawEntry
     public Tenant? Tenant { get; set; }
 
     public RawEntryType EntryType { get; set; }
+
+    // No title field existed anywhere in this schema until Milestone 9 —
+    // not on RawEntry, not on PublishedEntry, not even in the architecture
+    // doc's own ERD. Entries were designed as a single free-text blob from
+    // the start (see TextChunker's paragraph-based chunking note). Added
+    // because a Sprint Journal listing page needs something to show before
+    // a reader opens the full entry.
+    public string Title { get; set; } = string.Empty;
+
     public string RawContent { get; set; } = string.Empty;
     public RawEntryStatus Status { get; set; } = RawEntryStatus.Draft;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

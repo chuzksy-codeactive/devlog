@@ -45,3 +45,20 @@ export const experienceTypeLabel: Record<ExperienceType, string> = {
   Freelance: "Freelance",
   Education: "Education",
 };
+
+// Mirrors GET /api/portfolio/:slug/entries — deliberately without `content`,
+// matching the backend's listing/detail split (SprintJournalController.cs).
+export interface SprintJournalEntrySummary {
+  id: string;
+  title: string;
+  tags: string[];
+  publishedAt: string; // ISO datetime
+}
+
+// Mirrors GET /api/portfolio/:slug/entries/:id — adds the full sanitized
+// markdown body, rendered only through SanitizedMarkdown.tsx, never
+// dangerouslySetInnerHTML directly (architecture doc Section 9's stored-XSS
+// fix).
+export interface SprintJournalEntryDetail extends SprintJournalEntrySummary {
+  content: string;
+}

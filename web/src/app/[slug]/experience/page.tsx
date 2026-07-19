@@ -29,7 +29,7 @@ export default async function ExperiencePage({
         </p>
       ) : (
         <div className="mt-10">
-          <ExperienceTimeline experiences={portfolio.experiences} />
+          <ExperienceTimeline experiences={portfolio.experiences} slug={slug} />
         </div>
       )}
     </section>

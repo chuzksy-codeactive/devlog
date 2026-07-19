@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ExperienceEntry, experienceTypeLabel } from "@/lib/types";
 import { formatDateRange } from "@/lib/portfolio-utils";
 
@@ -9,7 +10,7 @@ const TYPE_BADGE_STYLES: Record<string, string> = {
   Education: "bg-zinc-100 text-zinc-600",
 };
 
-export function ExperienceTimeline({ experiences }: { experiences: ExperienceEntry[] }) {
+export function ExperienceTimeline({ experiences, slug }: { experiences: ExperienceEntry[]; slug: string }) {
   const sorted = [...experiences].sort(
     (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
   );
@@ -52,18 +53,18 @@ export function ExperienceTimeline({ experiences }: { experiences: ExperienceEnt
 
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-900">{entry.keyAchievement}</p>
 
-          {/* Forward link into the filtered Sprint Journal for this period —
-              Product Brief: "the connective tissue between what I did and how
-              I did it survives the split." Sprint Journal page is a later
-              milestone, so this is a disabled placeholder for now — kept
-              visually muted/disabled rather than accent-colored so it stays
-              honest about what's actually clickable. */}
-          <span
-            className="mt-3 inline-block cursor-not-allowed text-sm text-zinc-400"
-            title="Sprint Journal isn't built yet"
+          {/* Forward link into the Sprint Journal — Product Brief: "the
+              connective tissue between what I did and how I did it survives
+              the split." Links to the journal index, not a period-filtered
+              view — entries and experiences aren't associated with each
+              other in the schema (no shared foreign key), so a real
+              per-period filter is a later refinement, not this link. */}
+          <Link
+            href={`/${slug}/journal`}
+            className="mt-3 inline-block text-sm text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
           >
-            See related sprint entries →
-          </span>
+            See sprint entries →
+          </Link>
         </li>
       ))}
     </ol>

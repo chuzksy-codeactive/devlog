@@ -278,6 +278,11 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("sanitized_content");
 
+                    b.Property<string>("SourceEntryType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("source_entry_type");
+
                     b.Property<string>("Tags")
                         .IsRequired()
                         .HasColumnType("jsonb")
@@ -286,6 +291,11 @@ namespace DevLog.Infrastructure.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
 
                     b.HasKey("Id")
                         .HasName("pk_published_entries");
@@ -337,6 +347,11 @@ namespace DevLog.Infrastructure.Migrations
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
 
                     b.HasKey("Id")
                         .HasName("pk_raw_entries");

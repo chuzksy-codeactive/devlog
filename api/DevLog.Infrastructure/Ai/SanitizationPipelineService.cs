@@ -85,7 +85,9 @@ public class SanitizationPipelineService
             Id = Guid.NewGuid(),
             RawEntryId = entry.Id,
             TenantId = entry.TenantId,
+            Title = entry.Title,
             SanitizedContent = entry.SanitizedPreview,
+            SourceEntryType = entry.EntryType,
             PublishedAt = DateTime.UtcNow
         };
         _db.PublishedEntries.Add(published);

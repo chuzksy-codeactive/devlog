@@ -32,3 +32,11 @@ export function formatDateRange(startDate: string, endDate: string | null): stri
   const endLabel = end.toLocaleDateString("en-US", { month: "short", year: "numeric" });
   return `${startLabel} — ${endLabel}`;
 }
+
+export function formatPublishedDate(isoDateTime: string): string {
+  return new Date(isoDateTime).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}

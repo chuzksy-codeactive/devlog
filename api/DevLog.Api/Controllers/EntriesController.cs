@@ -42,6 +42,11 @@ public class EntriesController : ControllerBase
             return Unauthorized("No tenant context resolved from the current token.");
         }
 
+        if (string.IsNullOrWhiteSpace(request.Title))
+        {
+            return BadRequest("title is required.");
+        }
+
         if (string.IsNullOrWhiteSpace(request.RawContent))
         {
             return BadRequest("rawContent is required.");
@@ -52,6 +57,7 @@ public class EntriesController : ControllerBase
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             EntryType = request.EntryType,
+            Title = request.Title,
             RawContent = request.RawContent,
             Status = RawEntryStatus.Draft,
             CreatedAt = DateTime.UtcNow
@@ -119,6 +125,7 @@ public class EntriesController : ControllerBase
     {
         entry.Id,
         entry.EntryType,
+        entry.Title,
         entry.RawContent,
         entry.SanitizedPreview,
         entry.SanitizationModelVersion,
@@ -126,5 +133,5 @@ public class EntriesController : ControllerBase
         entry.CreatedAt
     };
 
-    public record CreateEntryRequest(RawEntryType EntryType, string RawContent);
+    public record CreateEntryRequest(RawEntryType EntryType, string Title, string RawContent);
 }
