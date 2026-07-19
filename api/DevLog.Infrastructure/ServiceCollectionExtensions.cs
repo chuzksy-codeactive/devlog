@@ -15,6 +15,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
         services.AddScoped<TenantConnectionInterceptor>();
+        services.AddScoped<TenantProvisioningService>();
 
         // Built via NpgsqlDataSourceBuilder (rather than passing the
         // connection string straight to UseNpgsql) specifically for

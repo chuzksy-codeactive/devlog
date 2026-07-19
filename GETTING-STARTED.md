@@ -347,6 +347,59 @@ git push
 
 ---
 
+## Milestone 7 — real onboarding (no more hand-inserted rows)
+
+This turned out to be a bigger fix than "add a signup form." Tracing through the existing code: `TenantResolutionMiddleware` only ever read a custom `tenant_id` JWT claim, but nothing anywhere ever configured Clerk to issue that claim — so it was always empty for a real Clerk-issued token. That meant every authenticated write endpoint built so far (`EntriesController`, `CreatorInterviewRequestsController`, `PortfolioController`) would have returned `Unauthorized`/empty for a real signed-in user, not just for lack of a signup form. This milestone fixes that at the root.
+
+New: `Tenant.UserId` is now a `string` (Clerk's `sub` claim — `"user_2abc..."` — never fit in the old `Guid`), with a unique index. `TenantProvisioningService` (Infrastructure/MultiTenancy/) auto-creates a `Tenant` + placeholder `Portfolio` the first time a Clerk-authenticated request arrives from a user with no existing row, keyed on `sub` — no webhook, no Clerk dashboard changes, matching this project's running preference for the simpler synchronous option. `TenantResolutionMiddleware` now calls it instead of reading the dead custom claim. `sql/004_portfolios_policy.sql` adds RLS to `portfolios`, which never actually got a policy in 001-003 — a real gap, not a deferral: `GetMyPortfolio`'s "no WHERE clause, RLS enforces scope" comment was false with zero policies on that table, and it stayed invisible only because the dev database never had more than one portfolio row until now. `PortfolioController.GetMyPortfolio` now filters explicitly by tenant id (required once a `public_read` policy means more than one row is legitimately visible to any given caller), and there's a new `PUT /api/portfolio/me` so `NotificationEmail` and everything else on a portfolio can finally be set through the API instead of SQL.
+
+### Step 25 — new migration (Tenant.UserId type change + unique index)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add ChangeTenantUserIdToString --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+Before running this, clean up the synthetic `chika` tenant/portfolio rows from the Milestone 6 smoke test — they have a random GUID in `user_id`, which won't match any real Clerk `sub` and will just sit there as clutter (or collide oddly with the type change):
+
+```sql
+DELETE FROM portfolios WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'chika');
+DELETE FROM tenants WHERE slug = 'chika';
+```
+
+### Step 26 — apply the new RLS policy
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/004_portfolios_policy.sql
+```
+
+### Step 27 — smoke-test end to end
+
+1. Sign in via your real Clerk-hosted flow and get a real bearer token (same as Step 7).
+2. Hit any authenticated endpoint for the first time — `GET /api/portfolio/me` is the simplest:
+   ```bash
+   curl.exe https://localhost:<port>/api/portfolio/me -H "Authorization: Bearer <token>"
+   ```
+   This should now return a freshly auto-provisioned portfolio (`"headline": "New DevLog member"`, a `dev-xxxxxxxx` placeholder slug) instead of 401/empty — confirm a `tenants` row and a `portfolios` row both exist for you in the database too.
+3. Set your real profile data and `NotificationEmail` through the new update endpoint instead of SQL:
+   ```bash
+   curl.exe -X PUT https://localhost:<port>/api/portfolio/me `
+     -H "Authorization: Bearer <token>" -H "Content-Type: application/json" `
+     -d '{"headline":"Backend engineer building DevLog","notificationEmail":"you@example.com","visibility":"Unlisted"}'
+   ```
+4. Re-run Milestone 5's interview-request smoke test against your real slug (from step 2's response) instead of `chika`, and confirm the notification email still arrives — this proves the whole chain (auto-provisioned tenant → real portfolio → public anonymous lookup by slug → notification) works end to end without any manual SQL.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add real onboarding: auto-provision Tenant/Portfolio on first Clerk request, fix missing portfolios RLS, add portfolio update endpoint"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1 core features (per `DevLog-MVP-Roadmap.md`'s feature table) are complete, and the creator-notification gap Milestone 5 left open is now closed. What's left before this is genuinely launch-ready is the rest of the Phase 1 security/hardening list from the roadmap's "Security items that belong in Phase 1" section: the table-owner RLS bypass flagged since Milestone 4 (needs a non-owner app role + `FORCE ROW LEVEL SECURITY`), output sanitization on rendered entry content (stored XSS), and recruiter email verification (distinct from this milestone's creator notification — that one gates whether a request is trustworthy in the first place, not whether the creator hears about it). Come back and I'll help work through that list next, or if you'd rather dogfood first per the roadmap's recommendation, we can talk through what that looks like instead.
+Phase 1 core features (per `DevLog-MVP-Roadmap.md`'s feature table) are complete, and both the creator-notification gap and the "no real onboarding" gap are closed. What's left before this is genuinely launch-ready is the rest of the Phase 1 security/hardening list: the table-owner RLS bypass flagged since Milestone 4 (needs a non-owner app role + `FORCE ROW LEVEL SECURITY` — now covers `portfolios` too), output sanitization on rendered entry content (stored XSS), and recruiter email verification (a separate control from this milestone's onboarding — gates whether a request is trustworthy, not whether a tenant exists). Come back and I'll help work through that list next.

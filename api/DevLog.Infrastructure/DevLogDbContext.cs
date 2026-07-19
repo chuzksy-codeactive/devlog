@@ -38,6 +38,12 @@ public class DevLogDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Slug).IsRequired();
             e.HasIndex(x => x.Slug).IsUnique();
+            e.Property(x => x.UserId).IsRequired();
+            // One Tenant per Clerk user — also the DB-level backstop against
+            // a race between two near-simultaneous first requests from the
+            // same brand-new user both trying to provision (see
+            // TenantProvisioningService's retry-on-conflict handling).
+            e.HasIndex(x => x.UserId).IsUnique();
 
             e.HasOne(x => x.Portfolio)
                 .WithOne(p => p!.Tenant)
