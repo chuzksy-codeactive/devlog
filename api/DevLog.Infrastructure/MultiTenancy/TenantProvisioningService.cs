@@ -16,10 +16,12 @@ namespace DevLog.Infrastructure.MultiTenancy;
 public class TenantProvisioningService
 {
     private readonly DevLogDbContext _db;
+    private readonly ICurrentTenantAccessor _tenantAccessor;
 
-    public TenantProvisioningService(DevLogDbContext db)
+    public TenantProvisioningService(DevLogDbContext db, ICurrentTenantAccessor tenantAccessor)
     {
         _db = db;
+        _tenantAccessor = tenantAccessor;
     }
 
     public async Task<Tenant> GetOrCreateTenantAsync(string clerkUserId, CancellationToken cancellationToken = default)
@@ -65,6 +67,26 @@ public class TenantProvisioningService
 
         _db.Tenants.Add(tenant);
         _db.Portfolios.Add(portfolio);
+
+        // portfolios carries RLS (sql/004) — its tenant_isolation policy has
+        // no explicit WITH CHECK, so Postgres falls back to the USING
+        // expression (tenant_id = current_setting('app.current_tenant')) for
+        // the INSERT too. TenantConnectionInterceptor only sets that GUC
+        // when ICurrentTenantAccessor.TenantId is already non-null — but
+        // nothing sets it until TenantResolutionMiddleware reads this
+        // method's return value, which is after this SaveChangesAsync call.
+        // Without setting it here first, the connection this INSERT runs on
+        // has no app.current_tenant at all, and the brand-new tenantId can
+        // never satisfy "tenant_id = NULL" — RLS rejects its own portfolio
+        // row. tenants itself has no RLS (see below), so it doesn't need
+        // this, but portfolios does. TenantResolutionMiddleware overwrites
+        // this with the same (or, on the race path below, the winning)
+        // tenant id immediately after this method returns, so setting it
+        // early here is only ever a preview of what it's about to become.
+        if (_tenantAccessor is CurrentTenantAccessor accessor)
+        {
+            accessor.TenantId = tenantId;
+        }
 
         try
         {

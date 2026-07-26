@@ -64,23 +64,7 @@ public class PortfolioController : ControllerBase
         // 11 ever needed). Also sidesteps Tenant<->Portfolio being a
         // circular EF navigation, which System.Text.Json would otherwise
         // choke on now that Tenant is actually included.
-        return Ok(new
-        {
-            slug = portfolio.Tenant!.Slug,
-            portfolio.Headline,
-            portfolio.DisplayName,
-            portfolio.PositioningLine,
-            portfolio.PhotoUrl,
-            portfolio.CurrentRole,
-            portfolio.YearsExperience,
-            portfolio.CoreTechnologies,
-            portfolio.LinkedInUrl,
-            portfolio.GitHubUrl,
-            portfolio.CvFileUrl,
-            portfolio.Visibility,
-            portfolio.Discoverable,
-            portfolio.NotificationEmail
-        });
+        return Ok(ToMyPortfolioDto(portfolio));
     }
 
     // PUT /api/portfolio/me — closes the "no update endpoint exists yet"
@@ -100,7 +84,17 @@ public class PortfolioController : ControllerBase
             return Unauthorized("No tenant context resolved from the current token.");
         }
 
-        var portfolio = await _db.Portfolios.FirstOrDefaultAsync(p => p.TenantId == tenantId);
+        // .Include(p => p.Tenant) here too, for the same reason as
+        // GetMyPortfolio — the shaped DTO below needs Slug regardless, and
+        // relying on TenantResolutionMiddleware's own earlier Tenant lookup
+        // to have incidentally fixed up this navigation via EF's change
+        // tracker (which is what caused this endpoint's original bug: it
+        // returned the raw entity, and that same incidental fixup turned
+        // Tenant<->Portfolio into a live reference cycle that
+        // System.Text.Json then choked on) isn't something to depend on.
+        var portfolio = await _db.Portfolios
+            .Include(p => p.Tenant)
+            .FirstOrDefaultAsync(p => p.TenantId == tenantId);
         if (portfolio is null)
         {
             return NotFound();
@@ -122,8 +116,36 @@ public class PortfolioController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(portfolio);
+        return Ok(ToMyPortfolioDto(portfolio));
     }
+
+    // Shared by GetMyPortfolio/UpdateMyPortfolio — the creator-authenticated
+    // shape (adds Slug, Visibility, Discoverable, NotificationEmail on top
+    // of what GetPublicPortfolio exposes). Never return a Portfolio entity
+    // directly from an action: Tenant<->Portfolio is a circular EF
+    // navigation, and the moment anything else in the same request scope
+    // (TenantResolutionMiddleware's own Tenant lookup runs on every
+    // authenticated request) has already tracked the matching Tenant row,
+    // EF's change-tracker fixup silently wires the two together — System.Text.Json
+    // then throws "a possible object cycle was detected" trying to
+    // serialize it, regardless of whether this query itself included Tenant.
+    private static object ToMyPortfolioDto(Portfolio portfolio) => new
+    {
+        slug = portfolio.Tenant!.Slug,
+        portfolio.Headline,
+        portfolio.DisplayName,
+        portfolio.PositioningLine,
+        portfolio.PhotoUrl,
+        portfolio.CurrentRole,
+        portfolio.YearsExperience,
+        portfolio.CoreTechnologies,
+        portfolio.LinkedInUrl,
+        portfolio.GitHubUrl,
+        portfolio.CvFileUrl,
+        portfolio.Visibility,
+        portfolio.Discoverable,
+        portfolio.NotificationEmail
+    };
 
     // GET /api/portfolio/{slug} — anonymous, public-facing. Replaces
     // web/src/lib/mock-portfolio.ts, which every public page (Home,
