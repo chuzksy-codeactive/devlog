@@ -6,9 +6,9 @@ import { AskAiWidget } from "@/components/portfolio/AskAiWidget";
 // Shared shell for every public-portfolio surface (Home, Experience, Sprint
 // Journal, Learning Lab) — the persistent nav, Ask AI widget, and Request
 // Interview CTA all live here so they survive navigation between those
-// pages, per the Product Brief's 5-surface IA. Real data source is
-// getPortfolioBySlug (currently mock; swap for a fetch to
-// GET /api/portfolio/:slug once that endpoint exists).
+// pages, per the Product Brief's 5-surface IA. getPortfolioBySlug is a real
+// fetch to GET /api/portfolio/:slug as of Milestone 11 — every page before
+// that ran on mock data.
 export default async function PortfolioLayout({
   children,
   params,

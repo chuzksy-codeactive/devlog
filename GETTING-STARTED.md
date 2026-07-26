@@ -539,6 +539,80 @@ git push
 
 ---
 
+## Milestone 11 — creator dashboard (the app becomes actually usable)
+
+Triggered by "I want to start using this for myself and partner" — investigating what that actually required surfaced that Phase 1, despite being "feature-complete," had no way for a creator to do anything except curl. Three real gaps, not one:
+
+1. **No creator UI at all.** Writing entries, editing your profile/experience, and managing interview requests were curl-only — every frontend page built so far was the recruiter/viewer side.
+2. **The public Home/Experience pages were still 100% mock data.** `lib/mock-portfolio.ts` was never actually swapped for a real fetch, despite its own comment promising that since Milestone 3 — `GET /api/portfolio/:slug` didn't exist until now.
+3. **`experiences` had zero RLS policy anywhere in `sql/001-005`** — not "missing public_read" like `portfolios` was in Milestone 7, genuinely no policy at all. Latent until now because nothing ever queried the table through the app.
+
+Also found and fixed in the process: **enums were never serializing as strings.** Nothing in `Program.cs` ever configured `JsonStringEnumConverter`, so the API's actual default behavior all along was serializing `PortfolioVisibility.Unlisted` as `1`, not `"Unlisted"` — meaning every prior curl example in this file that sent an enum as a JSON string (Milestone 2's `"entryType":"SprintEntry"`, Milestone 7's `"visibility":"Unlisted"`) would have failed to deserialize. Fixed globally in `Program.cs` rather than per-DTO.
+
+New backend: `Portfolio.DisplayName`/`PositioningLine`/`PhotoUrl` and `Experience.Title` (fields the frontend has needed since Milestone 3 but the entities never carried). `sql/006_experiences_policy.sql` (tenant_isolation + public_read). New `ExperienceController` (`GET/POST/PUT/DELETE /api/experiences`, creator-authenticated CRUD). New `GET /api/entries` (list mine) on `EntriesController`. New public `GET /api/portfolio/{slug}` on `PortfolioController` (`[AllowAnonymous]`, returns portfolio + experiences in one response). `GetMyPortfolio` now returns a shaped response including `slug` (previously the raw entity, which had no way to expose `Tenant.Slug`).
+
+New frontend: `@clerk/nextjs` (finally — no frontend auth existed before this milestone, only backend JWT *validation*). `src/middleware.ts` (`clerkMiddleware`, protects `/dashboard(.*)`). `ClerkProvider` wraps the root layout. `lib/use-api.ts` — a `useApi()` hook that attaches the live Clerk session token as a Bearer header on every dashboard API call. New `/dashboard` area: an overview page, `/dashboard/profile` (edit everything on Portfolio), `/dashboard/experience` (list/add/edit/delete), `/dashboard/journal` (list entries + a composer: write → sanitize → review → approve), `/dashboard/interview-requests` (inbox + accept/decline). `lib/mock-portfolio.ts` now does a real `fetch` to `GET /api/portfolio/:slug` — kept the filename and function signature unchanged since every caller (`[slug]/layout.tsx`, `[slug]/page.tsx`, `[slug]/experience/page.tsx`) needed zero changes as a result. Also fixed a port mismatch in `web/.env.local` (`NEXT_PUBLIC_API_BASE_URL` pointed at the HTTPS port from `launchSettings.json` with an `http://` scheme — every frontend→API call would have failed to connect).
+
+**Sandbox limitation, not a code defect:** `@clerk/nextjs` could not actually be installed in the build sandbox — every `npm install` attempt hit `ENOTEMPTY` on an unrelated stale `@img/sharp-libvips-linux-x64` temp-rename directory from an earlier session, and it couldn't be cleared (permission-denied on a `.so` file inside it, consistent with something on your actual machine still holding it open). `package.json` was hand-edited to add `"@clerk/nextjs": "7.6.1"` the same way `react-markdown` was added in Milestone 9 when `npm install` hit a similar wall. `tsc --noEmit` confirms every new/changed file is otherwise clean — the only errors are "cannot find module '@clerk/nextjs'", which resolves the moment `npm install` actually runs somewhere that isn't blocked.
+
+### Step 37 — new migration (dashboard fields)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddDashboardFieldsToPortfolioAndExperience --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 38 — apply the new RLS policy
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/006_experiences_policy.sql
+```
+
+### Step 39 — Clerk frontend keys
+
+Clerk dashboard → API Keys. Paste the real `Publishable key` and `Secret key` into `web/.env.local`'s `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`/`CLERK_SECRET_KEY` (placeholders are already there). This is a different pair from the backend's `Clerk:Authority`/`Clerk:AuthorizedParty` — same Clerk instance, but the frontend half (signs the user in, mints the token) vs. the backend half (validates a token that already exists).
+
+### Step 40 — install the new frontend package
+
+```bash
+cd Devlog.os/web
+npm install
+```
+
+`package.json` already lists `@clerk/nextjs` — this actually pulls it into `node_modules` (never completed in the sandbox, see the note above).
+
+### Step 41 — smoke-test the whole creator loop, for real
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+1. Visit `http://localhost:3000`, click **Sign in**, and sign in via Clerk. You should land back on the root page with a **Go to dashboard** button.
+2. `/dashboard` → confirm it loads your (auto-provisioned) portfolio and shows your `devlog.app/<slug>` link.
+3. `/dashboard/profile` → fill in Display name, Positioning line, Current role, Core technologies. Save, then reload the page and confirm the values persisted.
+4. `/dashboard/experience` → add one or two entries (an Employer role and a PersonalProject work well). Edit one, confirm the change sticks.
+5. `/dashboard/journal` → write a new Sprint Journal entry with something identifying in it (a fake employer name), Sanitize it, confirm the sanitized preview actually stripped it, then Approve & publish.
+6. Visit your real public portfolio at `http://localhost:3000/<your-slug>` — confirm Home and Experience now show what you just entered (not the old `chika`/`new-grad-demo` mock fixtures), and `/journal` shows the entry you just published.
+7. From a different browser (or an incognito window, so you're not signed in as the creator), submit an interview request against your slug, verify it via the emailed link, then back in `/dashboard/interview-requests`, confirm it appears and Accept it with some contact instructions.
+
+If any step returns a `401`, double check `web/.env.local`'s `NEXT_PUBLIC_API_BASE_URL` matches whatever port `dotnet run` actually printed — `launchSettings.json`'s ports can change if Visual Studio ever regenerates them.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add creator dashboard: Clerk frontend auth, Experience CRUD, real public portfolio endpoint, enum JSON fix"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1 is now fully closed: all five core IA surfaces are real, and every item on the original Phase 1 security list (output sanitization, RLS force-on-owner, real onboarding, recruiter email verification) is done except secrets management, which stays deliberately deferred to actual deployment time rather than built against a sandbox that will just be re-configured anyway. Come back when you're ready to deploy, or with whatever's next on your mind.
+Phase 1 is now genuinely usable end to end, not just "feature-complete" — every creator action (write/sanitize/approve entries, edit profile and experience, manage interview requests) has a real UI, and the public pages serve real data instead of mock fixtures. What's left before this is a good daily habit rather than a demo: no CV/photo file upload (URLs only, for now), no way to rename your auto-generated `dev-xxxxxxxx` slug, and secrets management is still deliberately deferred to actual deployment time. Come back when you're ready for any of those, or with whatever's next on your mind.

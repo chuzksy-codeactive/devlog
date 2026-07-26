@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using DevLog.Api.Middleware;
 using DevLog.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -39,7 +40,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddControllers();
+
+// Milestone 11 discovery: nothing here ever configured System.Text.Json to
+// serialize enums as strings, so the default all along has been the
+// underlying int (PortfolioVisibility.Unlisted -> 1, not "Unlisted"). Every
+// curl example in GETTING-STARTED.md that sends an enum as a JSON string
+// (e.g. Milestone 2's "entryType":"SprintEntry", Milestone 7's
+// "visibility":"Unlisted") would have failed to deserialize without this —
+// and the dashboard built in this milestone reads status/type/visibility
+// fields back as strings throughout. Adding JsonStringEnumConverter
+// globally rather than per-DTO so every controller (existing and future)
+// gets consistent behavior in both directions.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 // Section 9 Phase-1 must: "explicitly scoped to the Next.js frontend
 // origin(s) — the anonymous-browsing endpoints are public by design, which

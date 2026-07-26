@@ -7,6 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DevLog.Api.Controllers;
 
+// Note: [Authorize] is class-level, but GetPublicPortfolio below overrides
+// it with [AllowAnonymous] — same anonymous-by-slug pattern as
+// AskAiService/InterviewRequestService/SprintJournalController, just kept
+// in this controller rather than a new one since it's still "portfolio"
+// data, one route segment over from /me. ASP.NET Core's routing resolves
+// the literal "/api/portfolio/me" ahead of the parameterized
+// "/api/portfolio/{slug}" automatically, so there's no ambiguity between
+// the two actions below.
+
 [ApiController]
 [Route("api/portfolio")]
 [Authorize]
@@ -40,14 +49,38 @@ public class PortfolioController : ControllerBase
         // doesn't hold here, so FirstOrDefaultAsync() with no filter could
         // return a different tenant's public portfolio instead of the
         // caller's own.
-        var portfolio = await _db.Portfolios.FirstOrDefaultAsync(p => p.TenantId == tenantId);
+        var portfolio = await _db.Portfolios
+            .Include(p => p.Tenant)
+            .FirstOrDefaultAsync(p => p.TenantId == tenantId);
 
         if (portfolio is null)
         {
             return NotFound();
         }
 
-        return Ok(portfolio);
+        // Shaped rather than returning the raw entity — mainly to include
+        // Slug (lives on Tenant, not Portfolio; the dashboard needs it to
+        // link out to the public portfolio, which nothing before Milestone
+        // 11 ever needed). Also sidesteps Tenant<->Portfolio being a
+        // circular EF navigation, which System.Text.Json would otherwise
+        // choke on now that Tenant is actually included.
+        return Ok(new
+        {
+            slug = portfolio.Tenant!.Slug,
+            portfolio.Headline,
+            portfolio.DisplayName,
+            portfolio.PositioningLine,
+            portfolio.PhotoUrl,
+            portfolio.CurrentRole,
+            portfolio.YearsExperience,
+            portfolio.CoreTechnologies,
+            portfolio.LinkedInUrl,
+            portfolio.GitHubUrl,
+            portfolio.CvFileUrl,
+            portfolio.Visibility,
+            portfolio.Discoverable,
+            portfolio.NotificationEmail
+        });
     }
 
     // PUT /api/portfolio/me — closes the "no update endpoint exists yet"
@@ -74,6 +107,9 @@ public class PortfolioController : ControllerBase
         }
 
         if (request.Headline is not null) portfolio.Headline = request.Headline;
+        if (request.DisplayName is not null) portfolio.DisplayName = request.DisplayName;
+        if (request.PositioningLine is not null) portfolio.PositioningLine = request.PositioningLine;
+        if (request.PhotoUrl is not null) portfolio.PhotoUrl = request.PhotoUrl;
         if (request.CurrentRole is not null) portfolio.CurrentRole = request.CurrentRole;
         if (request.YearsExperience is not null) portfolio.YearsExperience = request.YearsExperience;
         if (request.CoreTechnologies is not null) portfolio.CoreTechnologies = request.CoreTechnologies;
@@ -89,8 +125,63 @@ public class PortfolioController : ControllerBase
         return Ok(portfolio);
     }
 
+    // GET /api/portfolio/{slug} — anonymous, public-facing. Replaces
+    // web/src/lib/mock-portfolio.ts, which every public page (Home,
+    // Experience) has run on exclusively since Milestone 3; nothing before
+    // this endpoint ever actually served real portfolio data. Same
+    // portfolio-by-slug + visibility-check pattern as
+    // AskAiService/InterviewRequestService/SprintJournalController.
+    // Includes experiences inline (a single response, matching the shape
+    // the frontend's PortfolioData type already expects) rather than
+    // making the client issue a second call to ExperienceController, which
+    // is creator-authenticated only anyway and not meant for public reads.
+    [HttpGet("{slug}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicPortfolio(string slug)
+    {
+        var portfolio = await _db.Portfolios
+            .Include(p => p.Tenant)
+            .FirstOrDefaultAsync(p => p.Tenant!.Slug == slug);
+
+        if (portfolio is null || portfolio.Visibility == PortfolioVisibility.Paused)
+        {
+            return NotFound();
+        }
+
+        var experiences = await _db.Experiences
+            .Where(e => e.TenantId == portfolio.TenantId)
+            .OrderByDescending(e => e.StartDate)
+            .ToListAsync();
+
+        return Ok(new
+        {
+            slug,
+            displayName = portfolio.DisplayName,
+            positioningLine = portfolio.PositioningLine,
+            currentRoleTitle = portfolio.CurrentRole,
+            coreTechnologies = portfolio.CoreTechnologies,
+            githubUrl = portfolio.GitHubUrl,
+            cvUrl = portfolio.CvFileUrl,
+            photoUrl = portfolio.PhotoUrl,
+            experiences = experiences.Select(e => new
+            {
+                id = e.Id,
+                experienceType = e.ExperienceType,
+                companyLabel = e.CompanyLabel,
+                title = e.Title,
+                startDate = e.StartDate,
+                endDate = e.EndDate,
+                technologies = e.Technologies,
+                keyAchievement = e.KeyAchievement
+            })
+        });
+    }
+
     public record UpdatePortfolioRequest(
         string? Headline,
+        string? DisplayName,
+        string? PositioningLine,
+        string? PhotoUrl,
         string? CurrentRole,
         string? YearsExperience,
         List<string>? CoreTechnologies,

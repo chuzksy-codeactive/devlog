@@ -62,3 +62,67 @@ export interface SprintJournalEntrySummary {
 export interface SprintJournalEntryDetail extends SprintJournalEntrySummary {
   content: string;
 }
+
+export type PortfolioVisibility = "Public" | "Unlisted" | "Paused";
+
+// Mirrors GET/PUT /api/portfolio/me (PortfolioController) — the
+// creator-authenticated shape, a superset of the public PortfolioData
+// (adds Visibility/Discoverable/NotificationEmail, which are never exposed
+// publicly).
+export interface MyPortfolio {
+  slug: string;
+  headline: string;
+  displayName: string;
+  positioningLine: string;
+  photoUrl: string | null;
+  currentRole: string | null;
+  yearsExperience: string | null;
+  coreTechnologies: string[];
+  linkedInUrl: string | null;
+  gitHubUrl: string | null;
+  cvFileUrl: string | null;
+  visibility: PortfolioVisibility;
+  discoverable: boolean;
+  notificationEmail: string | null;
+}
+
+// Mirrors ExperienceController's DTO shape (GET /api/experiences/me, etc.)
+export interface MyExperience {
+  id: string;
+  experienceType: ExperienceType;
+  companyLabel: string;
+  title: string;
+  startDate: string; // yyyy-MM-dd
+  endDate: string | null;
+  technologies: string[];
+  keyAchievement: string;
+}
+
+// Mirrors EntriesController's DTO shape (GET /api/entries, etc.)
+export type RawEntryStatus = "Draft" | "Sanitizing" | "PendingApproval" | "Approved" | "Rejected";
+export type RawEntryType = "SprintEntry" | "Experience" | "LearningLog";
+
+export interface MyEntry {
+  id: string;
+  entryType: RawEntryType;
+  title: string;
+  rawContent: string;
+  sanitizedPreview: string | null;
+  sanitizationModelVersion: string | null;
+  status: RawEntryStatus;
+  createdAt: string;
+}
+
+// Mirrors CreatorInterviewRequestsController's DTO shape.
+export type InterviewRequestStatus = "Pending" | "Accepted" | "Declined";
+
+export interface MyInterviewRequest {
+  id: string;
+  recruiterEmail: string;
+  recruiterName: string | null;
+  note: string;
+  status: InterviewRequestStatus;
+  contactInstructions: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}

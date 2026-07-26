@@ -7,6 +7,20 @@ public class Portfolio
 
     public string Headline { get; set; } = string.Empty;
 
+    // Milestone 11 addition — the public Home page (Hero.tsx) needed these
+    // from Milestone 3 onward but nothing on the backend ever carried them;
+    // the page ran entirely on mock data until now. DisplayName is the
+    // person's name (never inferred from Tenant/Clerk data — a creator
+    // types it deliberately, same "never trust an implicit source for
+    // public-facing identity" reasoning as everything else in this schema).
+    // PositioningLine is the one-line hero statement ("not a generic 'About
+    // me'" per the Product Brief). Both default to empty string, not a
+    // placeholder — TenantProvisioningService's auto-provisioned portfolio
+    // leaves them blank until the creator fills them in via PUT /me.
+    public string DisplayName { get; set; } = string.Empty;
+    public string PositioningLine { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+
     // Nullable/free-text on purpose — "Current role" and "years of experience"
     // need a graceful non-employed state ("Actively building", "Aspiring
     // backend engineer") rather than forcing a job title or a "0 years" stat.

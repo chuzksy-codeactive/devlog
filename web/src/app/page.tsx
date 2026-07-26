@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 
-// This is a placeholder, not the real marketing/root page — Phase 1 is a
+// Still a placeholder, not the real marketing/root page — Phase 1 is a
 // dogfood build, and the actual public "browse all portfolios" experience
 // (Discover) is a Phase 2 item per the roadmap. Each creator's portfolio
-// lives at /[slug] (see src/app/[slug]/); this just points at the demo
-// fixtures used to build those pages.
+// lives at /[slug] (see src/app/[slug]/). Milestone 11 added the
+// sign-in/dashboard entry point — before this there was no way to reach the
+// creator side of the product from the UI at all.
 export default function RootPage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
@@ -13,13 +15,23 @@ export default function RootPage() {
         A developer career operating system. Each creator has their own portfolio
         at <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-sm dark:bg-zinc-800">/[slug]</code>.
       </p>
-      <div className="flex gap-3 text-sm font-medium">
-        <Link href="/chika" className="underline underline-offset-2">
-          View demo portfolio
-        </Link>
-        <Link href="/new-grad-demo" className="underline underline-offset-2">
-          View no-job-yet demo
-        </Link>
+      <div className="flex items-center gap-3 text-sm font-medium">
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+              Sign in
+            </button>
+          </SignInButton>
+        </SignedOut>
+        <SignedIn>
+          <Link
+            href="/dashboard"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+          >
+            Go to dashboard
+          </Link>
+          <UserButton />
+        </SignedIn>
       </div>
     </div>
   );

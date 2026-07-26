@@ -143,6 +143,11 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
                     b.HasKey("Id")
                         .HasName("pk_experiences");
 
@@ -238,6 +243,11 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("discoverable");
 
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("display_name");
+
                     b.Property<string>("GitHubUrl")
                         .HasColumnType("text")
                         .HasColumnName("git_hub_url");
@@ -254,6 +264,15 @@ namespace DevLog.Infrastructure.Migrations
                     b.Property<string>("NotificationEmail")
                         .HasColumnType("text")
                         .HasColumnName("notification_email");
+
+                    b.Property<string>("PhotoUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("photo_url");
+
+                    b.Property<string>("PositioningLine")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("positioning_line");
 
                     b.Property<string>("Visibility")
                         .IsRequired()

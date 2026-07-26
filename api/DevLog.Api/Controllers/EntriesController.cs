@@ -69,6 +69,22 @@ public class EntriesController : ControllerBase
         return CreatedAtAction(nameof(GetEntry), new { id = entry.Id }, ToDto(entry));
     }
 
+    // GET /api/entries — the creator's own entries (all statuses: Draft
+    // through Approved/Rejected), newest first. Milestone 11 addition — the
+    // dashboard's journal composer needed a way to show existing drafts
+    // without knowing their ids upfront; every prior endpoint here required
+    // one. No WHERE tenant_id clause, same RLS-scopes-it pattern as GetEntry
+    // below.
+    [HttpGet]
+    public async Task<IActionResult> ListMine()
+    {
+        var entries = await _db.RawEntries
+            .OrderByDescending(e => e.CreatedAt)
+            .ToListAsync();
+
+        return Ok(entries.Select(ToDto));
+    }
+
     // GET /api/entries/{id} — creator's own view, including the sanitized
     // preview once it exists. No WHERE tenant_id clause — same deliberate
     // pattern as PortfolioController; RLS is what actually enforces scope.
