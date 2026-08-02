@@ -2,6 +2,8 @@ using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.Email;
 using DevLog.Infrastructure.Interviews;
 using DevLog.Infrastructure.MultiTenancy;
+using DevLog.Infrastructure.Onboarding;
+using DevLog.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -114,6 +116,27 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SanitizationPipelineService>();
         services.AddScoped<AskAiService>();
         services.AddScoped<InterviewRequestService>();
+
+        // Milestone 13 — guided onboarding's GitHub import. Unauthenticated
+        // (public-username-lookup, decided over OAuth — see GitHubClient's
+        // doc comment), so unlike every other typed HttpClient in this file
+        // there's no API key/options class to configure. GitHub requires a
+        // User-Agent header on every request or it rejects them outright.
+        services.AddHttpClient<GitHubClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.github.com");
+            client.DefaultRequestHeaders.Add("User-Agent", "DevLog-App");
+            client.DefaultRequestHeaders.Add("Accept", "application/vnd.github+json");
+            client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+        });
+        services.AddScoped<OnboardingImportService>();
+
+        // Milestone 13b — resume upload's storage abstraction. Only
+        // LocalDiskFileStorageProvider exists today ("local only, for
+        // now"); see that class's doc comment for the Azure Blob Storage
+        // swap-in story.
+        services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
+        services.AddScoped<IFileStorageProvider, LocalDiskFileStorageProvider>();
 
         return services;
     }

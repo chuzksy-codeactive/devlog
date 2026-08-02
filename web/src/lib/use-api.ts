@@ -26,10 +26,18 @@ export function useApi() {
   async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
     const token = await getToken();
 
+    // FormData bodies (Milestone 13b's resume upload) must NOT get an
+    // explicit Content-Type — fetch/the browser sets
+    // "multipart/form-data; boundary=..." itself only when the header is
+    // left unset. Forcing "application/json" here (the default for every
+    // other caller of this function) would send a boundary-less
+    // multipart body the API can't parse.
+    const isFormData = options.body instanceof FormData;
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       headers: {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },

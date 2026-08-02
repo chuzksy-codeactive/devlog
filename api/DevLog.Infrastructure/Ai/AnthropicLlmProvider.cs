@@ -47,6 +47,26 @@ public class AnthropicLlmProvider : ILlmProvider
         return await CallAnthropicAsync(systemPrompt, userContent, cancellationToken);
     }
 
+    public async Task<string> SuggestOnboardingContentAsync(
+        string gitHubContext,
+        CancellationToken cancellationToken = default)
+    {
+        var systemPrompt = LlmSystemPrompts.BuildOnboardingSuggestionSystemPrompt();
+        var userContent = LlmSystemPrompts.WrapGitHubDataForSuggestion(gitHubContext);
+
+        return await CallAnthropicAsync(systemPrompt, userContent, cancellationToken);
+    }
+
+    public async Task<string> SuggestOnboardingContentFromResumeAsync(
+        string resumeText,
+        CancellationToken cancellationToken = default)
+    {
+        var systemPrompt = LlmSystemPrompts.BuildResumeSuggestionSystemPrompt();
+        var userContent = LlmSystemPrompts.WrapResumeTextForSuggestion(resumeText);
+
+        return await CallAnthropicAsync(systemPrompt, userContent, cancellationToken);
+    }
+
     private async Task<string> CallAnthropicAsync(string systemPrompt, string userContent, CancellationToken cancellationToken)
     {
         var request = new AnthropicRequest(

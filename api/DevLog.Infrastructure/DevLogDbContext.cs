@@ -21,6 +21,7 @@ public class DevLogDbContext : DbContext
     public DbSet<InterviewRequest> InterviewRequests => Set<InterviewRequest>();
     public DbSet<PortfolioViewEvent> PortfolioViewEvents => Set<PortfolioViewEvent>();
     public DbSet<SanitizationRunLog> SanitizationRunLogs => Set<SanitizationRunLog>();
+    public DbSet<ResumeImportLog> ResumeImportLogs => Set<ResumeImportLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -184,6 +185,17 @@ public class DevLogDbContext : DbContext
         modelBuilder.Entity<SanitizationRunLog>(e =>
         {
             e.ToTable("sanitization_run_logs");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt });
+
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<ResumeImportLog>(e =>
+        {
+            e.ToTable("resume_import_logs");
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.TenantId, x.CreatedAt });
 

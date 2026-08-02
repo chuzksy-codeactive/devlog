@@ -49,6 +49,26 @@ public class OpenAiLlmProvider : ILlmProvider
         return await CallOpenAiAsync(systemPrompt, userContent, cancellationToken);
     }
 
+    public async Task<string> SuggestOnboardingContentAsync(
+        string gitHubContext,
+        CancellationToken cancellationToken = default)
+    {
+        var systemPrompt = LlmSystemPrompts.BuildOnboardingSuggestionSystemPrompt();
+        var userContent = LlmSystemPrompts.WrapGitHubDataForSuggestion(gitHubContext);
+
+        return await CallOpenAiAsync(systemPrompt, userContent, cancellationToken);
+    }
+
+    public async Task<string> SuggestOnboardingContentFromResumeAsync(
+        string resumeText,
+        CancellationToken cancellationToken = default)
+    {
+        var systemPrompt = LlmSystemPrompts.BuildResumeSuggestionSystemPrompt();
+        var userContent = LlmSystemPrompts.WrapResumeTextForSuggestion(resumeText);
+
+        return await CallOpenAiAsync(systemPrompt, userContent, cancellationToken);
+    }
+
     private async Task<string> CallOpenAiAsync(string systemPrompt, string userContent, CancellationToken cancellationToken)
     {
         var request = new OpenAiChatRequest(

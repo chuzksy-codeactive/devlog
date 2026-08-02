@@ -28,6 +28,10 @@
   "Frontend": {
     "BaseUrl": "http://localhost:3000"
   },
+  "Storage": {
+    "LocalDiskPath": "uploads",
+    "PublicBaseUrl": "http://localhost:61726/uploads"
+  },
   "Cors": {
     "FrontendOrigins": ["http://localhost:3000"]
   },

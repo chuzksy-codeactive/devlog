@@ -124,6 +124,24 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 app.UseCors(FrontendCorsPolicy);
+
+// Milestone 13b — serves whatever LocalDiskFileStorageProvider writes
+// (currently just resumes) back out at Storage:PublicBaseUrl's path.
+// RequestPath must match that config value's path component exactly, or
+// LocalDiskFileStorageProvider's returned URLs 404. "/uploads" is the
+// default for both, so this only needs revisiting if either config value
+// changes.
+var storageOptions = app.Configuration.GetSection("Storage").Get<DevLog.Infrastructure.Storage.StorageOptions>()
+    ?? new DevLog.Infrastructure.Storage.StorageOptions();
+Directory.CreateDirectory(storageOptions.LocalDiskPath);
+var uploadsRequestPath = "/" + new Uri(storageOptions.PublicBaseUrl).AbsolutePath.Trim('/');
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.GetFullPath(storageOptions.LocalDiskPath)),
+    RequestPath = uploadsRequestPath
+});
+
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();

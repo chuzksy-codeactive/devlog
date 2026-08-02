@@ -39,6 +39,32 @@
          while the solution was on EF Core 8; removed that pin as part of
          the .NET 10 upgrade (2026-07-05). -->
     <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+    <!-- Milestone 13b — resume text extraction. Pure managed C#, no native
+         dependencies (matters since this can't be verified cross-platform
+         from the build sandbox), Apache 2.0 licensed (unlike iText7, which
+         needs a commercial license for closed-source use). Chosen over
+         sending the raw PDF to the LLM directly: neither
+         AnthropicLlmProvider's nor OpenAiLlmProvider's request DTOs support
+         multi-part document/file content blocks today, and extending both
+         without being able to compile-test the change was a real risk not
+         worth taking when PdfPig lets this stay on the exact same "extract
+         text, feed it to the existing text-only prompt pattern" shape
+         already proven by GitHub import's README extraction.
+
+         Package ID is "PdfPig", NOT "UglyToad.PdfPig" — caught via a real
+         NU1103 restore failure (Chika's build couldn't find
+         UglyToad.PdfPig >= 0.1.9 at all). Turned out to be a wrong guess,
+         not a stale-cache issue: the actively maintained project (still
+         namespaced UglyToad.PdfPig in code, per its own README) publishes
+         under the bare "PdfPig" package ID on nuget.org, maintained by the
+         project's real owners (EliotJones/BobLd, per GitHub issue #842).
+         "UglyToad.PdfPig" is a *different*, separately-owned package ID on
+         nuget.org (owner "grinay", last published 2023, two versions total,
+         non-standard version strings like "1.7.0-custom-5") — not the
+         project this comment already described, and not something to
+         depend on. Verified directly on nuget.org before fixing, not
+         guessed a second time. -->
+    <PackageReference Include="PdfPig" Version="0.1.14" />
   </ItemGroup>
 
   <ItemGroup>

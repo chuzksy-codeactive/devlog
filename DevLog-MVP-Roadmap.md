@@ -4,9 +4,9 @@ Everything in the product brief and architecture doc, sequenced into three phase
 
 ---
 
-## Status as of 2026-08-02 (Milestone 12 complete)
+## Status as of 2026-08-02 (Milestone 13b complete)
 
-Phase 1 is fully complete, including both items previously deferred. Now mid-Phase-2: the plan shifted from "just the two of us" to "onboard other developers soon," which is why Phase 2 work resumed and why the two deferred gaps got closed rather than staying deferred.
+Phase 1 is fully complete, including both items previously deferred. Now mid-Phase-2: the plan shifted from "just the two of us" to "onboard other developers soon," which is why Phase 2 work resumed and why the two deferred gaps got closed rather than staying deferred. Guided onboarding is now complete on both paths — Milestone 13 shipped GitHub import, Milestone 13b shipped resume upload with AI-assisted structured extraction (plus CV file hosting via the new `IFileStorageProvider` abstraction). Next up: Milestone 14 (paused visibility).
 
 - **Deviation (carried from Milestone 11):** Phase 1 called for "instrument everything, ship no dashboard." Milestone 11 built a full creator CRUD dashboard instead, once the goal shifted from external dogfooding to daily personal use for Chika and his partner. This dashboard is *not* the same thing as Phase 2's "creator analytics dashboard" (view-count/engagement data) — that item is still not started (Milestone 16).
 - **Previously-deferred gaps, closed in Milestone 12:** `portfolio_view_events` logging is now live (`PortfolioController.GetPublicPortfolio`, best-effort). `Subscription.SanitizationQuota` is now enforced as a calendar-month cap, plus a separate hourly abuse-rate cap (`sanitization_run_logs`), mirroring Ask AI's existing hourly cap pattern.
@@ -71,13 +71,13 @@ By this point the core product and its economics are validated. What's left is w
 | Event logging (views, queries, requests) | 1 | ✅ Done (Milestone 12 added `portfolio_view_events`) | Needed to validate the hypothesis, cheap to add now |
 | Full RLS coverage, prompt-injection defense, output sanitization, secrets management, CORS, recruiter email verification | 1 | ✅ Done (Milestone 12 added the sanitization rate cap) | Cheap now, expensive to retrofit once real tenant/recruiter data exists — see Section 9 |
 | Creator CRUD dashboard (not originally scoped for Phase 1) | 1 | ⚠️ Deviated — built in Milestone 11 | Personal daily-use pivot; not the same as Phase 2's analytics dashboard below |
-| Onboarding (GitHub import, resume parse, AI-assisted draft) | 2 | ⬜ Not started | Removes blank-page friction once scaling past hand-held signups |
+| Onboarding (GitHub import, resume parse, AI-assisted draft) | 2 | ✅ Done (Milestone 13: GitHub import + AI-assisted draft; Milestone 13b: resume parse + CV file hosting) | Removes blank-page friction once scaling past hand-held signups |
 | Learning Lab + retention nudge | 2 | ⬜ Not started | Secondary differentiator, not required to test the core loop |
 | Creator analytics dashboard | 2 | ⬜ Not started | Data exists since Phase 1; UI follows once there's enough to show |
 | Discover (facet filter, then AI cross-candidate) | 2 | ⬜ Not started | Needs enough public tenants to be useful |
 | Billing (creator + recruiter paid tiers) | 2 | ⬜ Not started | Defer until there's a userbase worth charging |
 | Visibility: paused state | 2 | ⬜ Not started | Nice-to-have privacy refinement, not a launch blocker |
-| Resume upload hardening, webhook signature verification, Discover visibility enforcement at SQL level | 2 | ⬜ Not started | Ships alongside the feature it protects |
+| Resume upload hardening, webhook signature verification, Discover visibility enforcement at SQL level | 2 | ⚠️ Partial — resume upload hardening done (Milestone 13b: size limit, extension + magic-byte check, hourly rate cap); webhook signature verification and Discover enforcement ⬜ not started | Ships alongside the feature it protects |
 | Multi-role support (`discipline` field, generalized labels, flexible proof links) | 2 | ⬜ Not started | Phase 1 stays developer-only by choice (dogfood plan); mechanics already generalize, so this is labeling, not a rebuild |
 | Naming/positioning decision ("DevLog," dev-specific tagline) | 2 | ⬜ Not started | Revisit deliberately once broadening beyond developers, rather than letting it drift |
 | Trust/verification (peer confirmation) | 3 | ⬜ Not started | Strengthens an already-working product |

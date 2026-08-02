@@ -421,6 +421,30 @@ namespace DevLog.Infrastructure.Migrations
                     b.ToTable("raw_entries", (string)null);
                 });
 
+            modelBuilder.Entity("DevLog.Domain.Entities.ResumeImportLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_resume_import_logs");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_resume_import_logs_tenant_id_created_at");
+
+                    b.ToTable("resume_import_logs", (string)null);
+                });
+
             modelBuilder.Entity("DevLog.Domain.Entities.SanitizationAudit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -652,6 +676,18 @@ namespace DevLog.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_raw_entries_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("DevLog.Domain.Entities.ResumeImportLog", b =>
+                {
+                    b.HasOne("DevLog.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_resume_import_logs_tenants_tenant_id");
 
                     b.Navigation("Tenant");
                 });

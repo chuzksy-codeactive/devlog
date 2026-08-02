@@ -113,6 +113,45 @@ export interface MyEntry {
   createdAt: string;
 }
 
+// Mirrors OnboardingController's GitHub-import and resume-import response
+// shapes (OnboardingImportService.SuggestFromGitHubAsync /
+// SuggestFromResumeAsync). Nothing here is saved yet — these are
+// suggestions the creator reviews and explicitly accepts, one at a time,
+// through the normal /api/experiences and /api/entries endpoints.
+// repoUrl is null for resume-sourced suggestions (Milestone 13b) — there's
+// no repo to link to.
+export interface SuggestedExperience {
+  experienceType: ExperienceType;
+  companyLabel: string;
+  title: string;
+  technologies: string[];
+  keyAchievement: string;
+  startDate: string; // yyyy-MM-dd
+  endDate: string | null; // yyyy-MM-dd
+  repoUrl: string | null;
+}
+
+export interface SuggestedEntry {
+  title: string;
+  rawContent: string;
+}
+
+export interface OnboardingSuggestions {
+  experiences: SuggestedExperience[];
+  draftEntry: SuggestedEntry | null;
+}
+
+// Mirrors POST /api/onboarding/resume-import's response shape
+// (OnboardingController.ResumeImport). cvFileUrl is always populated on a
+// 200 — the file is stored regardless of whether suggestions could be
+// drafted from it. suggestions/message are mutually exclusive: a scanned
+// or image-only PDF returns message instead of suggestions.
+export interface ResumeImportResponse {
+  cvFileUrl: string;
+  suggestions: OnboardingSuggestions | null;
+  message?: string;
+}
+
 // Mirrors CreatorInterviewRequestsController's DTO shape.
 export type InterviewRequestStatus = "Pending" | "Accepted" | "Declined";
 

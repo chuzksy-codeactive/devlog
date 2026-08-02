@@ -682,6 +682,105 @@ git push
 
 ---
 
+## Milestone 13 — guided onboarding: GitHub import (first Phase 2 feature)
+
+Triggered by "let's implement everything so we can onboard other developers soon." Two genuine forks decided via AskUserQuestion before building: GitHub import as a public-username lookup (no OAuth, no token storage — simpler and works for anyone, at the cost of a 60-req/hour unauthenticated GitHub rate limit shared across all imports) rather than a full OAuth connection; and resume upload deliberately deferred to its own follow-up milestone (13b) rather than bundled in here, since it needs file-upload handling and its own security pass.
+
+A creator types their GitHub username on the new `/dashboard/import` page. The backend (`GitHubClient`, unauthenticated calls to GitHub's public REST API — requires a `User-Agent` header or GitHub rejects the request outright) fetches their top 5 non-fork public repos by stars/recency, plus README excerpts (capped at 4000 chars) for the top 3. `OnboardingImportService` flattens that into a text summary and asks the LLM (`ILlmProvider.SuggestOnboardingContentAsync`, new method, implemented on both Anthropic and OpenAI providers off one shared prompt in `LlmSystemPrompts`) to draft structured JSON: one suggested Experience entry per repo, plus a single AI-drafted Sprint Journal entry based on whichever repo has the most substantial README.
+
+**Nothing is saved automatically.** `POST /api/onboarding/github-import` (`OnboardingController`, new) is read-only — it returns suggestions, full stop. The frontend shows each suggestion as a card with an explicit "Add"/"Use as draft" button that calls the *same existing* `POST /api/experiences` and `POST /api/entries` endpoints a creator would use typing by hand. A drafted Sprint Journal entry lands as an ordinary `Draft` — it still goes through the real sanitize → review → approve pipeline before anything publishes, exactly like the roadmap's "nothing bypasses the sanitize-and-approve pipeline" requirement. Experience suggestions skip that pipeline for the same reason hand-typed Experience entries always have: `CompanyLabel` is free text the creator reviews and can edit before saving, never auto-published from raw AI output.
+
+Dates on suggested Experience entries come from GitHub's own repo metadata (`created_at`/`pushed_at`), not the LLM — more accurate than asking a model to guess, and one less thing that can hallucinate.
+
+**No migration needed.** No schema changes at all this milestone — purely new services/controllers/a new frontend page.
+
+### Step 46 — nothing to apply, just rebuild and restart
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet build
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+### Step 47 — smoke test
+
+1. `/dashboard/import` → enter a real GitHub username with a few public repos (your own works well) → Import.
+2. Confirm suggestions render: one card per repo (type, title, company/project label, dates, technologies, key achievement, a link back to the repo) plus one Sprint Journal draft card.
+3. Click "Add to Experience" on one suggestion → confirm it appears on `/dashboard/experience` afterward, and that it got embedded (Ask AI should now be able to answer a question about it — same check as Milestone 12's Experience-embedding fix).
+4. Click "Use as Sprint Journal draft" → confirm it appears as a `Draft` on `/dashboard/journal`, then run it through Sanitize → Approve like any hand-written entry.
+5. Try a nonexistent GitHub username → confirm a clear 404 message, not a crash.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add Milestone 13: guided onboarding, GitHub import with AI-drafted suggestions"
+git push
+```
+
+---
+
+## Milestone 13b — guided onboarding: resume upload + AI extraction
+
+Scheduled immediately after Milestone 13 at Chika's request ("we can defer for now, but I want it to be implemented immediately after this"). Two forks decided via AskUserQuestion: PDF only for now (not DOCX — one format, one extraction path, no format-detection branching); and the resume file itself gets stored and hosted (`Portfolio.CvFileUrl`), not just parsed and discarded, so uploading a resume also solves the pre-existing "no way to set a CV download link" gap.
+
+A creator uploads a PDF on the same `/dashboard/import` page (new second section, below GitHub import). The file goes to `POST /api/onboarding/resume-import` (`OnboardingController`, new endpoint) as multipart form data, validated three ways before anything else happens: extension is `.pdf`, size is under 10MB, and the first bytes are the real `%PDF-` magic header (a renamed file doesn't get past this). The upload is buffered once into memory so it can be read twice: `IFileStorageProvider.SaveAsync` (new abstraction; `LocalDiskFileStorageProvider` is the only implementation for now — files land under `uploads/{tenantId}/resume.pdf`, served back out by a new `UseStaticFiles` mount in `Program.cs`) stores the exact bytes and updates `Portfolio.CvFileUrl` regardless of what happens next, then `PdfTextExtractor` (new, built on the `UglyToad.PdfPig` package — pure managed C#, MIT-licensed, chosen over sending the raw PDF straight to the LLM because neither `AnthropicLlmProvider` nor `OpenAiLlmProvider`'s request shape supports multi-part file content today) pulls the text layer out page by page.
+
+**The critical difference from GitHub import: the resume-suggestion LLM prompt does its own anonymization.** GitHub READMEs are already public, so nothing needs scrubbing. A resume has real employer names in it, and unlike Sprint Journal entries, `Experience` rows never pass through `SanitizationPipelineService` — `CompanyLabel` is meant to be creator-typed free text already anonymized by the person typing it. Since there's no separate sanitize pass downstream to catch a real company name here, `LlmSystemPrompts.BuildResumeSuggestionSystemPrompt()` instructs the model to extract *and* generically-relabel companies (e.g. "a Series B fintech, payments team") in the same pass, with an explicit CRITICAL rule about never echoing a real employer name.
+
+Same review-then-accept UX as GitHub import — `POST /api/onboarding/resume-import` never writes an Experience row itself, only returns suggestions the creator adds one at a time through the normal `POST /api/experiences` endpoint. No Sprint Journal draft this time (resumes don't produce narrative content the way a README does). Rate-limited the same way as Milestone 12's sanitization cap: `ResumeImportLog` (new entity, new `resume_import_logs` table) caps a tenant at 5 resume imports/hour — logged after the LLM call regardless of whether parsing succeeded, since the cost was incurred either way. A scanned/image-only PDF (no extractable text layer) still stores the file and updates `CvFileUrl`, but returns a message instead of suggestions rather than erroring.
+
+### Step 48 — new migration (ResumeImportLog)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddResumeImportLog --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 49 — apply the new RLS policy
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/009_resume_import_logs_policy.sql
+```
+(password: `devlog_local`, from `docker-compose.yml`)
+
+### Step 50 — nothing new to configure, just rebuild and restart
+
+`appsettings.Development.json` already has a `Storage` section (`LocalDiskPath: "uploads"`, `PublicBaseUrl: "http://localhost:61726/uploads"`) — adjust `PublicBaseUrl`'s port if your API runs on a different one.
+
+```bash
+dotnet build
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+### Step 51 — smoke test
+
+1. `/dashboard/import` → scroll to "Import from Resume" → upload a real PDF resume → Upload.
+2. Confirm a "Resume saved as your CV download" link appears and opens the actual file.
+3. Confirm suggestion cards render (type, title, an anonymized company label — **check this is never your real employer's name**, dates, technologies, key achievement) with an "Add to Experience" button.
+4. Click "Add to Experience" on one → confirm it appears on `/dashboard/experience`, and that Ask AI can answer a question about it afterward.
+5. Upload the same resume 6 times in an hour → confirm the 6th attempt returns the 429 rate-limit message instead of a suggestion (still stores the file each time).
+6. Try a non-PDF file (rename a `.txt` to `.pdf`) → confirm a clear 400 error, not a crash.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Add Milestone 13b: resume upload with AI-drafted suggestions + CV hosting"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1's two deferred security/instrumentation gaps are closed, which was the prerequisite for onboarding other developers safely. Next up (Milestone 13): onboarding automation — GitHub import, resume upload with AI-assisted extraction, and an AI-assisted first sprint entry draft — the actual friction-remover for a new developer signing up cold. After that: paused visibility, Discover, the creator analytics dashboard (now that view events are logging), and Learning Lab, roughly in that order. Billing/Stripe is explicitly deferred until there's an actual userbase worth charging — new developers get in free for now.
+Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Next up: paused visibility, Discover, the creator analytics dashboard (now that view events are logging), and Learning Lab, roughly in that order. Billing/Stripe is explicitly deferred until there's an actual userbase worth charging — new developers get in free for now.
