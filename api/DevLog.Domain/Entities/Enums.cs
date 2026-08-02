@@ -42,18 +42,23 @@ public enum RawEntryStatus
 }
 
 // EMBEDDINGS.source_type — architecture doc Section 2 designed this as
-// polymorphic (published_entries and experiences as two source types), but
-// in the schema as actually built, an Experience's narrative content only
-// ever reaches the public/RAG layer by first passing through
-// raw_entries -> sanitize -> approve as a RawEntryType.Experience, which
-// lands in published_entries just like a sprint entry does (Section 3's
-// "applies uniformly" note). So PublishedEntry is the only source type that
-// exists in practice right now. Kept as an enum (not hard-coded) so a direct
-// Experience-row embedding path can be added later without a schema change,
-// if/when structured Experience data needs its own RAG representation.
+// polymorphic (published_entries and experiences as two source types).
+// Milestone 4's comment here assumed Experience content would reach RAG
+// indirectly, by first passing through raw_entries -> sanitize -> approve
+// as a RawEntryType.Experience — but that assumption never actually held:
+// Milestone 11 built ExperienceController as direct CRUD straight onto the
+// `experiences` table (CompanyLabel is free text the creator types
+// themselves, "never a foreign key to a real employer record," already
+// pre-anonymized by design — see Experience.cs — so it never needed the
+// sanitize pipeline in the first place). That meant Experience rows had
+// *no* path to embeddings at all, not even the indirect one this comment
+// described, until Milestone 12's Ask AI bugfix added EmbedExperienceAsync
+// as a genuine second source type, embedded directly on
+// create/update/delete rather than routed through the sanitize pipeline.
 public enum EmbeddingSourceType
 {
-    PublishedEntry
+    PublishedEntry,
+    Experience
 }
 
 // INTERVIEW_REQUESTS.status — architecture doc Section 6 ("Request

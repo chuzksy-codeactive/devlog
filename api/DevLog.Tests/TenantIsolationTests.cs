@@ -50,7 +50,7 @@ public class TenantIsolationTests
 
         await using (var seedA = CreateContext(tenantAId))
         {
-            seedA.Tenants.Add(new Tenant { Id = tenantAId, UserId = Guid.NewGuid(), Slug = $"tenant-a-{tenantAId}" });
+            seedA.Tenants.Add(new Tenant { Id = tenantAId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-a-{tenantAId}" });
             seedA.RawEntries.Add(new RawEntry
             {
                 Id = Guid.NewGuid(),
@@ -63,7 +63,7 @@ public class TenantIsolationTests
 
         await using (var seedB = CreateContext(tenantBId))
         {
-            seedB.Tenants.Add(new Tenant { Id = tenantBId, UserId = Guid.NewGuid(), Slug = $"tenant-b-{tenantBId}" });
+            seedB.Tenants.Add(new Tenant { Id = tenantBId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-b-{tenantBId}" });
             seedB.RawEntries.Add(new RawEntry
             {
                 Id = Guid.NewGuid(),
@@ -102,7 +102,7 @@ public class TenantIsolationTests
         // this seed step would throw, not just misreport what it seeded.
         var tenantId = Guid.NewGuid();
         await using var seed = CreateContext(tenantId);
-        seed.Tenants.Add(new Tenant { Id = tenantId, UserId = Guid.NewGuid(), Slug = $"tenant-{tenantId}" });
+        seed.Tenants.Add(new Tenant { Id = tenantId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-{tenantId}" });
         seed.RawEntries.Add(new RawEntry
         {
             Id = Guid.NewGuid(),

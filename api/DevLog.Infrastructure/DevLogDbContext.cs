@@ -19,6 +19,8 @@ public class DevLogDbContext : DbContext
     public DbSet<Embedding> Embeddings => Set<Embedding>();
     public DbSet<AiQueryLog> AiQueryLogs => Set<AiQueryLog>();
     public DbSet<InterviewRequest> InterviewRequests => Set<InterviewRequest>();
+    public DbSet<PortfolioViewEvent> PortfolioViewEvents => Set<PortfolioViewEvent>();
+    public DbSet<SanitizationRunLog> SanitizationRunLogs => Set<SanitizationRunLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -161,6 +163,28 @@ public class DevLogDbContext : DbContext
             e.ToTable("interview_requests");
             e.HasKey(x => x.Id);
             e.Property(x => x.Status).HasConversion<string>();
+            e.HasIndex(x => new { x.TenantId, x.CreatedAt });
+
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<PortfolioViewEvent>(e =>
+        {
+            e.ToTable("portfolio_view_events");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.TenantId, x.ViewedAt });
+
+            e.HasOne(x => x.Tenant)
+                .WithMany()
+                .HasForeignKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<SanitizationRunLog>(e =>
+        {
+            e.ToTable("sanitization_run_logs");
+            e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.TenantId, x.CreatedAt });
 
             e.HasOne(x => x.Tenant)

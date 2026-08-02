@@ -289,6 +289,34 @@ namespace DevLog.Infrastructure.Migrations
                     b.ToTable("portfolios", (string)null);
                 });
 
+            modelBuilder.Entity("DevLog.Domain.Entities.PortfolioViewEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("ViewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("viewed_at");
+
+                    b.Property<string>("ViewerHash")
+                        .HasColumnType("text")
+                        .HasColumnName("viewer_hash");
+
+                    b.HasKey("Id")
+                        .HasName("pk_portfolio_view_events");
+
+                    b.HasIndex("TenantId", "ViewedAt")
+                        .HasDatabaseName("ix_portfolio_view_events_tenant_id_viewed_at");
+
+                    b.ToTable("portfolio_view_events", (string)null);
+                });
+
             modelBuilder.Entity("DevLog.Domain.Entities.PublishedEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -433,6 +461,30 @@ namespace DevLog.Infrastructure.Migrations
                     b.ToTable("sanitization_audit", (string)null);
                 });
 
+            modelBuilder.Entity("DevLog.Domain.Entities.SanitizationRunLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sanitization_run_logs");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_sanitization_run_logs_tenant_id_created_at");
+
+                    b.ToTable("sanitization_run_logs", (string)null);
+                });
+
             modelBuilder.Entity("DevLog.Domain.Entities.Subscription", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -559,6 +611,18 @@ namespace DevLog.Infrastructure.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("DevLog.Domain.Entities.PortfolioViewEvent", b =>
+                {
+                    b.HasOne("DevLog.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_portfolio_view_events_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("DevLog.Domain.Entities.PublishedEntry", b =>
                 {
                     b.HasOne("DevLog.Domain.Entities.RawEntry", "RawEntry")
@@ -602,6 +666,18 @@ namespace DevLog.Infrastructure.Migrations
                         .HasConstraintName("fk_sanitization_audit_published_entries_published_entry_id");
 
                     b.Navigation("PublishedEntry");
+                });
+
+            modelBuilder.Entity("DevLog.Domain.Entities.SanitizationRunLog", b =>
+                {
+                    b.HasOne("DevLog.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_sanitization_run_logs_tenants_tenant_id");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("DevLog.Domain.Entities.Subscription", b =>

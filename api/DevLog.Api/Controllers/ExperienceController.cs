@@ -1,5 +1,6 @@
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
+using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,11 +23,16 @@ public class ExperienceController : ControllerBase
 {
     private readonly DevLogDbContext _db;
     private readonly ICurrentTenantAccessor _tenantAccessor;
+    private readonly EmbeddingPipelineService _embeddingPipeline;
 
-    public ExperienceController(DevLogDbContext db, ICurrentTenantAccessor tenantAccessor)
+    public ExperienceController(
+        DevLogDbContext db,
+        ICurrentTenantAccessor tenantAccessor,
+        EmbeddingPipelineService embeddingPipeline)
     {
         _db = db;
         _tenantAccessor = tenantAccessor;
+        _embeddingPipeline = embeddingPipeline;
     }
 
     // GET /api/experiences/me — the creator's own experiences, all of them
@@ -78,6 +84,13 @@ public class ExperienceController : ControllerBase
         _db.Experiences.Add(experience);
         await _db.SaveChangesAsync();
 
+        // Milestone 12 bugfix — see EmbeddingPipelineService.EmbedExperienceAsync's
+        // doc comment. Not inside the same SaveChangesAsync/transaction:
+        // EmbedBatchAsync is an external OpenAI call, and the Experience
+        // row itself must exist as soon as it's saved regardless of
+        // whether that call succeeds.
+        await _embeddingPipeline.EmbedExperienceAsync(experience);
+
         return CreatedAtAction(nameof(GetMine), new { }, ToDto(experience));
     }
 
@@ -102,6 +115,11 @@ public class ExperienceController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Re-embeds from scratch (delete-then-insert inside
+        // EmbeddingPipelineService) so an edit's stale chunks never linger
+        // — same reasoning as re-approving an edited published entry.
+        await _embeddingPipeline.EmbedExperienceAsync(experience);
+
         return Ok(ToDto(experience));
     }
 
@@ -116,6 +134,10 @@ public class ExperienceController : ControllerBase
 
         _db.Experiences.Remove(experience);
         await _db.SaveChangesAsync();
+
+        // Without this, a deleted Experience's chunks stay retrievable by
+        // Ask AI forever — the row is gone but its embeddings aren't.
+        await _embeddingPipeline.RemoveExperienceEmbeddingsAsync(id);
 
         return NoContent();
     }

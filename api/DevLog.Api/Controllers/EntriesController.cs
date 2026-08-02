@@ -106,6 +106,14 @@ public class EntriesController : ControllerBase
             var entry = await _sanitizationPipeline.SanitizeAsync(id, cancellationToken);
             return Ok(ToDto(entry));
         }
+        // Caught ahead of InvalidOperationException below — Milestone 12's
+        // two cost-abuse limits are refusals, not bad requests, so they get
+        // 429 rather than 400, same status AskAiController already uses for
+        // its own rate limit.
+        catch (SanitizationLimitExceededException ex)
+        {
+            return StatusCode(StatusCodes.Status429TooManyRequests, ex.Message);
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);

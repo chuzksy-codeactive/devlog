@@ -613,6 +613,75 @@ git push
 
 ---
 
+---
+
+## Milestone 12 — closing the two deferred Phase 1 gaps (before onboarding other developers)
+
+Triggered by "let's implement everything so we can onboard other developers soon." The roadmap review a few sessions back had deliberately deferred two Phase 1 security/instrumentation items — `portfolio_view_events` logging and enforcing `Subscription.SanitizationQuota` — on the reasoning that they're cost/abuse controls that only matter once strangers are using the product. That premise just changed, so both got closed now, before Milestone 13's onboarding automation adds real new-developer traffic.
+
+**`portfolio_view_events`.** New entity + table, same internal-only shape as `ai_query_logs` (tenant-isolated, no public_read policy — nothing public ever reads it). Logged in `PortfolioController.GetPublicPortfolio` on every successful public page load: `TenantId`, a hashed viewer IP (`ViewerHash`, same SHA-256 construction as `AskAiController.HashRemoteIp` — no raw IP ever stored), and a timestamp. Best-effort: wrapped in a try/catch so a logging failure can never break an actual portfolio page load, same posture as `InterviewRequestService`'s notification email. No UI reads this yet — that's Milestone 16's creator analytics dashboard; this milestone just starts the data collection, per the roadmap's own "cheap to add alongside each feature as it's built" framing.
+
+**Sanitization rate cap + quota enforcement.** New `sanitization_run_logs` table, logged once per real `SanitizeAsync` call (not just approved entries — a creator re-running sanitize on a draft is a real LLM cost each time). `SanitizationPipelineService.SanitizeAsync` now checks two things before calling the LLM: an hourly rate cap (`MaxRunsPerTenantPerHour = 10`, mirrors `AskAiService`'s existing hourly cap shape) and the existing `Subscription.SanitizationQuota` field (default 20/month) as an actual calendar-month enforcement — that field has existed since early in the build with a comment claiming it existed "specifically so a per-tenant rate cap can be enforced," but nothing ever counted against it until now. Both refusals throw a new `SanitizationLimitExceededException` (with a `Reason` distinguishing which limit was hit); `EntriesController.SanitizeEntry` catches it ahead of the existing generic `InvalidOperationException` handler and returns `429`, matching how `AskAiController` already handles its own rate limit.
+
+**Scope note:** the `discipline`/multi-role expansion from Phase 2 was deliberately left out of this sequence — it's for onboarding non-developer roles (PM, BA, DevOps), and the stated goal here is onboarding other *developers*, so it doesn't serve that goal yet.
+
+### Step 42 — new migration (view events + sanitization run logs)
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddPortfolioViewEventsAndSanitizationRunLogs --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+```
+
+### Step 43 — apply the new RLS policy
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/007_view_events_and_sanitization_logs_policy.sql
+```
+
+(password: `devlog_local`, from `docker-compose.yml`)
+
+### Step 43b — fix a real bug found in testing: anonymous inserts were silently rejected
+
+Chika tested Step 44 below and found `portfolio_view_events` stayed empty despite loading the public page repeatedly. Root cause: `sql/007`'s `tenant_isolation` policy has no explicit `WITH CHECK`, so it falls back to using its `USING` expression for INSERT too — and an anonymous connection never has a real `app.current_tenant`, so every insert attempt failed RLS silently (the `catch { }` around it logged nothing). The same gap turned out to already exist in `ai_query_logs` since Milestone 4, undiscovered until now — `AskAiService`'s insert has no try/catch at all, so it could have been turning every Ask AI answer into a 500. Apply the fix, then rebuild and restart the API before re-testing:
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/008_fix_anonymous_insert_policies.sql
+```
+
+### Step 44 — smoke test
+
+1. Load any public portfolio page (`http://localhost:3000/<slug>`) a couple of times, then `SELECT * FROM portfolio_view_events ORDER BY viewed_at DESC;` in psql — confirm a row per load.
+2. Ask that portfolio's Ask AI widget a question and confirm you get a real answer back (not a 500) — this is what Step 43b's fix actually protects. Then `SELECT * FROM ai_query_logs ORDER BY created_at DESC;` and confirm a row landed.
+3. In `/dashboard/journal`, sanitize the same draft entry 11 times in under an hour (re-sanitizing a Draft/PendingApproval entry is allowed). The 11th call should return `429` with `"Hourly sanitization limit reached. Try again later."` Confirm `SELECT * FROM sanitization_run_logs;` shows 10 rows for your tenant, not 11.
+4. (Optional, to test the monthly quota path without waiting a month) temporarily lower a tenant's quota directly: `UPDATE subscriptions SET sanitization_quota = 2 WHERE tenant_id = '<your-tenant-id>';`, then confirm the 3rd sanitize call that hour returns `429` with `"Monthly sanitization quota reached."` — set it back to `20` afterward.
+
+### Step 45 — bugfixes found while testing Milestone 12
+
+Three real bugs surfaced during your own testing, all fixed now:
+
+1. `portfolio_view_events`/`ai_query_logs` anonymous inserts were silently rejected by RLS (`sql/008_fix_anonymous_insert_policies.sql` — apply it the same way as `007`, `psql -h localhost -U devlog -d devlog -f ../sql/008_fix_anonymous_insert_policies.sql`).
+2. Two compile errors (`ILogger<>` missing a `using` in `AskAiService.cs`; `TenantIsolationTests.cs` still passing a `Guid` to `Tenant.UserId`, which has been `string` since Milestone 7) — both fixed, no action needed beyond rebuilding.
+3. **Ask AI answering "no evidence of C# experience" when your Experience timeline clearly lists it.** `EmbeddingPipelineService` only ever embedded Sprint Journal entries — Experience rows (where your actual tech stack lives) had no path into the `embeddings` table at all. Fixed by adding a second embedding source (`EmbeddingSourceType.Experience`), wired into `ExperienceController`'s create/update/delete. **No migration needed** — it's a string column, the new value just works.
+
+**One-time backfill needed:** any Experience rows you created *before* this fix won't be embedded automatically. Open `/dashboard/experience`, edit each existing entry (even just re-saving with no changes works — Update always re-embeds), and save. New entries going forward embed automatically on create.
+
+```bash
+psql -h localhost -U devlog -d devlog -f ../sql/008_fix_anonymous_insert_policies.sql
+```
+
+Then rebuild, restart the API, backfill your Experience rows as above, and re-ask Ask AI the same question — should now correctly cite your tech stack.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Close Phase 1 gaps: portfolio_view_events logging, sanitization rate cap + quota enforcement, Experience embeddings for Ask AI"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1 is now genuinely usable end to end, not just "feature-complete" — every creator action (write/sanitize/approve entries, edit profile and experience, manage interview requests) has a real UI, and the public pages serve real data instead of mock fixtures. What's left before this is a good daily habit rather than a demo: no CV/photo file upload (URLs only, for now), no way to rename your auto-generated `dev-xxxxxxxx` slug, and secrets management is still deliberately deferred to actual deployment time. Come back when you're ready for any of those, or with whatever's next on your mind.
+Phase 1's two deferred security/instrumentation gaps are closed, which was the prerequisite for onboarding other developers safely. Next up (Milestone 13): onboarding automation — GitHub import, resume upload with AI-assisted extraction, and an AI-assisted first sprint entry draft — the actual friction-remover for a new developer signing up cold. After that: paused visibility, Discover, the creator analytics dashboard (now that view events are logging), and Learning Lab, roughly in that order. Billing/Stripe is explicitly deferred until there's an actual userbase worth charging — new developers get in free for now.

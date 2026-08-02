@@ -1,5 +1,6 @@
 using DevLog.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Pgvector;
 using Pgvector.EntityFrameworkCore;
 
@@ -34,12 +35,18 @@ public class AskAiService
     private readonly DevLogDbContext _db;
     private readonly IEmbeddingProvider _embeddingProvider;
     private readonly ILlmProvider _llmProvider;
+    private readonly ILogger<AskAiService> _logger;
 
-    public AskAiService(DevLogDbContext db, IEmbeddingProvider embeddingProvider, ILlmProvider llmProvider)
+    public AskAiService(
+        DevLogDbContext db,
+        IEmbeddingProvider embeddingProvider,
+        ILlmProvider llmProvider,
+        ILogger<AskAiService> logger)
     {
         _db = db;
         _embeddingProvider = embeddingProvider;
         _llmProvider = llmProvider;
+        _logger = logger;
     }
 
     public async Task<AskAiResult> AskAsync(
@@ -87,15 +94,32 @@ public class AskAiService
 
         var answer = await _llmProvider.AnswerQuestionAsync(question, topChunks, cancellationToken);
 
-        _db.AiQueryLogs.Add(new AiQueryLog
+        // Milestone 12 bugfix: this insert had no try/catch at all — found
+        // while fixing the identical gap in the new portfolio_view_events
+        // table. ai_query_logs never had a public_insert RLS policy either
+        // (sql/002 only ever gave it tenant_isolation), so this anonymous
+        // insert could have been failing since Milestone 4, turning every
+        // Ask AI question into a 500 instead of an answer. sql/008 adds the
+        // missing policy; this try/catch is the same "the real work already
+        // succeeded, logging is best-effort" posture as everywhere else —
+        // a recruiter's already-generated answer must never be thrown away
+        // because the rate-limit log couldn't be written.
+        try
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            Question = question,
-            AskerHash = askerHash,
-            CreatedAt = DateTime.UtcNow
-        });
-        await _db.SaveChangesAsync(cancellationToken);
+            _db.AiQueryLogs.Add(new AiQueryLog
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Question = question,
+                AskerHash = askerHash,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to log AI query for tenant {TenantId}", tenantId);
+        }
 
         return new AskAiResult(AskAiOutcome.Answered, answer);
     }

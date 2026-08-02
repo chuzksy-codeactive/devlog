@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.MultiTenancy;
@@ -23,11 +25,13 @@ public class PortfolioController : ControllerBase
 {
     private readonly DevLogDbContext _db;
     private readonly ICurrentTenantAccessor _tenantAccessor;
+    private readonly ILogger<PortfolioController> _logger;
 
-    public PortfolioController(DevLogDbContext db, ICurrentTenantAccessor tenantAccessor)
+    public PortfolioController(DevLogDbContext db, ICurrentTenantAccessor tenantAccessor, ILogger<PortfolioController> logger)
     {
         _db = db;
         _tenantAccessor = tenantAccessor;
+        _logger = logger;
     }
 
     [HttpGet("me")]
@@ -170,6 +174,33 @@ public class PortfolioController : ControllerBase
             return NotFound();
         }
 
+        // Milestone 12 — the portfolio_view_events half of the roadmap's
+        // "instrument everything... populated from day one" item. Logged
+        // here rather than via Next.js middleware/analytics, so a view
+        // counts once per real backend load regardless of frontend caching
+        // behavior. Best-effort: a logging failure must never break the
+        // actual page load, same "the real work already succeeded" posture
+        // as InterviewRequestService's notification email. Unlike that
+        // email send, though, a failure here gets logged, not silently
+        // swallowed — sql/008 fixed the one way this was actually failing
+        // (a missing public_insert RLS policy for the anonymous caller),
+        // found only because it failed with zero visibility the first time.
+        try
+        {
+            _db.PortfolioViewEvents.Add(new PortfolioViewEvent
+            {
+                Id = Guid.NewGuid(),
+                TenantId = portfolio.TenantId,
+                ViewerHash = HashRemoteIp(HttpContext.Connection.RemoteIpAddress?.ToString()),
+                ViewedAt = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to log portfolio view event for tenant {TenantId}", portfolio.TenantId);
+        }
+
         var experiences = await _db.Experiences
             .Where(e => e.TenantId == portfolio.TenantId)
             .OrderByDescending(e => e.StartDate)
@@ -197,6 +228,19 @@ public class PortfolioController : ControllerBase
                 keyAchievement = e.KeyAchievement
             })
         });
+    }
+
+    // Same construction as AskAiController.HashRemoteIp — a coarse,
+    // non-identifying signal for portfolio_view_events, not a raw IP.
+    private static string? HashRemoteIp(string? ip)
+    {
+        if (string.IsNullOrEmpty(ip))
+        {
+            return null;
+        }
+
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(ip));
+        return Convert.ToHexString(bytes);
     }
 
     public record UpdatePortfolioRequest(

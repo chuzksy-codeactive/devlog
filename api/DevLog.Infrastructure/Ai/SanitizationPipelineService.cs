@@ -3,6 +3,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DevLog.Infrastructure.Ai;
 
+// Milestone 12: distinguishes the two ways SanitizeAsync can be refused for
+// cost-abuse reasons, so EntriesController can return 429 either way but
+// still surface which limit was hit.
+public enum SanitizationLimitReason
+{
+    HourlyRateLimit,
+    MonthlyQuota
+}
+
+public class SanitizationLimitExceededException : Exception
+{
+    public SanitizationLimitReason Reason { get; }
+
+    public SanitizationLimitExceededException(SanitizationLimitReason reason, string message) : base(message)
+    {
+        Reason = reason;
+    }
+}
+
 // Orchestrates the flow from architecture doc Section 3:
 // raw_entries -> sanitize -> sanitized_draft -> creator approves -> published_entries
 // + sanitization_audit. Synchronous for this milestone (no Hangfire job queue
@@ -11,6 +30,14 @@ namespace DevLog.Infrastructure.Ai;
 // not a different pipeline.
 public class SanitizationPipelineService
 {
+    // Section 9's cost-abuse control, closed in Milestone 12 — mirrors
+    // AskAiService's MaxQueriesPerTenantPerHour shape (a row count against a
+    // dedicated log table rather than a Redis counter, same simplification
+    // as everywhere else pre-Redis). Sanitization is a deliberate creator
+    // action behind auth, not a public anonymous endpoint like Ask AI, so
+    // the cap is much lower.
+    private const int MaxRunsPerTenantPerHour = 10;
+
     private readonly DevLogDbContext _db;
     private readonly ILlmProvider _llmProvider;
     private readonly EmbeddingPipelineService _embeddingPipeline;
@@ -38,6 +65,38 @@ public class SanitizationPipelineService
                 "Cannot re-sanitize an already-approved entry. Editing a published entry is a later milestone (Section 3's raw -> sanitize -> republish flow).");
         }
 
+        // Checked before the LLM call, not after — a rejected request should
+        // never incur the cost it's trying to prevent. Logged once the run
+        // actually happens, below, not here.
+        var recentRunCount = await _db.SanitizationRunLogs
+            .CountAsync(l => l.TenantId == entry.TenantId && l.CreatedAt > DateTime.UtcNow.AddHours(-1), cancellationToken);
+        if (recentRunCount >= MaxRunsPerTenantPerHour)
+        {
+            throw new SanitizationLimitExceededException(
+                SanitizationLimitReason.HourlyRateLimit,
+                "Hourly sanitization limit reached. Try again later.");
+        }
+
+        // Subscription.SanitizationQuota has existed since early in this
+        // build "specifically so a per-tenant rate cap can be enforced"
+        // (its own doc comment), but nothing ever counted against it until
+        // now. A calendar-month window, not a rolling 30 days — simplest
+        // definition that matches "monthly quota" as named.
+        var subscription = await _db.Subscriptions
+            .FirstOrDefaultAsync(s => s.TenantId == entry.TenantId, cancellationToken);
+        if (subscription is not null)
+        {
+            var monthStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var monthlyRunCount = await _db.SanitizationRunLogs
+                .CountAsync(l => l.TenantId == entry.TenantId && l.CreatedAt >= monthStart, cancellationToken);
+            if (monthlyRunCount >= subscription.SanitizationQuota)
+            {
+                throw new SanitizationLimitExceededException(
+                    SanitizationLimitReason.MonthlyQuota,
+                    "Monthly sanitization quota reached.");
+            }
+        }
+
         entry.Status = RawEntryStatus.Sanitizing;
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -55,6 +114,16 @@ public class SanitizationPipelineService
         entry.SanitizedPreview = result.SanitizedContent;
         entry.SanitizationModelVersion = result.ModelVersion;
         entry.Status = RawEntryStatus.PendingApproval;
+
+        // Logged once the LLM call actually happened — this row is what
+        // both checks above count against next time, for this tenant.
+        _db.SanitizationRunLogs.Add(new SanitizationRunLog
+        {
+            Id = Guid.NewGuid(),
+            TenantId = entry.TenantId,
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _db.SaveChangesAsync(cancellationToken);
 
         return entry;
