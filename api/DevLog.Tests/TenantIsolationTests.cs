@@ -2,6 +2,7 @@ using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Xunit;
 
 namespace DevLog.Tests;
@@ -28,6 +29,14 @@ public class TenantIsolationTests
 {
     private const string ConnectionString =
         "Host=localhost;Port=5432;Database=devlog;Username=devlog_app;Password=devlog_app_local";
+    private static readonly NpgsqlDataSource DataSource = BuildDataSource();
+
+    private static NpgsqlDataSource BuildDataSource()
+    {
+        var dataSourceBuilder = new NpgsqlDataSourceBuilder(ConnectionString);
+        dataSourceBuilder.UseVector();
+        return dataSourceBuilder.Build();
+    }
 
     private static DevLogDbContext CreateContext(Guid? tenantId)
     {
@@ -35,7 +44,8 @@ public class TenantIsolationTests
         var interceptor = new TenantConnectionInterceptor(tenantAccessor);
 
         var options = new DbContextOptionsBuilder<DevLogDbContext>()
-            .UseNpgsql(ConnectionString)
+            .UseNpgsql(DataSource, npgsqlOptions => npgsqlOptions.UseVector())
+            .UseSnakeCaseNamingConvention()
             .AddInterceptors(interceptor)
             .Options;
 

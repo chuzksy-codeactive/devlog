@@ -84,6 +84,8 @@ public class InterviewRequestService
             return new RequestInterviewResult(RequestInterviewOutcome.PortfolioNotFound);
         }
 
+        var verificationToken = RandomNumberGenerator.GetHexString(64);
+
         var request = new InterviewRequest
         {
             Id = Guid.NewGuid(),
@@ -93,7 +95,7 @@ public class InterviewRequestService
             Note = note,
             Status = InterviewRequestStatus.Pending,
             EmailVerified = false,
-            VerificationToken = RandomNumberGenerator.GetHexString(64),
+            VerificationToken = HashVerificationToken(verificationToken),
             VerificationTokenExpiresAt = DateTime.UtcNow.Add(VerificationTokenLifetime),
             CreatedAt = DateTime.UtcNow
         };
@@ -110,12 +112,16 @@ public class InterviewRequestService
         // just stays unverified and inert forever, which is a real (if
         // quiet) failure mode worth knowing about if recruiters ever report
         // "I submitted a request and nothing happened."
-        await SendVerificationEmailAsync(slug, request, cancellationToken);
+        await SendVerificationEmailAsync(slug, request, verificationToken, cancellationToken);
 
         return new RequestInterviewResult(RequestInterviewOutcome.Created, request.Id);
     }
 
-    private async Task SendVerificationEmailAsync(string slug, InterviewRequest request, CancellationToken cancellationToken)
+    private async Task SendVerificationEmailAsync(
+        string slug,
+        InterviewRequest request,
+        string verificationToken,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -164,7 +170,7 @@ public class InterviewRequestService
         }
 
         if (request.VerificationToken is null
-            || !string.Equals(request.VerificationToken, token, StringComparison.Ordinal)
+            || !MatchesStoredVerificationToken(request.VerificationToken, token)
             || request.VerificationTokenExpiresAt is not DateTime expiresAt
             || expiresAt < DateTime.UtcNow)
         {
@@ -261,5 +267,28 @@ public class InterviewRequestService
         await _db.SaveChangesAsync(cancellationToken);
 
         return request;
+    }
+
+    private static string HashVerificationToken(string token)
+    {
+        var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+        var hashBytes = SHA256.HashData(tokenBytes);
+        return Convert.ToHexString(hashBytes);
+    }
+
+    private static bool MatchesStoredVerificationToken(string storedToken, string presentedToken)
+    {
+        var presentedHash = HashVerificationToken(presentedToken);
+
+        // Backward-compatible fallback for any pre-hardening rows that still
+        // have a plaintext token stored.
+        if (string.Equals(storedToken, presentedToken, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(storedToken),
+            System.Text.Encoding.UTF8.GetBytes(presentedHash));
     }
 }

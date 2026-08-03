@@ -36,8 +36,8 @@ public class InterviewRequest
     // stored.
     public bool EmailVerified { get; set; }
 
-    // Null once verified (or once expired and abandoned) — a one-time,
-    // single-use token, not a reusable secret sitting on the row forever.
+    // Stores a SHA-256 hash of the one-time verification token (never the
+    // raw token itself). Null once verified (or once expired and abandoned).
     public string? VerificationToken { get; set; }
     public DateTime? VerificationTokenExpiresAt { get; set; }
 
