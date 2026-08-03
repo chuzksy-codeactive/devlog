@@ -10,6 +10,7 @@ const CARDS = [
   { href: "/dashboard/experience", label: "Experience", description: "Roles, projects, and education on your timeline." },
   { href: "/dashboard/journal", label: "Sprint Journal", description: "Write, sanitize, and publish entries." },
   { href: "/dashboard/interview-requests", label: "Interview Requests", description: "Accept or decline recruiter requests." },
+  { href: "/dashboard/analytics", label: "Analytics", description: "Views, Ask AI questions, and interview request stats." },
 ];
 
 export default function DashboardOverviewPage() {

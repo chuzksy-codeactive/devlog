@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/journal", label: "Sprint Journal" },
   { href: "/dashboard/interview-requests", label: "Interview Requests" },
   { href: "/dashboard/import", label: "Import" },
+  { href: "/dashboard/analytics", label: "Analytics" },
 ];
 
 export function DashboardNav() {

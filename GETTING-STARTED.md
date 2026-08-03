@@ -781,6 +781,48 @@ git push
 
 ---
 
+## Milestone 14 — paused visibility state (reviewed, already built)
+
+No work shipped here — checked the actual code before starting, rather than trusting the roadmap's "⬜ Not started" tag. `Paused` has been enforceable since Sprint 0 (it's always been in the `PortfolioVisibility` enum), `sql/004`'s RLS `public_read` policy already excludes it at the database layer, all four anonymous read paths (`PortfolioController.GetPublicPortfolio`, `AskAiService`, `InterviewRequestService.CreateAsync`, `SprintJournalController`) already re-check it explicitly, and Milestone 11's dashboard already ships a working `<select>` control for it (Profile → Visibility → "Paused — hidden from everyone, including your own link"). Roadmap corrected in place. Nothing to smoke-test that isn't already covered by the existing dashboard.
+
+## Bugfix — Sprint Journal public pages were never wired off mock data
+
+Found via Chika publishing a real entry and not being able to find it on his own `/journal` page. `[slug]/journal/page.tsx` and `[slug]/journal/[entryId]/page.tsx` were still importing hardcoded fixture data from `mock-journal.ts` — Milestone 11's "wire public pages off mock data" pass only actually fixed `mock-portfolio.ts` (which Home and Experience depend on), never `mock-journal.ts`. Fixed the same way: real `fetch()` calls against `GET /api/portfolio/:slug/entries[/:id]`, same filename and function signatures, zero caller changes. No migration, no backend change — just restart the frontend dev server (or it'll pick up the change automatically under `npm run dev`) and refresh `/{slug}/journal`.
+
+## Milestone 16 — creator analytics dashboard (built ahead of Milestone 15)
+
+Built out of roadmap order on purpose: Milestone 15 (Discover) names its own precondition in the roadmap — "needs enough public tenants to be useful" — which isn't true yet. Milestone 16's data (`portfolio_view_events`, `ai_query_logs`, `interview_requests`) has been logging since Milestone 5/12 with zero UI on top of it, so it was the higher-value thing to build right now. Confirmed with Chika via AskUserQuestion before starting rather than just picking one.
+
+New `GET /api/analytics/summary` (`AnalyticsController`, creator-authenticated, read-only — no new tables, no new writes) returns lifetime + 7-day + 30-day totals for portfolio views and Ask AI questions, interview request counts by state (verified/pending/accepted), and a zero-filled daily series for the last 30 days of each. New `/dashboard/analytics` page renders it: three stat cards plus two plain-CSS bar charts (no chart library added — a handful of divs sized by percentage height, matching this project's existing all-Tailwind-utility-classes convention).
+
+### Step 52 — nothing to apply, just rebuild and restart
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet build
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+### Step 53 — smoke test
+
+1. `/dashboard/analytics` → confirm the three stat cards load with real numbers (views/queries should already be non-zero if you've been testing the public pages and Ask AI).
+2. Load your public portfolio a couple of times, ask Ask AI a question, then reload `/dashboard/analytics` → confirm the totals and today's bar both went up.
+3. Confirm the interview-request counts match what's on `/dashboard/interview-requests` (verified count should equal pending + accepted + declined-but-verified).
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Milestone 16: creator analytics dashboard; fix Sprint Journal mock-data bug; confirm Milestone 14 already complete"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Next up: paused visibility, Discover, the creator analytics dashboard (now that view events are logging), and Learning Lab, roughly in that order. Billing/Stripe is explicitly deferred until there's an actual userbase worth charging — new developers get in free for now.
+Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16) is done, giving real visibility into views/queries/requests for the first time. Next up: Discover (Milestone 15, once there are enough public tenants for cross-candidate search to be worth building) and Learning Lab (Milestone 17). Billing/Stripe is explicitly deferred until there's an actual userbase worth charging — new developers get in free for now.

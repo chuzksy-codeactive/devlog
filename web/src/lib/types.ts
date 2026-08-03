@@ -165,3 +165,26 @@ export interface MyInterviewRequest {
   createdAt: string;
   respondedAt: string | null;
 }
+
+// Mirrors GET /api/analytics/summary (AnalyticsController, Milestone 16).
+// Read-only aggregation over data that's been logging since Milestone 5
+// (interview_requests) and Milestone 12 (portfolio_view_events,
+// ai_query_logs) — this is the first UI ever built on top of it.
+export interface DailyCount {
+  date: string; // yyyy-MM-dd
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  viewsTotal: number;
+  views7d: number;
+  views30d: number;
+  queriesTotal: number;
+  queries7d: number;
+  queries30d: number;
+  interviewRequestsVerified: number;
+  interviewRequestsPending: number;
+  interviewRequestsAccepted: number;
+  viewsByDay: DailyCount[];
+  queriesByDay: DailyCount[];
+}
