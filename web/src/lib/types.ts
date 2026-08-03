@@ -34,8 +34,8 @@ export type Discipline =
   | "Other";
 
 // Mirrors DevLog.Domain.Entities.ProofLink — one entry in a Portfolio's
-// generalized ProofLinks list (supplement to the fixed githubUrl/cvUrl
-// fields below).
+// generalized ProofLinks list (supplement to the fixed githubUrl
+// field below).
 export interface ProofLink {
   label: string;
   url: string;
@@ -53,7 +53,7 @@ export interface PortfolioData {
   coreTechnologies: string[];
   githubUrl: string | null;
   githubVerified: boolean;
-  cvUrl: string | null;
+  hasCv: boolean;
   photoUrl: string | null;
   discipline: Discipline;
   proofLinks: ProofLink[];

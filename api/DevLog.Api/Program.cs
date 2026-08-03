@@ -191,6 +191,17 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = 20,
             QueueLimit = 0
         }));
+
+    // Public CV signed-link requests. Tighter than generic browsing, looser
+    // than interview creation (no email side effect).
+    options.AddPolicy("PublicCvAccess", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        PartitionKey(httpContext),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromMinutes(1),
+            PermitLimit = 10,
+            QueueLimit = 0
+        }));
 });
 
 // Shared partition key for all three policies above: (IP, slug) rather than

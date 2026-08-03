@@ -2,6 +2,7 @@ import { PortfolioData } from "@/lib/types";
 import { computeYearsOfExperience } from "@/lib/portfolio-utils";
 import { disciplineLabels } from "@/lib/discipline-labels";
 import { AskAiForm } from "./AskAiForm";
+import { CvDownloadButton } from "./CvDownloadButton";
 
 function initials(name: string): string {
   return name
@@ -104,14 +105,7 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
                 {link.label || link.url}
               </a>
             ))}
-            {portfolio.cvUrl ? (
-              <a
-                href={portfolio.cvUrl}
-                className="rounded-lg border border-zinc-200 bg-white px-4 py-1.5 text-sm font-medium text-zinc-900"
-              >
-                Download CV
-              </a>
-            ) : null}
+            {portfolio.hasCv ? <CvDownloadButton slug={portfolio.slug} /> : null}
           </div>
 
           {/* The AI ask-box embedded directly in the hero, per the Product

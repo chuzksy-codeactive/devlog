@@ -8,6 +8,7 @@ using DevLog.Infrastructure.Storage;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -111,6 +112,43 @@ public class PortfolioController : ControllerBase
         _logger.LogInformation(
             "Issued CV access URL for tenant {TenantId} with lifetime {LifetimeSeconds}s.",
             tenantId,
+            (int)lifetime.TotalSeconds);
+
+        return Ok(new
+        {
+            cvAccessUrl = readUrl,
+            expiresInSeconds = (int)lifetime.TotalSeconds
+        });
+    }
+
+    // Public recruiter-side CV access. Returns a short-lived signed URL
+    // rather than exposing a permanent blob/static path in portfolio payloads.
+    [AllowAnonymous]
+    [EnableRateLimiting("PublicCvAccess")]
+    [HttpGet("{slug}/cv-access-url")]
+    public async Task<IActionResult> GetPublicCvAccessUrl(string slug, CancellationToken cancellationToken)
+    {
+        var portfolio = await _db.Portfolios
+            .Include(p => p.Tenant)
+            .FirstOrDefaultAsync(p => p.Tenant!.Slug == slug, cancellationToken);
+
+        if (portfolio is null || portfolio.Visibility == PortfolioVisibility.Paused)
+        {
+            return NotFound("No public portfolio found at this slug.");
+        }
+
+        if (string.IsNullOrWhiteSpace(portfolio.CvFileUrl))
+        {
+            return NotFound("No CV is currently available for this portfolio.");
+        }
+
+        var minutes = Math.Clamp(_storageOptions.SignedUrlLifetimeMinutes, 1, 60);
+        var lifetime = TimeSpan.FromMinutes(minutes);
+        var readUrl = await _fileStorageProvider.GetReadUrlAsync(portfolio.CvFileUrl, lifetime, cancellationToken);
+
+        _logger.LogInformation(
+            "Issued public CV access URL for slug {Slug} with lifetime {LifetimeSeconds}s.",
+            slug,
             (int)lifetime.TotalSeconds);
 
         return Ok(new
@@ -379,6 +417,7 @@ public class PortfolioController : ControllerBase
             // whether the field is editable, this is the same fact shown
             // to the audience it's meant to reassure.
             githubVerified = portfolio.GitHubVerified,
+            hasCv = !string.IsNullOrWhiteSpace(portfolio.CvFileUrl),
             photoUrl = portfolio.PhotoUrl,
             // Multi-role expansion — discipline drives which label variant
             // Hero.tsx renders for a field (e.g. "Core technologies" vs.
