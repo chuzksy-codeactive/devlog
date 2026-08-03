@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddDevLogInfrastructure(builder.Configuration);
+builder.Services.AddDevLogInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Forwarded headers (X-Forwarded-For / X-Forwarded-Proto) for proxy/LB
 // deployments. Trusted proxies are explicit (ForwardedHeaders:KnownProxies)
@@ -139,8 +139,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
         policy.WithOrigins(frontendOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+              .WithHeaders("Authorization", "Content-Type")
+              .WithMethods("GET", "POST", "PUT", "DELETE");
     });
 });
 

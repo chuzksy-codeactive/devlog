@@ -160,6 +160,6 @@ public class EntriesController : ControllerBase
 
     public record CreateEntryRequest(
         RawEntryType EntryType,
-        [property: Required, MaxLength(200)] string Title,
-        [property: Required, MaxLength(20000)] string RawContent);
+        [param: Required, MaxLength(200)] string Title,
+        [param: Required, MaxLength(20000)] string RawContent);
 }

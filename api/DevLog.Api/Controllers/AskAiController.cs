@@ -52,5 +52,5 @@ public class AskAiController : ControllerBase
     }
 
     public record AskAiRequest(
-        [property: Required, MaxLength(1000)] string Question);
+        [param: Required, MaxLength(1000)] string Question);
 }

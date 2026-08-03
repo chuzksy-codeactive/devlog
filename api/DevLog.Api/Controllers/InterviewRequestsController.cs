@@ -93,10 +93,10 @@ public class InterviewRequestsController : ControllerBase
     }
 
     public record CreateInterviewRequestBody(
-        [property: Required, EmailAddress, MaxLength(320)] string RecruiterEmail,
-        [property: MaxLength(120)] string? RecruiterName,
-        [property: Required, MaxLength(2000)] string Note);
+        [param: Required, EmailAddress, MaxLength(320)] string RecruiterEmail,
+        [param: MaxLength(120)] string? RecruiterName,
+        [param: Required, MaxLength(2000)] string Note);
 
     public record VerifyInterviewRequestBody(
-        [property: Required, MaxLength(256)] string Token);
+        [param: Required, MaxLength(256)] string Token);
 }

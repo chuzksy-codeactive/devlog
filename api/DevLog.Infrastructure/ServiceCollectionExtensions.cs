@@ -27,7 +27,10 @@ public static class ServiceCollectionExtensions
         "devlog-local-ip-hash-secret-change-me"
     };
 
-    public static IServiceCollection AddDevLogInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddDevLogInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool isDevelopment)
     {
         services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
         services.AddScoped<TenantConnectionInterceptor>();
@@ -178,6 +181,14 @@ public static class ServiceCollectionExtensions
 
         services.Configure<MalwareScanningOptions>(configuration.GetSection(MalwareScanningOptions.SectionName));
         var malwareScannerProvider = configuration[$"{MalwareScanningOptions.SectionName}:Provider"] ?? "None";
+
+        if (!isDevelopment && storageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase)
+            && !malwareScannerProvider.Equals("AzureDefenderStorage", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "In non-development environments, Storage:Provider=AzureBlob requires MalwareScanning:Provider=AzureDefenderStorage.");
+        }
+
         if (malwareScannerProvider.Equals("AzureDefenderStorage", StringComparison.OrdinalIgnoreCase))
         {
             services.AddScoped<IMalwareScanner, AzureDefenderStorageMalwareScanner>();

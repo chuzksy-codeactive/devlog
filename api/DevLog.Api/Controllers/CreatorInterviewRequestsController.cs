@@ -90,5 +90,5 @@ public class CreatorInterviewRequestsController : ControllerBase
     };
 
     public record AcceptInterviewRequestBody(
-        [property: Required, MaxLength(2000)] string ContactInstructions);
+        [param: Required, MaxLength(2000)] string ContactInstructions);
 }

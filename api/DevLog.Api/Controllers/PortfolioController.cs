@@ -108,6 +108,11 @@ public class PortfolioController : ControllerBase
         var lifetime = TimeSpan.FromMinutes(minutes);
         var readUrl = await _fileStorageProvider.GetReadUrlAsync(portfolio.CvFileUrl, lifetime, cancellationToken);
 
+        _logger.LogInformation(
+            "Issued CV access URL for tenant {TenantId} with lifetime {LifetimeSeconds}s.",
+            tenantId,
+            (int)lifetime.TotalSeconds);
+
         return Ok(new
         {
             cvAccessUrl = readUrl,
@@ -166,12 +171,6 @@ public class PortfolioController : ControllerBase
             return BadRequest("gitHubUrl must be an absolute http/https URL.");
         }
 
-        string? cvFileUrl = null;
-        if (request.CvFileUrl is not null && !UrlAllowlist.TryNormalizeHttpUrl(request.CvFileUrl, out cvFileUrl))
-        {
-            return BadRequest("cvFileUrl must be an absolute http/https URL.");
-        }
-
         List<ProofLink>? normalizedProofLinks = null;
         if (request.ProofLinks is not null)
         {
@@ -207,7 +206,6 @@ public class PortfolioController : ControllerBase
         if (request.CoreTechnologies is not null) portfolio.CoreTechnologies = request.CoreTechnologies;
         if (request.LinkedInUrl is not null) portfolio.LinkedInUrl = linkedInUrl;
         if (request.GitHubUrl is not null) portfolio.GitHubUrl = gitHubUrl;
-        if (request.CvFileUrl is not null) portfolio.CvFileUrl = cvFileUrl;
         // Milestone 19 — once GitHubVerified, GitHubUrl is sourced only
         // from POST me/github/sync (a real Clerk-confirmed account), never
         // from a hand-typed PUT body. Silently ignoring rather than 400ing:
@@ -381,7 +379,6 @@ public class PortfolioController : ControllerBase
             // whether the field is editable, this is the same fact shown
             // to the audience it's meant to reassure.
             githubVerified = portfolio.GitHubVerified,
-            cvUrl = portfolio.CvFileUrl,
             photoUrl = portfolio.PhotoUrl,
             // Multi-role expansion — discipline drives which label variant
             // Hero.tsx renders for a field (e.g. "Core technologies" vs.
@@ -406,19 +403,18 @@ public class PortfolioController : ControllerBase
     }
 
     public record UpdatePortfolioRequest(
-        [property: MaxLength(140)] string? Headline,
-        [property: MaxLength(120)] string? DisplayName,
-        [property: MaxLength(200)] string? PositioningLine,
-        [property: MaxLength(2048)] string? PhotoUrl,
-        [property: MaxLength(120)] string? CurrentRole,
-        [property: MaxLength(80)] string? YearsExperience,
-        [property: MaxLength(30)] List<string>? CoreTechnologies,
-        [property: MaxLength(2048)] string? LinkedInUrl,
-        [property: MaxLength(2048)] string? GitHubUrl,
-        [property: MaxLength(2048)] string? CvFileUrl,
+        [param: MaxLength(140)] string? Headline,
+        [param: MaxLength(120)] string? DisplayName,
+        [param: MaxLength(200)] string? PositioningLine,
+        [param: MaxLength(2048)] string? PhotoUrl,
+        [param: MaxLength(120)] string? CurrentRole,
+        [param: MaxLength(80)] string? YearsExperience,
+        [param: MaxLength(30)] List<string>? CoreTechnologies,
+        [param: MaxLength(2048)] string? LinkedInUrl,
+        [param: MaxLength(2048)] string? GitHubUrl,
         PortfolioDiscipline? Discipline,
-        [property: MaxLength(20)] List<ProofLink>? ProofLinks,
+        [param: MaxLength(20)] List<ProofLink>? ProofLinks,
         PortfolioVisibility? Visibility,
         bool? Discoverable,
-        [property: EmailAddress, MaxLength(320)] string? NotificationEmail);
+        [param: EmailAddress, MaxLength(320)] string? NotificationEmail);
 }

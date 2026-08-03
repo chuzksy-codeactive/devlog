@@ -4,6 +4,7 @@ using DevLog.Domain.Entities;
 using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DevLog.Infrastructure.Onboarding;
 
@@ -87,19 +88,22 @@ public class OnboardingImportService
     private readonly DevLogDbContext _db;
     private readonly IFileStorageProvider _fileStorageProvider;
     private readonly IMalwareScanner _malwareScanner;
+    private readonly ILogger<OnboardingImportService> _logger;
 
     public OnboardingImportService(
         GitHubClient gitHubClient,
         ILlmProvider llmProvider,
         DevLogDbContext db,
         IFileStorageProvider fileStorageProvider,
-        IMalwareScanner malwareScanner)
+        IMalwareScanner malwareScanner,
+        ILogger<OnboardingImportService> logger)
     {
         _gitHubClient = gitHubClient;
         _llmProvider = llmProvider;
         _db = db;
         _fileStorageProvider = fileStorageProvider;
         _malwareScanner = malwareScanner;
+        _logger = logger;
     }
 
     // Milestone 19 — takes tenantId instead of a client-submitted username.
@@ -167,14 +171,18 @@ public class OnboardingImportService
         if (scanResult.Outcome == MalwareScanOutcome.Infected)
         {
             await _fileStorageProvider.DeleteAsync(tenantId, ResumeFileName, cancellationToken);
+            _logger.LogWarning("Resume upload rejected by malware scanner for tenant {TenantId}. Details: {Details}", tenantId, scanResult.Details);
             return new ResumeImportResult(ResumeImportOutcome.MalwareDetected, CvFileUrl: null);
         }
 
         if (scanResult.Outcome == MalwareScanOutcome.Failed)
         {
             await _fileStorageProvider.DeleteAsync(tenantId, ResumeFileName, cancellationToken);
+            _logger.LogWarning("Resume upload scan failed for tenant {TenantId}. Details: {Details}", tenantId, scanResult.Details);
             return new ResumeImportResult(ResumeImportOutcome.ScanFailed, CvFileUrl: null);
         }
+
+        _logger.LogInformation("Resume upload passed malware scanning for tenant {TenantId}.", tenantId);
 
         var portfolio = await _db.Portfolios.FirstOrDefaultAsync(p => p.TenantId == tenantId, cancellationToken);
         if (portfolio is not null)

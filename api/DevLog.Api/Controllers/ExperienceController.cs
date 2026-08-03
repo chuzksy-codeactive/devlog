@@ -157,10 +157,10 @@ public class ExperienceController : ControllerBase
 
     public record ExperienceRequest(
         ExperienceType ExperienceType,
-        [property: Required, MaxLength(160)] string CompanyLabel,
-        [property: MaxLength(160)] string? Title,
+        [param: Required, MaxLength(160)] string CompanyLabel,
+        [param: MaxLength(160)] string? Title,
         DateOnly StartDate,
         DateOnly? EndDate,
-        [property: MaxLength(30)] List<string>? Technologies,
-        [property: MaxLength(2000)] string? KeyAchievement);
+        [param: MaxLength(30)] List<string>? Technologies,
+        [param: MaxLength(2000)] string? KeyAchievement);
 }
