@@ -5,6 +5,10 @@ public class StorageOptions
 {
     public const string SectionName = "Storage";
 
+    // Selects which IFileStorageProvider implementation is used.
+    // Supported values: "LocalDisk" (default) and "AzureBlob".
+    public string Provider { get; set; } = "LocalDisk";
+
     // Relative or absolute path on disk where uploaded files are written.
     // Relative paths resolve against the API project's working directory —
     // fine for "local only, for now" (this build's actual hosting
@@ -19,4 +23,8 @@ public class StorageOptions
     // config value rather than reusing Clerk:AuthorizedParty or similar,
     // since this is the API's own origin, not the frontend's.
     public string PublicBaseUrl { get; set; } = "http://localhost:61726/uploads";
+
+    // Azure Blob Storage settings (used when Provider = AzureBlob).
+    public string? AzureBlobConnectionString { get; set; }
+    public string AzureBlobContainerName { get; set; } = "cv-private";
 }

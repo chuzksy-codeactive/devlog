@@ -163,11 +163,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<OnboardingImportService>();
 
         // Milestone 13b — resume upload's storage abstraction. Only
-        // LocalDiskFileStorageProvider exists today ("local only, for
-        // now"); see that class's doc comment for the Azure Blob Storage
-        // swap-in story.
+        // LocalDisk is still the default for local/dev, but AzureBlob can
+        // be selected via configuration for private cloud storage.
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
-        services.AddScoped<IFileStorageProvider, LocalDiskFileStorageProvider>();
+        var storageProvider = configuration[$"{StorageOptions.SectionName}:Provider"] ?? "LocalDisk";
+        if (storageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IFileStorageProvider, AzureBlobFileStorageProvider>();
+        }
+        else
+        {
+            services.AddScoped<IFileStorageProvider, LocalDiskFileStorageProvider>();
+        }
 
         // Milestone 19 — GitHub link verification. Same "Clerk" config
         // section Program.cs already reads Authority/AuthorizedParty from

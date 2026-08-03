@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using DevLog.Api.Middleware;
 using DevLog.Infrastructure;
+using DevLog.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -248,14 +249,17 @@ app.UseCors(FrontendCorsPolicy);
 // changes.
 var storageOptions = app.Configuration.GetSection("Storage").Get<DevLog.Infrastructure.Storage.StorageOptions>()
     ?? new DevLog.Infrastructure.Storage.StorageOptions();
-Directory.CreateDirectory(storageOptions.LocalDiskPath);
-var uploadsRequestPath = "/" + new Uri(storageOptions.PublicBaseUrl).AbsolutePath.Trim('/');
-app.UseStaticFiles(new StaticFileOptions
+if (storageOptions.Provider.Equals("LocalDisk", StringComparison.OrdinalIgnoreCase))
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.GetFullPath(storageOptions.LocalDiskPath)),
-    RequestPath = uploadsRequestPath
-});
+    Directory.CreateDirectory(storageOptions.LocalDiskPath);
+    var uploadsRequestPath = "/" + new Uri(storageOptions.PublicBaseUrl).AbsolutePath.Trim('/');
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+            Path.GetFullPath(storageOptions.LocalDiskPath)),
+        RequestPath = uploadsRequestPath
+    });
+}
 
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>();
