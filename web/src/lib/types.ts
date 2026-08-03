@@ -188,3 +188,21 @@ export interface AnalyticsSummary {
   viewsByDay: DailyCount[];
   queriesByDay: DailyCount[];
 }
+
+// Mirrors GET /api/portfolio/:slug/learning[/:id] (LearningLabController,
+// Milestone 17) — identical shape to the Sprint Journal entry types, since
+// both surfaces are the same raw_entries -> sanitize -> approve ->
+// published_entries pipeline filtered by a different SourceEntryType.
+// Aliased rather than duplicated so the two surfaces can't silently drift
+// apart in shape without a compiler error.
+export type LearningLogEntrySummary = SprintJournalEntrySummary;
+export type LearningLogEntryDetail = SprintJournalEntryDetail;
+
+// Mirrors GET /api/learning-lab/reminder (LearningLabController) — the
+// Milestone 17 retention nudge, computed live rather than emailed by a
+// background job (see LearningLabController's doc comment for why).
+export interface LearningLabReminderStatus {
+  lastPublishedAt: string | null;
+  daysSinceLastEntry: number | null;
+  nudgeActive: boolean;
+}

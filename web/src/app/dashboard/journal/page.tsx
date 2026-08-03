@@ -273,6 +273,11 @@ function EntryDetail({
             View on your public journal →
           </Link>
         )}
+        {entry.status === "Approved" && slug && entry.entryType === "LearningLog" && (
+          <Link href={`/${slug}/learning`} className="text-sm font-medium text-indigo-600 underline">
+            View on your public Learning Lab →
+          </Link>
+        )}
       </div>
     </div>
   );

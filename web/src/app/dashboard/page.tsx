@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/lib/use-api";
-import { MyPortfolio } from "@/lib/types";
+import { LearningLabReminderStatus, MyPortfolio } from "@/lib/types";
 
 const CARDS = [
   { href: "/dashboard/profile", label: "Profile", description: "Your name, headline, tagline, links, and visibility." },
@@ -17,6 +17,7 @@ export default function DashboardOverviewPage() {
   const { request } = useApi();
   const [portfolio, setPortfolio] = useState<MyPortfolio | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [reminder, setReminder] = useState<LearningLabReminderStatus | null>(null);
 
   useEffect(() => {
     request<MyPortfolio>("/api/portfolio/me")
@@ -25,6 +26,17 @@ export default function DashboardOverviewPage() {
         setStatus("ready");
       })
       .catch(() => setStatus("error"));
+
+    // Milestone 17's retention nudge — computed live on every dashboard
+    // load rather than emailed by a background job (no job queue exists in
+    // this codebase yet; see LearningLabController's doc comment). Fetched
+    // independently of the portfolio call and fails silently (no banner)
+    // rather than surfacing its own error state — a missed nudge is a
+    // minor inconvenience, not something worth a second error message on
+    // the same page.
+    request<LearningLabReminderStatus>("/api/learning-lab/reminder")
+      .then(setReminder)
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -49,6 +61,19 @@ export default function DashboardOverviewPage() {
           <p className="mt-1 text-sm text-red-600">Couldn&apos;t load your portfolio — check that the API is running.</p>
         )}
       </div>
+
+      {reminder?.nudgeActive && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            {reminder.daysSinceLastEntry === null
+              ? "You haven't written a Learning Lab entry yet — start your growth log."
+              : `It's been ${reminder.daysSinceLastEntry} days since your last Learning Lab entry — write one now.`}
+          </p>
+          <Link href="/dashboard/journal" className="mt-1 inline-block text-sm font-medium text-amber-900 underline">
+            Write a Learning Log entry →
+          </Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {CARDS.map((card) => (

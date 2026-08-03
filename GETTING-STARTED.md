@@ -823,6 +823,44 @@ git push
 
 ---
 
+## Milestone 17 — Learning Lab + retention nudge
+
+The 5th and last Product Brief IA surface ("monthly diary + career retrospectives, unified as one growth log"). Built ahead of Milestone 15 (Discover) for the same reason Milestone 16 was — Discover needs more public tenants than exist right now, this doesn't.
+
+New `LearningLabController` — nearly a literal copy of `SprintJournalController` (same portfolio-by-slug + visibility check, same list/detail split), filtered by `RawEntryType.LearningLog` instead of `.SprintEntry`. The pipeline itself needed zero changes: `RawEntryType.LearningLog` and the "Learning Log entry" option in the dashboard journal composer's Type dropdown have existed since Milestone 11 — they had nowhere public to publish to until now. New public pages `/{slug}/learning` and `/{slug}/learning/{entryId}`, same structure as the Sprint Journal pages. `PortfolioNav`'s "Learning Lab" link is enabled for the first time (was a "Coming soon" placeholder since Milestone 3).
+
+**Retention nudge deviates from the architecture doc's original design, by explicit choice, not by accident.** The doc specifies a Hangfire recurring job emailing a monthly reminder — this codebase has never built a job queue, and standing one up for a once-a-month email wasn't worth it yet. Instead, `GET /api/learning-lab/reminder` computes "days since your last published Learning Log entry" live and the dashboard overview page shows an amber banner when it's null (never published) or over 30 days. Revisit if this project ever needs Hangfire for something else.
+
+### Step 54 — nothing to apply, just rebuild and restart
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet build
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+### Step 55 — smoke test
+
+1. Dashboard journal composer → write a new entry, Type = "Learning Log entry" → sanitize → approve.
+2. Confirm a "View on your public Learning Lab →" link appears on the entry (not the Sprint Journal one).
+3. Visit `/{slug}/learning` → confirm the entry shows up; open its detail page → confirm the markdown renders.
+4. Public nav bar → confirm "Learning Lab" is now a real clickable link, not grayed out.
+5. `/dashboard` → if you haven't published a Learning Log entry in the last 30 days (or ever), confirm the amber reminder banner appears with a working "Write a Learning Log entry →" link. Publish one, reload → banner should disappear.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Milestone 17: Learning Lab public pages + in-app retention nudge"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16) is done, giving real visibility into views/queries/requests for the first time. Next up: Discover (Milestone 15, once there are enough public tenants for cross-candidate search to be worth building) and Learning Lab (Milestone 17). Billing/Stripe is explicitly deferred until there's an actual userbase worth charging — new developers get in free for now.
+Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16) and Learning Lab (Milestone 17) are both done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building.
