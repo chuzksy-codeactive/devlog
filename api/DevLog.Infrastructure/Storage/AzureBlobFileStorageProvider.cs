@@ -52,4 +52,14 @@ public class AzureBlobFileStorageProvider : IFileStorageProvider
 
         return blobClient.Uri.ToString();
     }
+
+    public async Task DeleteAsync(
+        Guid tenantId,
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        var blobName = $"{tenantId}/{fileName}";
+        var blobClient = _containerClient.GetBlobClient(blobName);
+        await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+    }
 }

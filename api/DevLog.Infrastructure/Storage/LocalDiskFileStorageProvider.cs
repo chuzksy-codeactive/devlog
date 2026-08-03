@@ -36,4 +36,18 @@ public class LocalDiskFileStorageProvider : IFileStorageProvider
 
         return $"{_options.PublicBaseUrl.TrimEnd('/')}/{tenantId}/{fileName}";
     }
+
+    public Task DeleteAsync(
+        Guid tenantId,
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        var filePath = Path.Combine(_options.LocalDiskPath, tenantId.ToString(), fileName);
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        return Task.CompletedTask;
+    }
 }

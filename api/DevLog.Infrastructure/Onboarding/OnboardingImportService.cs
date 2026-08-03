@@ -52,6 +52,8 @@ public enum ResumeImportOutcome
     Suggested,
     NoTextExtracted,
     RateLimited,
+    MalwareDetected,
+    ScanFailed,
     Error
 }
 
@@ -59,7 +61,7 @@ public enum ResumeImportOutcome
 // NoTextExtracted/RateLimited/Error outcome for the AI half — the resume
 // file itself is real and worth hosting regardless of whether suggestions
 // could be drafted from it this time.
-public record ResumeImportResult(ResumeImportOutcome Outcome, string CvFileUrl, OnboardingSuggestions? Suggestions = null);
+public record ResumeImportResult(ResumeImportOutcome Outcome, string? CvFileUrl, OnboardingSuggestions? Suggestions = null);
 
 // Orchestrates Milestone 13's GitHub import and Milestone 13b's resume
 // import: fetch/extract source data, ask the LLM to draft suggestions,
@@ -84,17 +86,20 @@ public class OnboardingImportService
     private readonly ILlmProvider _llmProvider;
     private readonly DevLogDbContext _db;
     private readonly IFileStorageProvider _fileStorageProvider;
+    private readonly IMalwareScanner _malwareScanner;
 
     public OnboardingImportService(
         GitHubClient gitHubClient,
         ILlmProvider llmProvider,
         DevLogDbContext db,
-        IFileStorageProvider fileStorageProvider)
+        IFileStorageProvider fileStorageProvider,
+        IMalwareScanner malwareScanner)
     {
         _gitHubClient = gitHubClient;
         _llmProvider = llmProvider;
         _db = db;
         _fileStorageProvider = fileStorageProvider;
+        _malwareScanner = malwareScanner;
     }
 
     // Milestone 19 — takes tenantId instead of a client-submitted username.
@@ -157,6 +162,19 @@ public class OnboardingImportService
         // though PdfPig can't read text out of it).
         pdfContent.Position = 0;
         var cvFileUrl = await _fileStorageProvider.SaveAsync(tenantId, ResumeFileName, pdfContent, cancellationToken);
+
+        var scanResult = await _malwareScanner.ScanStoredFileAsync(cvFileUrl, cancellationToken);
+        if (scanResult.Outcome == MalwareScanOutcome.Infected)
+        {
+            await _fileStorageProvider.DeleteAsync(tenantId, ResumeFileName, cancellationToken);
+            return new ResumeImportResult(ResumeImportOutcome.MalwareDetected, CvFileUrl: null);
+        }
+
+        if (scanResult.Outcome == MalwareScanOutcome.Failed)
+        {
+            await _fileStorageProvider.DeleteAsync(tenantId, ResumeFileName, cancellationToken);
+            return new ResumeImportResult(ResumeImportOutcome.ScanFailed, CvFileUrl: null);
+        }
 
         var portfolio = await _db.Portfolios.FirstOrDefaultAsync(p => p.TenantId == tenantId, cancellationToken);
         if (portfolio is not null)

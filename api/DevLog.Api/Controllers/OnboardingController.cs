@@ -132,6 +132,11 @@ public class OnboardingController : ControllerBase
             }),
             ResumeImportOutcome.RateLimited =>
                 StatusCode(StatusCodes.Status429TooManyRequests, "Resume import limit reached. Try again in an hour."),
+            ResumeImportOutcome.MalwareDetected =>
+                BadRequest("This file failed malware scanning and was rejected."),
+            ResumeImportOutcome.ScanFailed =>
+                StatusCode(StatusCodes.Status503ServiceUnavailable,
+                    "Resume scanning is temporarily unavailable. Try again shortly."),
             _ => StatusCode(StatusCodes.Status500InternalServerError, "Could not generate suggestions from this resume.")
         };
     }

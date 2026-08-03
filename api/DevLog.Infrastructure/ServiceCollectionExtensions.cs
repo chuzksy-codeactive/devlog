@@ -176,6 +176,17 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IFileStorageProvider, LocalDiskFileStorageProvider>();
         }
 
+        services.Configure<MalwareScanningOptions>(configuration.GetSection(MalwareScanningOptions.SectionName));
+        var malwareScannerProvider = configuration[$"{MalwareScanningOptions.SectionName}:Provider"] ?? "None";
+        if (malwareScannerProvider.Equals("AzureDefenderStorage", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<IMalwareScanner, AzureDefenderStorageMalwareScanner>();
+        }
+        else
+        {
+            services.AddScoped<IMalwareScanner, NoOpMalwareScanner>();
+        }
+
         // Milestone 19 — GitHub link verification. Same "Clerk" config
         // section Program.cs already reads Authority/AuthorizedParty from
         // for JWT validation, now also bound as options for SecretKey (see

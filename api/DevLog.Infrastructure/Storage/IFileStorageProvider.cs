@@ -17,4 +17,9 @@ public interface IFileStorageProvider
         string fileName,
         Stream content,
         CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(
+        Guid tenantId,
+        string fileName,
+        CancellationToken cancellationToken = default);
 }
