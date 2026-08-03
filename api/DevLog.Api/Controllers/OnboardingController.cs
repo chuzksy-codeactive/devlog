@@ -20,11 +20,16 @@ namespace DevLog.Api.Controllers;
 [Authorize]
 public class OnboardingController : ControllerBase
 {
-    // 10 MB — generous for a text-based resume PDF (even a few embedded
-    // images rarely push a resume past a couple MB) while still bounding
-    // worst-case memory use, since SuggestFromResumeAsync buffers the
-    // whole file into memory to read it twice (store, then extract).
-    private const long MaxResumeFileSizeBytes = 10 * 1024 * 1024;
+    // 3 MB cap — resumes should stay lightweight and text-centric. Also
+    // keeps worst-case memory use bounded, since SuggestFromResumeAsync
+    // buffers the file into memory to read it twice (store, then extract).
+    private const long MaxResumeFileSizeBytes = 3 * 1024 * 1024;
+
+    private static readonly string[] AllowedPdfContentTypes =
+    {
+        "application/pdf",
+        "application/x-pdf"
+    };
 
     private readonly OnboardingImportService _importService;
     private readonly ICurrentTenantAccessor _tenantAccessor;
@@ -91,6 +96,11 @@ public class OnboardingController : ControllerBase
         }
 
         if (!string.Equals(Path.GetExtension(file.FileName), ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("Only PDF resumes are supported.");
+        }
+
+        if (!AllowedPdfContentTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
         {
             return BadRequest("Only PDF resumes are supported.");
         }
