@@ -1,9 +1,8 @@
-using System.Security.Cryptography;
-using System.Text;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.Identity;
 using DevLog.Infrastructure.MultiTenancy;
+using DevLog.Infrastructure.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,17 +27,20 @@ public class PortfolioController : ControllerBase
     private readonly ICurrentTenantAccessor _tenantAccessor;
     private readonly ClerkUserService _clerkUserService;
     private readonly ILogger<PortfolioController> _logger;
+    private readonly IIpHashingService _ipHashingService;
 
     public PortfolioController(
         DevLogDbContext db,
         ICurrentTenantAccessor tenantAccessor,
         ClerkUserService clerkUserService,
-        ILogger<PortfolioController> logger)
+        ILogger<PortfolioController> logger,
+        IIpHashingService ipHashingService)
     {
         _db = db;
         _tenantAccessor = tenantAccessor;
         _clerkUserService = clerkUserService;
         _logger = logger;
+        _ipHashingService = ipHashingService;
     }
 
     [HttpGet("me")]
@@ -263,7 +265,7 @@ public class PortfolioController : ControllerBase
             {
                 Id = Guid.NewGuid(),
                 TenantId = portfolio.TenantId,
-                ViewerHash = HashRemoteIp(HttpContext.Connection.RemoteIpAddress?.ToString()),
+                ViewerHash = _ipHashingService.HashIp(HttpContext.Connection.RemoteIpAddress?.ToString()),
                 ViewedAt = DateTime.UtcNow
             });
             await _db.SaveChangesAsync();
@@ -316,19 +318,6 @@ public class PortfolioController : ControllerBase
                 keyAchievement = e.KeyAchievement
             })
         });
-    }
-
-    // Same construction as AskAiController.HashRemoteIp — a coarse,
-    // non-identifying signal for portfolio_view_events, not a raw IP.
-    private static string? HashRemoteIp(string? ip)
-    {
-        if (string.IsNullOrEmpty(ip))
-        {
-            return null;
-        }
-
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(ip));
-        return Convert.ToHexString(bytes);
     }
 
     public record UpdatePortfolioRequest(

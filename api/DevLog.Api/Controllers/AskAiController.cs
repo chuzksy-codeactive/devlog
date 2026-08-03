@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
 using DevLog.Infrastructure.Ai;
+using DevLog.Infrastructure.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -15,10 +14,12 @@ namespace DevLog.Api.Controllers;
 public class AskAiController : ControllerBase
 {
     private readonly AskAiService _askAiService;
+    private readonly IIpHashingService _ipHashingService;
 
-    public AskAiController(AskAiService askAiService)
+    public AskAiController(AskAiService askAiService, IIpHashingService ipHashingService)
     {
         _askAiService = askAiService;
+        _ipHashingService = ipHashingService;
     }
 
     // Milestone 20 — "AskAi" policy (Program.cs), partitioned by (IP, slug).
@@ -35,7 +36,7 @@ public class AskAiController : ControllerBase
             return BadRequest("question is required.");
         }
 
-        var askerHash = HashRemoteIp(HttpContext.Connection.RemoteIpAddress?.ToString());
+        var askerHash = _ipHashingService.HashIp(HttpContext.Connection.RemoteIpAddress?.ToString());
 
         var result = await _askAiService.AskAsync(slug, request.Question, askerHash, cancellationToken);
 
@@ -47,20 +48,6 @@ public class AskAiController : ControllerBase
                 "This candidate has hit the hourly question limit. Try again later."),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
-    }
-
-    // Not a recruiter identity (none exists yet) — just enough to let the
-    // rate cap and any future abuse review distinguish "many different
-    // askers" from "one asker retrying," without storing a raw IP address.
-    private static string? HashRemoteIp(string? ip)
-    {
-        if (string.IsNullOrEmpty(ip))
-        {
-            return null;
-        }
-
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(ip));
-        return Convert.ToHexString(bytes);
     }
 
     public record AskAiRequest(string Question);

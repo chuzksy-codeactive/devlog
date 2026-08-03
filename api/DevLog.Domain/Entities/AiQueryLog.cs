@@ -17,7 +17,7 @@ public class AiQueryLog
 
     public string Question { get; set; } = string.Empty;
 
-    // A coarse, non-identifying signal for the rate cap (e.g. a hashed IP) —
+    // A coarse, non-identifying signal for the rate cap (an HMAC-hashed IP),
     // deliberately not a recruiter identity, since none exists yet in Phase 1.
     public string? AskerHash { get; set; }
 

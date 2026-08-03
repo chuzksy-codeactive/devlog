@@ -14,9 +14,9 @@ public class PortfolioViewEvent
     public Guid TenantId { get; set; }
     public Tenant? Tenant { get; set; }
 
-    // A hashed IP, same construction as AskAiController.HashRemoteIp — good
-    // enough to distinguish "many different viewers" from "one viewer
-    // refreshing," without storing a raw IP address.
+    // HMAC-hashed IP (keyed, not a plain unsalted hash) — enough to
+    // distinguish "many different viewers" from "one viewer refreshing,"
+    // without storing a raw IP address.
     public string? ViewerHash { get; set; }
 
     public DateTime ViewedAt { get; set; } = DateTime.UtcNow;

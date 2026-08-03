@@ -4,6 +4,7 @@ using DevLog.Infrastructure.Identity;
 using DevLog.Infrastructure.Interviews;
 using DevLog.Infrastructure.MultiTenancy;
 using DevLog.Infrastructure.Onboarding;
+using DevLog.Infrastructure.Security;
 using DevLog.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,18 @@ namespace DevLog.Infrastructure;
 
 public static class ServiceCollectionExtensions
 {
+    private static readonly HashSet<string> WeakIpHashingSecrets = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "changeme",
+        "change-me",
+        "default",
+        "dev",
+        "development",
+        "password",
+        "secret",
+        "devlog-local-ip-hash-secret-change-me"
+    };
+
     public static IServiceCollection AddDevLogInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
@@ -112,6 +125,23 @@ public static class ServiceCollectionExtensions
         // Milestone 10 — InterviewRequestService needs the frontend's own
         // base URL to build the confirmation link it emails a recruiter.
         services.Configure<FrontendOptions>(configuration.GetSection(FrontendOptions.SectionName));
+
+        // HMAC-based IP hashing for anonymous-event logging (Ask AI asker,
+        // portfolio viewer) so stored values are keyed pseudonymous digests,
+        // not raw IPs or unsalted plain hashes.
+        services.AddOptions<IpHashingOptions>()
+            .Bind(configuration.GetSection(IpHashingOptions.SectionName))
+            .Validate(
+                options => !string.IsNullOrWhiteSpace(options.Secret),
+                "IpHashing:Secret must be configured.")
+            .Validate(
+                options => (options.Secret?.Trim().Length ?? 0) >= 32,
+                "IpHashing:Secret must be at least 32 characters.")
+            .Validate(
+                options => !WeakIpHashingSecrets.Contains(options.Secret?.Trim() ?? string.Empty),
+                "IpHashing:Secret is using a weak/default value and must be replaced.")
+            .ValidateOnStart();
+        services.AddSingleton<IIpHashingService, HmacIpHashingService>();
 
         services.AddScoped<EmbeddingPipelineService>();
         services.AddScoped<SanitizationPipelineService>();
