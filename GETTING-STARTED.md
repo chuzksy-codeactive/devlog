@@ -954,6 +954,86 @@ git push
 
 ---
 
+## Milestone 20 — Security hardening pass (part 1: secrets hygiene)
+
+Chika ran his own security review across `api` and `web` and handed over a 11-finding punch list, worked through one at a time rather than all at once (matches this project's usual pace). First finding claimed real secrets were committed to git — checked directly with `git log`/`git ls-files` before acting on it: **not accurate**. `appsettings.Development.json` and `web/.env.local` are both already `.gitignore`d and have never appeared in git history; only `appsettings.Development.json.example` (placeholders only) is tracked. So this isn't a rotate-immediately incident. The real gap found while checking: `appsettings.Development.json.example` was missing a `Clerk:SecretKey` placeholder entirely (added for Milestone 19, never added to the template) — fixed.
+
+Still worth doing as defense-in-depth even without a real leak: local secrets move out of the plaintext `appsettings.Development.json` file and into .NET's user-secrets store (outside the repo folder entirely, on a per-machine basis). `Clerk:SecretKey`, `Anthropic:ApiKey`, `OpenAi:ApiKey`, and `Postmark:ApiKey` are now blank in `appsettings.Development.json` — the app won't start correctly until you run the commands below. Connection strings were deliberately left as-is: they're trivial docker-compose local defaults already visible in `docker-compose.yml` itself, not a real secret, and moving them would be scope creep beyond what the actual finding named (Clerk/OpenAI/Postmark keys specifically).
+
+Hosted-environment secrets management (env vars / Key Vault) — the other half of this finding — is **not** addressed here. That's already a standing, deliberate decision from Milestone 10: Chika chose to defer secrets management to actual deployment time rather than build for a hosting target that doesn't exist yet. Revisit when this actually ships somewhere.
+
+### Step 60 — move local secrets to user-secrets
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet user-secrets init
+dotnet user-secrets set "Clerk:SecretKey" "sk_test_Lxg8vkBGIDTW27ygWw8GHXXGHEAPv5CFhI0cylrWtY"
+dotnet user-secrets set "Anthropic:ApiKey" "PASTE-YOUR-ANTHROPIC-KEY-IF-USING-Ai:GenerationProvider=Anthropic"
+dotnet user-secrets set "OpenAi:ApiKey" "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"
+dotnet user-secrets set "Postmark:ApiKey" "7254cccd-e20c-4643-a590-af2516c5999e"
+dotnet build
+dotnet run
+```
+
+`dotnet user-secrets init` adds a `<UserSecretsId>` GUID to `DevLog.Api.csproj` — let that command generate it rather than hand-typing one (same "don't hand-type a tool-generated GUID" reasoning as Sprint 0's `.sln` file). No new NuGet package needed: `Microsoft.NET.Sdk.Web` wires up the user-secrets configuration source automatically once `UserSecretsId` is present and `ASPNETCORE_ENVIRONMENT=Development` (already the case per `launchSettings.json`). User-secrets load after `appsettings.Development.json` in the default host configuration order, so these values take precedence over the now-blank keys in that file.
+
+### Step 61 — smoke test
+
+1. `dotnet run` should start cleanly and log no missing-config warnings.
+2. Sanitize a draft entry (exercises `Anthropic`/`OpenAi`), send an interview request (exercises `Postmark`), reload `/dashboard/profile` and re-trigger a GitHub sync (exercises `Clerk:SecretKey`) — confirm all three still work with the keys now coming from user-secrets instead of the file.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Milestone 20 (part 1): move local secrets to dotnet user-secrets, fix appsettings.Development.json.example"
+git push
+```
+
+---
+
+## Milestone 20 (part 2) — HTTPS redirect, security headers, rate limiting
+
+Findings #2 and #3 from Chika's review, done together since both live in `Program.cs`'s middleware pipeline.
+
+**HTTPS redirect + HSTS** are gated to non-Development (`!app.Environment.IsDevelopment()`). Local dev is genuinely HTTP-only today — `launchSettings.json` exposes `http://localhost:61726` alongside the HTTPS port, and `web/.env.local`'s `NEXT_PUBLIC_API_BASE_URL` points at that HTTP port. Turning HTTPS redirect on unconditionally would redirect every request the running dev frontend makes and break local dev outright, so this only activates outside Development. Three security response headers (`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy: geolocation=(), microphone=(), camera=()`) are added unconditionally — none of them affect local HTTP traffic.
+
+**Rate limiting** uses ASP.NET Core's built-in limiter (`Microsoft.AspNetCore.RateLimiting`, in the shared framework — no new package). Three fixed-window policies, each partitioned by `(client IP, portfolio slug)` rather than IP alone, so one bad actor hammering a single candidate's page can't exhaust the budget for every other candidate sharing that IP (e.g. an office NAT):
+
+| Policy | Endpoint | Window | Limit |
+|---|---|---|---|
+| `AskAi` | `POST /api/portfolio/{slug}/ask` | 1 min | 10 |
+| `InterviewRequestCreate` | `POST /api/portfolio/{slug}/interview-requests` | 10 min | 5 |
+| `InterviewRequestVerify` | `POST /api/portfolio/{slug}/interview-requests/{id}/verify` | 1 min | 20 |
+
+`InterviewRequestCreate` is the tightest — each call sends a real email, a cost and inbox-spam surface the other two don't have. `AskAi` layers on top of `AskAiService`'s existing per-tenant hourly cap: that DB-backed cap protects a tenant's shared quota from being drained by anyone; this stops a single source from doing the draining fast enough for the DB-backed check to matter. Exceeding a limit returns `429 Too Many Requests` (`options.RejectionStatusCode`), no per-action code needed beyond the `[EnableRateLimiting("PolicyName")]` attribute already on `AskAiController.Ask`, `InterviewRequestsController.Create`, and `InterviewRequestsController.Verify`.
+
+No migration, no new config, no `dotnet ef` step this time — pure code change.
+
+### Step 62 — build and smoke test
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet build
+dotnet run
+```
+
+1. Confirm the app still starts cleanly over HTTP locally (`http://localhost:61726`) with no redirect loop — Development gating should mean nothing changed here.
+2. `curl -i http://localhost:61726/api/portfolio/<your-slug>` (or any GET) → confirm the response now includes `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy: geolocation=(), microphone=(), camera=()`.
+3. Ask AI: fire 11 requests in under a minute against the same `{slug}` from the same machine → the 11th should come back `429`.
+4. Interview requests: submit 6 `Create` calls against the same `{slug}` within 10 minutes → the 6th should come back `429`.
+5. Once you deploy somewhere non-Development, re-check that HTTPS redirect/HSTS actually kick in there — this can't be verified locally by design.
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Milestone 20 (part 2): HTTPS redirect + security headers (prod-gated), rate limiting on anonymous endpoints"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16), Learning Lab (Milestone 17), multi-role support (Milestone 18), and GitHub link verification (Milestone 19) are all done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building.
+Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16), Learning Lab (Milestone 17), multi-role support (Milestone 18), and GitHub link verification (Milestone 19) are all done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building. Milestone 20 is a new Phase-3-flavored security hardening pass, worked through Chika's own review one finding at a time — secrets hygiene (part 1) and HTTPS/security headers + rate limiting (part 2) are done; private/signed resume hosting, token hashing, HMAC IP hashing, DTO validation, JWT/CORS tightening, public URL allowlisting, and CI scanning are still open.

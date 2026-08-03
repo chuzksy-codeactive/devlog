@@ -5,7 +5,8 @@
   },
   "Clerk": {
     "Authority": "https://REPLACE-WITH-YOUR-CLERK-FRONTEND-API-URL",
-    "AuthorizedParty": "http://localhost:3000"
+    "AuthorizedParty": "http://localhost:3000",
+    "SecretKey": "REPLACE-WITH-YOUR-CLERK-SECRET-KEY"
   },
   "Ai": {
     "GenerationProvider": "OpenAI"

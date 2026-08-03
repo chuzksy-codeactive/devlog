@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using DevLog.Infrastructure.Ai;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DevLog.Api.Controllers;
 
@@ -20,6 +21,12 @@ public class AskAiController : ControllerBase
         _askAiService = askAiService;
     }
 
+    // Milestone 20 — "AskAi" policy (Program.cs), partitioned by (IP, slug).
+    // Layered on top of AskAiService's own per-tenant hourly cap below —
+    // that protects a tenant's shared quota from being drained by anyone;
+    // this stops a single source from doing the draining fast enough for
+    // the DB-backed cap to matter.
+    [EnableRateLimiting("AskAi")]
     [HttpPost]
     public async Task<IActionResult> Ask(string slug, [FromBody] AskAiRequest request, CancellationToken cancellationToken)
     {
