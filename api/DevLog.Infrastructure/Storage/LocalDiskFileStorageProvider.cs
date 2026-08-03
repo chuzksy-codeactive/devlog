@@ -50,4 +50,12 @@ public class LocalDiskFileStorageProvider : IFileStorageProvider
 
         return Task.CompletedTask;
     }
+
+    public Task<string> GetReadUrlAsync(
+        string storedFileUrl,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(storedFileUrl);
+    }
 }

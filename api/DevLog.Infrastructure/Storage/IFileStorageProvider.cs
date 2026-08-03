@@ -22,4 +22,9 @@ public interface IFileStorageProvider
         Guid tenantId,
         string fileName,
         CancellationToken cancellationToken = default);
+
+    Task<string> GetReadUrlAsync(
+        string storedFileUrl,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken = default);
 }

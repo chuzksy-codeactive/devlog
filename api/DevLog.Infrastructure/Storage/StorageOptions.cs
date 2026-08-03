@@ -27,4 +27,9 @@ public class StorageOptions
     // Azure Blob Storage settings (used when Provider = AzureBlob).
     public string? AzureBlobConnectionString { get; set; }
     public string AzureBlobContainerName { get; set; } = "cv-private";
+
+    // Lifetime for generated read-access URLs (used by provider-specific
+    // signed URL generation; local disk provider ignores this and returns
+    // the stored URL directly).
+    public int SignedUrlLifetimeMinutes { get; set; } = 10;
 }

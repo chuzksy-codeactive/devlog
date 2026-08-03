@@ -4,10 +4,12 @@ using DevLog.Infrastructure;
 using DevLog.Infrastructure.Identity;
 using DevLog.Infrastructure.MultiTenancy;
 using DevLog.Infrastructure.Security;
+using DevLog.Infrastructure.Storage;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DevLog.Api.Controllers;
 
@@ -30,19 +32,25 @@ public class PortfolioController : ControllerBase
     private readonly ClerkUserService _clerkUserService;
     private readonly ILogger<PortfolioController> _logger;
     private readonly IIpHashingService _ipHashingService;
+    private readonly IFileStorageProvider _fileStorageProvider;
+    private readonly StorageOptions _storageOptions;
 
     public PortfolioController(
         DevLogDbContext db,
         ICurrentTenantAccessor tenantAccessor,
         ClerkUserService clerkUserService,
         ILogger<PortfolioController> logger,
-        IIpHashingService ipHashingService)
+        IIpHashingService ipHashingService,
+        IFileStorageProvider fileStorageProvider,
+        IOptions<StorageOptions> storageOptions)
     {
         _db = db;
         _tenantAccessor = tenantAccessor;
         _clerkUserService = clerkUserService;
         _logger = logger;
         _ipHashingService = ipHashingService;
+        _fileStorageProvider = fileStorageProvider;
+        _storageOptions = storageOptions.Value;
     }
 
     [HttpGet("me")]
@@ -80,6 +88,31 @@ public class PortfolioController : ControllerBase
         // circular EF navigation, which System.Text.Json would otherwise
         // choke on now that Tenant is actually included.
         return Ok(ToMyPortfolioDto(portfolio));
+    }
+
+    [HttpGet("me/cv-access-url")]
+    public async Task<IActionResult> GetMyCvAccessUrl(CancellationToken cancellationToken)
+    {
+        if (_tenantAccessor.TenantId is not Guid tenantId)
+        {
+            return Unauthorized("No tenant context resolved from the current token.");
+        }
+
+        var portfolio = await _db.Portfolios.FirstOrDefaultAsync(p => p.TenantId == tenantId, cancellationToken);
+        if (portfolio is null || string.IsNullOrWhiteSpace(portfolio.CvFileUrl))
+        {
+            return NotFound("No CV is currently available for this portfolio.");
+        }
+
+        var minutes = Math.Clamp(_storageOptions.SignedUrlLifetimeMinutes, 1, 60);
+        var lifetime = TimeSpan.FromMinutes(minutes);
+        var readUrl = await _fileStorageProvider.GetReadUrlAsync(portfolio.CvFileUrl, lifetime, cancellationToken);
+
+        return Ok(new
+        {
+            cvAccessUrl = readUrl,
+            expiresInSeconds = (int)lifetime.TotalSeconds
+        });
     }
 
     // PUT /api/portfolio/me — closes the "no update endpoint exists yet"

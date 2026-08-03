@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Azure.Storage.Sas;
 using Microsoft.Extensions.Options;
 
 namespace DevLog.Infrastructure.Storage;
@@ -61,5 +62,42 @@ public class AzureBlobFileStorageProvider : IFileStorageProvider
         var blobName = $"{tenantId}/{fileName}";
         var blobClient = _containerClient.GetBlobClient(blobName);
         await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+    }
+
+    public Task<string> GetReadUrlAsync(
+        string storedFileUrl,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken = default)
+    {
+        if (!Uri.TryCreate(storedFileUrl, UriKind.Absolute, out var fileUri))
+        {
+            throw new InvalidOperationException("Stored CV file URL is invalid.");
+        }
+
+        var expectedPrefix = $"/{_containerClient.Name.Trim('/')}/";
+        if (!fileUri.AbsolutePath.StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Stored CV file URL does not match configured storage container.");
+        }
+
+        var blobPath = fileUri.AbsolutePath[expectedPrefix.Length..];
+        var blobClient = _containerClient.GetBlobClient(blobPath);
+
+        if (!blobClient.CanGenerateSasUri)
+        {
+            throw new InvalidOperationException(
+                "Azure Blob client cannot generate SAS URLs. Ensure Storage:AzureBlobConnectionString includes account key credentials.");
+        }
+
+        var sasBuilder = new BlobSasBuilder
+        {
+            BlobContainerName = _containerClient.Name,
+            BlobName = blobPath,
+            Resource = "b",
+            ExpiresOn = DateTimeOffset.UtcNow.Add(lifetime)
+        };
+        sasBuilder.SetPermissions(BlobSasPermissions.Read);
+
+        return Task.FromResult(blobClient.GenerateSasUri(sasBuilder).ToString());
     }
 }
