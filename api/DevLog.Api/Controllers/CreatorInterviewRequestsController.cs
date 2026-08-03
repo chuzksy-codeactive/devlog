@@ -1,6 +1,7 @@
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.Interviews;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -88,5 +89,6 @@ public class CreatorInterviewRequestsController : ControllerBase
         r.RespondedAt
     };
 
-    public record AcceptInterviewRequestBody(string ContactInstructions);
+    public record AcceptInterviewRequestBody(
+        [property: Required, MaxLength(2000)] string ContactInstructions);
 }

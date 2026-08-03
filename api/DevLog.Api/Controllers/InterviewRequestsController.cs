@@ -1,4 +1,5 @@
 using DevLog.Infrastructure.Interviews;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -91,6 +92,11 @@ public class InterviewRequestsController : ControllerBase
         };
     }
 
-    public record CreateInterviewRequestBody(string RecruiterEmail, string? RecruiterName, string Note);
-    public record VerifyInterviewRequestBody(string Token);
+    public record CreateInterviewRequestBody(
+        [property: Required, EmailAddress, MaxLength(320)] string RecruiterEmail,
+        [property: MaxLength(120)] string? RecruiterName,
+        [property: Required, MaxLength(2000)] string Note);
+
+    public record VerifyInterviewRequestBody(
+        [property: Required, MaxLength(256)] string Token);
 }

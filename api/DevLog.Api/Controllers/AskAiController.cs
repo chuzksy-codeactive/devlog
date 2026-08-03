@@ -1,5 +1,6 @@
 using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.Security;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -50,5 +51,6 @@ public class AskAiController : ControllerBase
         };
     }
 
-    public record AskAiRequest(string Question);
+    public record AskAiRequest(
+        [property: Required, MaxLength(1000)] string Question);
 }

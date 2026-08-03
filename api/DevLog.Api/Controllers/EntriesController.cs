@@ -2,6 +2,7 @@ using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.MultiTenancy;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -157,5 +158,8 @@ public class EntriesController : ControllerBase
         entry.CreatedAt
     };
 
-    public record CreateEntryRequest(RawEntryType EntryType, string Title, string RawContent);
+    public record CreateEntryRequest(
+        RawEntryType EntryType,
+        [property: Required, MaxLength(200)] string Title,
+        [property: Required, MaxLength(20000)] string RawContent);
 }

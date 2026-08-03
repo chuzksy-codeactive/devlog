@@ -2,6 +2,7 @@ using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.MultiTenancy;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -156,10 +157,10 @@ public class ExperienceController : ControllerBase
 
     public record ExperienceRequest(
         ExperienceType ExperienceType,
-        string CompanyLabel,
-        string? Title,
+        [property: Required, MaxLength(160)] string CompanyLabel,
+        [property: MaxLength(160)] string? Title,
         DateOnly StartDate,
         DateOnly? EndDate,
-        List<string>? Technologies,
-        string? KeyAchievement);
+        [property: MaxLength(30)] List<string>? Technologies,
+        [property: MaxLength(2000)] string? KeyAchievement);
 }

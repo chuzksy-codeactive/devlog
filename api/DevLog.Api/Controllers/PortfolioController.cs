@@ -1,8 +1,10 @@
 using DevLog.Domain.Entities;
+using DevLog.Api.Validation;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.Identity;
 using DevLog.Infrastructure.MultiTenancy;
 using DevLog.Infrastructure.Security;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -113,16 +115,66 @@ public class PortfolioController : ControllerBase
             return NotFound();
         }
 
+        string? photoUrl = null;
+        if (request.PhotoUrl is not null && !UrlAllowlist.TryNormalizeHttpUrl(request.PhotoUrl, out photoUrl))
+        {
+            return BadRequest("photoUrl must be an absolute http/https URL.");
+        }
+
+        string? linkedInUrl = null;
+        if (request.LinkedInUrl is not null && !UrlAllowlist.TryNormalizeHttpUrl(request.LinkedInUrl, out linkedInUrl))
+        {
+            return BadRequest("linkedInUrl must be an absolute http/https URL.");
+        }
+
+        string? gitHubUrl = null;
+        if (request.GitHubUrl is not null && !UrlAllowlist.TryNormalizeHttpUrl(request.GitHubUrl, out gitHubUrl))
+        {
+            return BadRequest("gitHubUrl must be an absolute http/https URL.");
+        }
+
+        string? cvFileUrl = null;
+        if (request.CvFileUrl is not null && !UrlAllowlist.TryNormalizeHttpUrl(request.CvFileUrl, out cvFileUrl))
+        {
+            return BadRequest("cvFileUrl must be an absolute http/https URL.");
+        }
+
+        List<ProofLink>? normalizedProofLinks = null;
+        if (request.ProofLinks is not null)
+        {
+            normalizedProofLinks = new List<ProofLink>(request.ProofLinks.Count);
+
+            for (var i = 0; i < request.ProofLinks.Count; i++)
+            {
+                var link = request.ProofLinks[i];
+                if (string.IsNullOrWhiteSpace(link.Label) || link.Label.Length > 80)
+                {
+                    return BadRequest($"proofLinks[{i}].label is required and must be 80 characters or fewer.");
+                }
+
+                if (!UrlAllowlist.TryNormalizeHttpUrl(link.Url, out var normalizedProofUrl))
+                {
+                    return BadRequest($"proofLinks[{i}].url must be an absolute http/https URL.");
+                }
+
+                normalizedProofLinks.Add(new ProofLink
+                {
+                    Label = link.Label.Trim(),
+                    Url = normalizedProofUrl
+                });
+            }
+        }
+
         if (request.Headline is not null) portfolio.Headline = request.Headline;
         if (request.DisplayName is not null) portfolio.DisplayName = request.DisplayName;
         if (request.PositioningLine is not null) portfolio.PositioningLine = request.PositioningLine;
-        if (request.PhotoUrl is not null) portfolio.PhotoUrl = request.PhotoUrl;
+        if (request.PhotoUrl is not null) portfolio.PhotoUrl = photoUrl;
         if (request.CurrentRole is not null) portfolio.CurrentRole = request.CurrentRole;
         if (request.YearsExperience is not null) portfolio.YearsExperience = request.YearsExperience;
         if (request.CoreTechnologies is not null) portfolio.CoreTechnologies = request.CoreTechnologies;
-        if (request.LinkedInUrl is not null) portfolio.LinkedInUrl = request.LinkedInUrl;
-        if (request.GitHubUrl is not null) portfolio.GitHubUrl = request.GitHubUrl;
-        if (request.CvFileUrl is not null) portfolio.CvFileUrl = request.CvFileUrl;
+        if (request.LinkedInUrl is not null) portfolio.LinkedInUrl = linkedInUrl;
+        if (request.GitHubUrl is not null) portfolio.GitHubUrl = gitHubUrl;
+        if (request.CvFileUrl is not null) portfolio.CvFileUrl = cvFileUrl;
         // Milestone 19 — once GitHubVerified, GitHubUrl is sourced only
         // from POST me/github/sync (a real Clerk-confirmed account), never
         // from a hand-typed PUT body. Silently ignoring rather than 400ing:
@@ -130,9 +182,9 @@ public class PortfolioController : ControllerBase
         // once verified, so a request carrying GitHubUrl here means either
         // a stale client or someone bypassing the UI — neither is worth
         // failing the rest of an otherwise-valid update over.
-        if (request.GitHubUrl is not null && !portfolio.GitHubVerified) portfolio.GitHubUrl = request.GitHubUrl;
+        if (request.GitHubUrl is not null && !portfolio.GitHubVerified) portfolio.GitHubUrl = gitHubUrl;
         if (request.Discipline is not null) portfolio.Discipline = request.Discipline.Value;
-        if (request.ProofLinks is not null) portfolio.ProofLinks = request.ProofLinks;
+        if (normalizedProofLinks is not null) portfolio.ProofLinks = normalizedProofLinks;
         if (request.Visibility is not null) portfolio.Visibility = request.Visibility.Value;
         if (request.Discoverable is not null) portfolio.Discoverable = request.Discoverable.Value;
         if (request.NotificationEmail is not null) portfolio.NotificationEmail = request.NotificationEmail;
@@ -321,19 +373,19 @@ public class PortfolioController : ControllerBase
     }
 
     public record UpdatePortfolioRequest(
-        string? Headline,
-        string? DisplayName,
-        string? PositioningLine,
-        string? PhotoUrl,
-        string? CurrentRole,
-        string? YearsExperience,
-        List<string>? CoreTechnologies,
-        string? LinkedInUrl,
-        string? GitHubUrl,
-        string? CvFileUrl,
+        [property: MaxLength(140)] string? Headline,
+        [property: MaxLength(120)] string? DisplayName,
+        [property: MaxLength(200)] string? PositioningLine,
+        [property: MaxLength(2048)] string? PhotoUrl,
+        [property: MaxLength(120)] string? CurrentRole,
+        [property: MaxLength(80)] string? YearsExperience,
+        [property: MaxLength(30)] List<string>? CoreTechnologies,
+        [property: MaxLength(2048)] string? LinkedInUrl,
+        [property: MaxLength(2048)] string? GitHubUrl,
+        [property: MaxLength(2048)] string? CvFileUrl,
         PortfolioDiscipline? Discipline,
-        List<ProofLink>? ProofLinks,
+        [property: MaxLength(20)] List<ProofLink>? ProofLinks,
         PortfolioVisibility? Visibility,
         bool? Discoverable,
-        string? NotificationEmail);
+        [property: EmailAddress, MaxLength(320)] string? NotificationEmail);
 }
