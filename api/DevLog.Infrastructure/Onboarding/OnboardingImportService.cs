@@ -13,6 +13,12 @@ public enum OnboardingSuggestionOutcome
     GitHubUserNotFound,
     NoPublicReposFound,
     GitHubRateLimited,
+    // Milestone 19 — the tenant hasn't connected (or Clerk hasn't verified)
+    // a GitHub account yet. Distinct from GitHubUserNotFound: that outcome
+    // means GitHub itself couldn't find the account; this one means DevLog
+    // never got as far as asking GitHub, because there's no verified
+    // account on file to ask about.
+    GitHubNotConnected,
     Error
 }
 
@@ -91,10 +97,27 @@ public class OnboardingImportService
         _fileStorageProvider = fileStorageProvider;
     }
 
+    // Milestone 19 — takes tenantId instead of a client-submitted username.
+    // Previously this trusted whatever username the frontend sent, which
+    // meant anyone could import a stranger's public repos into their own
+    // onboarding drafts. Now the only username this will ever fetch from
+    // GitHub is the one Clerk has independently verified belongs to the
+    // signed-in creator (PortfolioController's me/github/sync endpoint is
+    // the only place GitHubVerified/GitHubUrl get set together) — same
+    // "look it up server-side from the authenticated tenant, don't trust a
+    // client-submitted value for anything that grants access" posture as
+    // every other tenant-scoped lookup in this codebase.
     public async Task<OnboardingSuggestionResult> SuggestFromGitHubAsync(
-        string username,
+        Guid tenantId,
         CancellationToken cancellationToken = default)
     {
+        var portfolio = await _db.Portfolios.FirstOrDefaultAsync(p => p.TenantId == tenantId, cancellationToken);
+        if (portfolio is null || !portfolio.GitHubVerified || string.IsNullOrEmpty(portfolio.GitHubUrl))
+        {
+            return new OnboardingSuggestionResult(OnboardingSuggestionOutcome.GitHubNotConnected);
+        }
+
+        var username = portfolio.GitHubUrl.TrimEnd('/').Split('/')[^1];
         var (outcome, data) = await _gitHubClient.FetchPublicProfileAsync(username, cancellationToken);
 
         if (outcome != GitHubImportOutcome.Success || data is null)

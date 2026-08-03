@@ -52,6 +52,7 @@ export interface PortfolioData {
   currentRoleTitle: string | null;
   coreTechnologies: string[];
   githubUrl: string | null;
+  githubVerified: boolean;
   cvUrl: string | null;
   photoUrl: string | null;
   discipline: Discipline;
@@ -101,6 +102,16 @@ export interface MyPortfolio {
   coreTechnologies: string[];
   linkedInUrl: string | null;
   gitHubUrl: string | null;
+  // Milestone 19 — true only once ClerkUserService has independently
+  // confirmed a verified GitHub external account via POST
+  // /api/portfolio/me/github/sync. While true, gitHubUrl is read-only in
+  // the profile form (sourced from the verified account, not typed).
+  // Capital H matches this interface's existing gitHubUrl casing (straight
+  // System.Text.Json camelCase of the entity's GitHubVerified property);
+  // PortfolioData below uses the lowercase githubVerified/githubUrl casing
+  // instead, matching PortfolioController's public anonymous object, which
+  // was already lowercase before this milestone.
+  gitHubVerified: boolean;
   cvFileUrl: string | null;
   discipline: Discipline;
   proofLinks: ProofLink[];

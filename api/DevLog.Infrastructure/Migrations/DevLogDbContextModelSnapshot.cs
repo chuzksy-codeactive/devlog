@@ -257,6 +257,10 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("git_hub_url");
 
+                    b.Property<bool>("GitHubVerified")
+                        .HasColumnType("boolean")
+                        .HasColumnName("git_hub_verified");
+
                     b.Property<string>("Headline")
                         .IsRequired()
                         .HasColumnType("text")

@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ApiError, useApi } from "@/lib/use-api";
 import {
+  MyPortfolio,
   OnboardingSuggestions,
   ResumeImportResponse,
   SuggestedExperience,
@@ -20,12 +21,28 @@ import {
 // safety rules on top of the ones those endpoints already enforce.
 export default function ImportPage() {
   const { request } = useApi();
-  const [username, setUsername] = useState("");
+  // Milestone 19 — GitHub import no longer takes a typed username; it only
+  // ever pulls from the tenant's own Clerk-verified account
+  // (PortfolioController's me/github/sync). This page just needs to know
+  // whether that connection exists yet, to decide between showing an
+  // import button and a "connect GitHub first" prompt.
+  const [gitHubVerified, setGitHubVerified] = useState<boolean | null>(null);
+  const [gitHubUrl, setGitHubUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<OnboardingSuggestions | null>(null);
   const [addedExperiences, setAddedExperiences] = useState<Set<number>>(new Set());
   const [draftSaved, setDraftSaved] = useState(false);
+
+  useEffect(() => {
+    request<MyPortfolio>("/api/portfolio/me")
+      .then((data) => {
+        setGitHubVerified(data.gitHubVerified);
+        setGitHubUrl(data.gitHubUrl);
+      })
+      .catch(() => setGitHubVerified(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Milestone 13b — resume import. Kept as separate state from the GitHub
   // import above rather than unified: the two flows have different result
@@ -38,10 +55,7 @@ export default function ImportPage() {
   const [resumeResult, setResumeResult] = useState<ResumeImportResponse | null>(null);
   const [addedResumeExperiences, setAddedResumeExperiences] = useState<Set<number>>(new Set());
 
-  async function handleImport(e: React.FormEvent) {
-    e.preventDefault();
-    if (!username.trim()) return;
-
+  async function handleImport() {
     setStatus("loading");
     setErrorMessage(null);
     setSuggestions(null);
@@ -51,7 +65,6 @@ export default function ImportPage() {
     try {
       const result = await request<OnboardingSuggestions>("/api/onboarding/github-import", {
         method: "POST",
-        body: JSON.stringify({ username: username.trim() }),
       });
       setSuggestions(result);
       setStatus("ready");
@@ -59,8 +72,10 @@ export default function ImportPage() {
       if (err instanceof ApiError) {
         if (err.status === 429) {
           setErrorMessage("GitHub's rate limit was reached. Try again in a few minutes.");
+        } else if (err.status === 400) {
+          setErrorMessage(err.message || "Connect your GitHub account in your profile before importing.");
         } else if (err.status === 404) {
-          setErrorMessage(err.message || "No public repositories found for that username.");
+          setErrorMessage(err.message || "No public repositories found for your connected account.");
         } else {
           setErrorMessage("Something went wrong generating suggestions. Try again.");
         }
@@ -159,22 +174,30 @@ export default function ImportPage() {
         Pull suggestions from your public repositories — nothing is saved until you review and add it.
       </p>
 
-      <form onSubmit={handleImport} className="mt-4 flex gap-2">
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="GitHub username"
-          className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400"
-        />
-        <button
-          type="submit"
-          disabled={status === "loading" || !username.trim()}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {status === "loading" ? "Importing…" : "Import"}
-        </button>
-      </form>
+      {gitHubVerified === false && (
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Connect your GitHub account before importing — this makes sure you can only pull suggestions
+          from repositories you actually own.{" "}
+          <Link href="/dashboard/profile" className="font-medium underline">
+            Connect it in your profile
+          </Link>
+          .
+        </div>
+      )}
+
+      {gitHubVerified && (
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={status === "loading"}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            {status === "loading" ? "Importing…" : "Import from GitHub"}
+          </button>
+          {gitHubUrl && <span className="text-sm text-zinc-500">{gitHubUrl}</span>}
+        </div>
+      )}
 
       {status === "error" && errorMessage && (
         <p className="mt-4 text-sm text-red-600">{errorMessage}</p>

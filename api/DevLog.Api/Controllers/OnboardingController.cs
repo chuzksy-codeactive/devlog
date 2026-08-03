@@ -35,23 +35,31 @@ public class OnboardingController : ControllerBase
         _tenantAccessor = tenantAccessor;
     }
 
+    // Milestone 19 — no longer takes a request body. Previously accepted
+    // any client-submitted username with zero ownership check (anyone could
+    // import a stranger's public repos as their own onboarding content);
+    // now it only ever pulls from the tenant's own Clerk-verified GitHub
+    // account, resolved server-side by OnboardingImportService from
+    // ICurrentTenantAccessor — see that method's doc comment.
     [HttpPost("github-import")]
-    public async Task<IActionResult> GitHubImport([FromBody] GitHubImportRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> GitHubImport(CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Username))
+        if (_tenantAccessor.TenantId is not Guid tenantId)
         {
-            return BadRequest("username is required.");
+            return Unauthorized("No tenant context resolved from the current token.");
         }
 
-        var result = await _importService.SuggestFromGitHubAsync(request.Username.Trim(), cancellationToken);
+        var result = await _importService.SuggestFromGitHubAsync(tenantId, cancellationToken);
 
         return result.Outcome switch
         {
             OnboardingSuggestionOutcome.Suggested => Ok(result.Suggestions),
+            OnboardingSuggestionOutcome.GitHubNotConnected =>
+                BadRequest("Connect your GitHub account in your profile before importing."),
             OnboardingSuggestionOutcome.GitHubUserNotFound =>
-                NotFound($"No GitHub user found with username '{request.Username}'."),
+                NotFound("Your connected GitHub account could not be found."),
             OnboardingSuggestionOutcome.NoPublicReposFound =>
-                NotFound("No public, non-fork repositories found for this GitHub user."),
+                NotFound("No public, non-fork repositories found for your connected GitHub account."),
             OnboardingSuggestionOutcome.GitHubRateLimited =>
                 StatusCode(StatusCodes.Status429TooManyRequests, "GitHub's rate limit was reached. Try again in a few minutes."),
             _ => StatusCode(StatusCodes.Status500InternalServerError, "Could not generate suggestions from this GitHub profile.")
@@ -130,6 +138,4 @@ public class OnboardingController : ControllerBase
         stream.Position = 0;
         return read == header.Length && header.SequenceEqual(PdfMagicBytes);
     }
-
-    public record GitHubImportRequest(string Username);
 }

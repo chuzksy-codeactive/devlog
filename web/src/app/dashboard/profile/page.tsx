@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useReverification, useUser } from "@clerk/nextjs";
+import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 import { useApi } from "@/lib/use-api";
 import { Discipline, MyPortfolio, PortfolioVisibility, ProofLink } from "@/lib/types";
 import { disciplineDisplayName, disciplineLabels } from "@/lib/discipline-labels";
@@ -15,6 +17,7 @@ type FormState = {
   coreTechnologies: string; // comma-separated in the form, array on the wire
   linkedInUrl: string;
   gitHubUrl: string;
+  gitHubVerified: boolean;
   cvFileUrl: string;
   discipline: Discipline;
   proofLinks: ProofLink[];
@@ -34,6 +37,7 @@ function toFormState(p: MyPortfolio): FormState {
     coreTechnologies: p.coreTechnologies.join(", "),
     linkedInUrl: p.linkedInUrl ?? "",
     gitHubUrl: p.gitHubUrl ?? "",
+    gitHubVerified: p.gitHubVerified,
     cvFileUrl: p.cvFileUrl ?? "",
     discipline: p.discipline,
     proofLinks: p.proofLinks,
@@ -45,10 +49,31 @@ function toFormState(p: MyPortfolio): FormState {
 
 export default function ProfilePage() {
   const { request } = useApi();
+  const { user } = useUser();
   const [slug, setSlug] = useState<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "saving" | "saved" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [gitHubStatus, setGitHubStatus] = useState<"idle" | "connecting" | "syncing">("idle");
+  const [gitHubErrorMessage, setGitHubErrorMessage] = useState<string | null>(null);
+  // Guards the auto-sync effect below from firing more than once per page
+  // load — without it, a sync that comes back not-yet-verified (Clerk's
+  // OAuth callback can take a moment to fully record) would otherwise retry
+  // on every render instead of just once after the redirect back.
+  const autoSyncedRef = useRef(false);
+
+  // Clerk treats linking a new external account as a "sensitive" operation
+  // that requires session reverification (a fresh password/MFA check),
+  // independent of and unrelated to anything on DevLog's own backend or the
+  // Clerk:SecretKey config — the very first request this flow makes
+  // (POST .../v1/me/external_accounts) is browser-to-Clerk directly, before
+  // DevLog's own sync endpoint is ever called. Without this wrapper,
+  // createExternalAccount just throws a 403 "session_reverification_required"
+  // outright; wrapping it in useReverification is what makes Clerk show its
+  // own step-up-auth modal and automatically retry once the user clears it.
+  const createExternalAccountWithReverification = useReverification(
+    (params: { strategy: "oauth_github"; redirectUrl: string }) => user!.createExternalAccount(params)
+  );
 
   useEffect(() => {
     request<MyPortfolio>("/api/portfolio/me")
@@ -60,6 +85,70 @@ export default function ProfilePage() {
       .catch(() => setStatus("error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Milestone 19 — after Clerk's own OAuth flow redirects back here,
+  // user.externalAccounts (Clerk's client-side view) shows the new
+  // connection before DevLog's own backend knows about it. This doesn't
+  // trust that client-side view for anything — it's only a trigger to ask
+  // the backend to independently confirm via Clerk's Backend API (see
+  // ClerkUserService) and persist the result.
+  useEffect(() => {
+    if (autoSyncedRef.current || !form || form.gitHubVerified || !user) {
+      return;
+    }
+    // "github" here, not "oauth_github" — Clerk's frontend SDK reports the
+    // bare provider name on ExternalAccountResource.provider, while its
+    // Backend API (what ClerkUserService calls server-side) reports the
+    // full "oauth_github" strategy name for the same field. Two different
+    // casings for the same fact, from the same vendor, depending which
+    // side of the wire you're on — worth remembering if this check ever
+    // silently stops matching after a Clerk SDK upgrade.
+    const hasGitHubExternalAccount = user.externalAccounts?.some((a) => a.provider === "github");
+    if (!hasGitHubExternalAccount) {
+      return;
+    }
+    autoSyncedRef.current = true;
+    syncGitHub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, user]);
+
+  async function syncGitHub() {
+    setGitHubStatus("syncing");
+    try {
+      const updated = await request<MyPortfolio>("/api/portfolio/me/github/sync", { method: "POST" });
+      setForm((prev) => (prev ? { ...prev, gitHubUrl: updated.gitHubUrl ?? "", gitHubVerified: updated.gitHubVerified } : prev));
+    } catch {
+      // Best-effort — if this fails the field just stays in its previous
+      // state and the "Connect GitHub" button remains available to retry.
+    } finally {
+      setGitHubStatus("idle");
+    }
+  }
+
+  async function handleConnectGitHub() {
+    if (!user) return;
+    setGitHubStatus("connecting");
+    setGitHubErrorMessage(null);
+    try {
+      const externalAccount = await createExternalAccountWithReverification({
+        strategy: "oauth_github",
+        redirectUrl: window.location.href,
+      });
+      const redirectUrl = externalAccount?.verification?.externalVerificationRedirectURL;
+      if (redirectUrl) {
+        window.location.href = redirectUrl.toString();
+      } else {
+        setGitHubStatus("idle");
+      }
+    } catch (err) {
+      if (isReverificationCancelledError(err)) {
+        setGitHubErrorMessage("Verification was cancelled — try again to connect GitHub.");
+      } else {
+        setGitHubErrorMessage("Couldn't start the GitHub connection. Try again.");
+      }
+      setGitHubStatus("idle");
+    }
+  }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -205,14 +294,32 @@ export default function ProfilePage() {
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="GitHub URL">
-            <input
-              type="url"
-              value={form.gitHubUrl}
-              onChange={(e) => update("gitHubUrl", e.target.value)}
-              className={inputClass}
-            />
-          </Field>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700">GitHub</label>
+            {form.gitHubVerified ? (
+              <div className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900">
+                <span className="truncate">{form.gitHubUrl}</span>
+                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  Verified
+                </span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleConnectGitHub}
+                disabled={gitHubStatus !== "idle"}
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {gitHubStatus === "connecting" ? "Redirecting to GitHub…" : gitHubStatus === "syncing" ? "Confirming…" : "Connect GitHub"}
+              </button>
+            )}
+            <span className="mt-1 block text-xs font-normal text-zinc-400">
+              {form.gitHubVerified
+                ? "Sourced from your connected GitHub account — disconnect it in Clerk to change this."
+                : "Connects your real GitHub account so the link on your public page is verified, not just typed."}
+            </span>
+            {gitHubErrorMessage && <p className="mt-1 text-xs text-red-600">{gitHubErrorMessage}</p>}
+          </div>
           <Field label="LinkedIn URL">
             <input
               type="url"

@@ -1,5 +1,6 @@
 using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.Email;
+using DevLog.Infrastructure.Identity;
 using DevLog.Infrastructure.Interviews;
 using DevLog.Infrastructure.MultiTenancy;
 using DevLog.Infrastructure.Onboarding;
@@ -137,6 +138,16 @@ public static class ServiceCollectionExtensions
         // swap-in story.
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
         services.AddScoped<IFileStorageProvider, LocalDiskFileStorageProvider>();
+
+        // Milestone 19 — GitHub link verification. Same "Clerk" config
+        // section Program.cs already reads Authority/AuthorizedParty from
+        // for JWT validation, now also bound as options for SecretKey (see
+        // ClerkOptions' doc comment for why a secret is newly needed here).
+        services.Configure<ClerkOptions>(configuration.GetSection(ClerkOptions.SectionName));
+        services.AddHttpClient<ClerkUserService>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.clerk.com/");
+        });
 
         return services;
     }

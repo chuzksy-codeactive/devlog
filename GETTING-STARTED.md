@@ -869,18 +869,26 @@ Backend: new `PortfolioDiscipline` string-backed enum (`SoftwareEngineer, Produc
 
 Frontend: `web/src/lib/discipline-labels.ts` is the static lookup map (label overrides + a human-readable discipline name), same shape as `types.ts`'s existing `experienceTypeLabel` map. `dashboard/profile/page.tsx` gets a Discipline `<select>`, a discipline-driven "Core technologies" label/hint, and a dynamic proof-links editor (add/remove label+URL rows). `Hero.tsx` renders the discipline-driven label above the technology chips (only when the list isn't empty) and lists `proofLinks` alongside the GitHub link — proof-link labels are creator-typed, not app copy, so no label lookup applies there.
 
-### Step 56 — apply the migration and rebuild
+### Step 56 — add the migration, apply it, rebuild
+
+Same two-step pattern as every prior migration in this project: `migrations add` only generates the migration file, it never touches the database — `database update` is the step that actually runs it. `Program.cs` doesn't auto-migrate on startup, so skipping this step is what a "column does not exist" error at runtime usually means.
 
 ```bash
-cd Devlog.os/api/DevLog.Infrastructure
-dotnet ef migrations add AddDisciplineAndProofLinksToPortfolio --project . --startup-project ../DevLog.Api
-cd ../DevLog.Api
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddDisciplineAndProofLinksToPortfolio --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
 dotnet build
 dotnet run
 ```
 ```bash
 cd Devlog.os/web
 npm run dev
+```
+
+**If `GET /api/portfolio/me` throws a `JsonException` on `proof_links` after this:** you hit a real bug in the scaffolded migration, not a setup mistake. EF's scaffolder generates a new column's backfill default from the CLR default of the *provider* type (empty string), not by running the model's actual default through the value converter — so existing rows got backfilled with `""` for both `discipline` (not a valid enum name) and `proof_links` (a JSON string, not the JSON array `List<ProofLink>`'s converter expects). A second migration, `NormalizePortfolioProofLinksJson`, fixes both columns' existing data, resets their DB-level defaults, and adds a `CHECK (jsonb_typeof(proof_links) = 'array')` constraint so this can't recur silently. Apply it the same way:
+
+```bash
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
 ```
 
 ### Step 57 — smoke test
@@ -900,6 +908,52 @@ git push
 
 ---
 
+## Milestone 19 — GitHub link verification (Clerk OAuth)
+
+Chika flagged a real gap: nothing confirmed a creator actually owned the GitHub account they linked — the profile's GitHubUrl field was free text, and the Milestone 13 GitHub-import endpoint accepted any typed username, meaning anyone could import a stranger's public repos as their own onboarding content. Decided via AskUserQuestion over a lighter-weight ownership challenge (add a code to your GitHub bio) — full Clerk OAuth gives the strongest guarantee, and Clerk is already this app's identity provider, so linking a second OAuth provider through it is far less scope than standing up a separate GitHub OAuth App from scratch.
+
+New `Portfolio.GitHubVerified` (bool, defaults false) and `ClerkUserService` (calls Clerk's own Backend API server-to-server, using a new `Clerk:SecretKey` config value — the first time this backend has needed a Clerk secret rather than just validating an already-issued JWT). New `POST /api/portfolio/me/github/sync`: after the frontend drives Clerk's `createExternalAccount(oauth_github)` flow, this endpoint independently asks Clerk's Backend API whether the signed-in user actually has a verified GitHub account, and only then sets `GitHubUrl`/`GitHubVerified` — it never trusts what the browser reports about its own OAuth flow. Once verified, `GitHubUrl` becomes read-only (`UpdateMyPortfolio` silently ignores further edits to it) and the Milestone 13 GitHub-import endpoint requires it, deriving the username from the verified account instead of a request body field that no longer exists.
+
+**Manual step only you can do:** enable GitHub as a Social Connection in your Clerk Dashboard (Configure → SSO Connections → GitHub) for the same instance `Clerk:Authority` already points at. Clerk provides shared dev OAuth credentials for local development, so no separate GitHub OAuth App registration is needed yet — you'd register your own only when this goes to production. Then copy the instance's secret key (API Keys page) into `Clerk:SecretKey` below — it's the same value already sitting in `web/.env.local` as `CLERK_SECRET_KEY`, just also needed on the .NET side now.
+
+### Step 58 — enable GitHub in Clerk, add the secret key, migrate
+
+1. Clerk Dashboard → your DevLog instance → Configure → SSO Connections → enable GitHub.
+2. `api/DevLog.Api/appsettings.Development.json` → paste your real secret key into `Clerk:SecretKey` (currently a placeholder).
+3. Add and apply the migration — a plain `bool` column, no converter involved, so it doesn't carry Milestone 18's default-value risk, but worth a quick look at the generated file before `database update` anyway per that lesson:
+
+```bash
+cd Devlog.os/api/DevLog.Api
+dotnet ef migrations add AddGitHubVerifiedToPortfolio --project ../DevLog.Infrastructure --startup-project .
+dotnet ef database update --project ../DevLog.Infrastructure --startup-project .
+dotnet build
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+### Step 59 — smoke test
+
+1. `/dashboard/profile` → GitHub field shows a "Connect GitHub" button (not verified yet) → click it → Clerk shows a reverification modal (password/MFA prompt) before the OAuth redirect starts — this is Clerk's own step-up-auth for "sensitive" account actions, unrelated to `Clerk:SecretKey`; if it 403s here instead, see the note below → clear it → complete GitHub's OAuth consent screen → redirected back to the profile page → field now shows your GitHub URL with a "Verified" badge, read-only.
+2. Try editing that field via a raw `PUT /api/portfolio/me` with a different `gitHubUrl` — confirm it's silently ignored and the verified value stays.
+3. `/dashboard/import` → confirm the free-text username field is gone, replaced by an "Import from GitHub" button showing your connected account — click it, confirm suggestions still generate correctly.
+4. Sign in as a second (or temporarily disconnect and reconnect) account without GitHub connected → `/dashboard/import` → confirm it shows the "connect GitHub first" prompt instead of a broken import attempt.
+5. Visit your public `/{slug}` page → confirm the "GitHub" link now shows a small "Verified" badge next to it.
+
+**If clicking "Connect GitHub" throws a 403 with `"code": "session_reverification_required"`:** that's not a `Clerk:SecretKey` problem — the failing request (`.../v1/me/external_accounts`) goes straight from your browser to Clerk, before DevLog's backend is involved at all. Clerk requires a fresh reverification (password/MFA) for linking a new external account; `dashboard/profile/page.tsx` handles this via Clerk's `useReverification` hook, which pops Clerk's own step-up modal and retries automatically once cleared. If you still see this raw error, confirm you're running the latest `dashboard/profile/page.tsx` (this handling shipped as part of this same milestone, not before it).
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Milestone 19: GitHub link verification via Clerk OAuth"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16), Learning Lab (Milestone 17), and multi-role support (Milestone 18) are all done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building.
+Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16), Learning Lab (Milestone 17), multi-role support (Milestone 18), and GitHub link verification (Milestone 19) are all done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building.

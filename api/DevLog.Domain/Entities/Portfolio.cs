@@ -31,6 +31,19 @@ public class Portfolio
     public List<string> CoreTechnologies { get; set; } = new();
     public string? LinkedInUrl { get; set; }
     public string? GitHubUrl { get; set; }
+
+    // Milestone 19 — closes the "anyone could type someone else's GitHub
+    // link" gap Chika flagged. True only once ClerkUserService has confirmed
+    // a verified GitHub external account on the signed-in Clerk user (see
+    // PortfolioController's POST me/github/sync) — never set by a creator
+    // typing a URL. While true, GitHubUrl is sourced from that verified
+    // account and UpdateMyPortfolio ignores further edits to it; the
+    // Milestone 13 GitHub-import endpoint also requires this before it will
+    // pull suggestions, using the verified username instead of a
+    // client-submitted one. Defaults false so every existing tenant reads
+    // as unverified until they explicitly connect.
+    public bool GitHubVerified { get; set; } = false;
+
     public string? CvFileUrl { get; set; }
 
     // Multi-role expansion (MVP roadmap Phase 2 item, deliberately deferred

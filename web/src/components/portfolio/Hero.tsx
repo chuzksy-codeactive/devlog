@@ -76,9 +76,18 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
                 href={portfolio.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
               >
                 GitHub
+                {/* Milestone 19 — this is the actual point of verification
+                    from a recruiter's side: confirming the link they're
+                    about to click really belongs to this candidate, not
+                    just that DevLog stored some URL a creator typed in. */}
+                {portfolio.githubVerified && (
+                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                    Verified
+                  </span>
+                )}
               </a>
             )}
             {/* Multi-role expansion — generalized supplement to GitHub above.
