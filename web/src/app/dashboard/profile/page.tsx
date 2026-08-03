@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useApi } from "@/lib/use-api";
-import { MyPortfolio, PortfolioVisibility } from "@/lib/types";
+import { Discipline, MyPortfolio, PortfolioVisibility, ProofLink } from "@/lib/types";
+import { disciplineDisplayName, disciplineLabels } from "@/lib/discipline-labels";
 
 type FormState = {
   displayName: string;
@@ -15,6 +16,8 @@ type FormState = {
   linkedInUrl: string;
   gitHubUrl: string;
   cvFileUrl: string;
+  discipline: Discipline;
+  proofLinks: ProofLink[];
   visibility: PortfolioVisibility;
   discoverable: boolean;
   notificationEmail: string;
@@ -32,6 +35,8 @@ function toFormState(p: MyPortfolio): FormState {
     linkedInUrl: p.linkedInUrl ?? "",
     gitHubUrl: p.gitHubUrl ?? "",
     cvFileUrl: p.cvFileUrl ?? "",
+    discipline: p.discipline,
+    proofLinks: p.proofLinks,
     visibility: p.visibility,
     discoverable: p.discoverable,
     notificationEmail: p.notificationEmail ?? "",
@@ -60,6 +65,28 @@ export default function ProfilePage() {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
+  function updateProofLink(index: number, field: keyof ProofLink, value: string) {
+    setForm((prev) => {
+      if (!prev) return prev;
+      const proofLinks = prev.proofLinks.map((link, i) =>
+        i === index ? { ...link, [field]: value } : link
+      );
+      return { ...prev, proofLinks };
+    });
+  }
+
+  function addProofLink() {
+    setForm((prev) =>
+      prev ? { ...prev, proofLinks: [...prev.proofLinks, { label: "", url: "" }] } : prev
+    );
+  }
+
+  function removeProofLink(index: number) {
+    setForm((prev) =>
+      prev ? { ...prev, proofLinks: prev.proofLinks.filter((_, i) => i !== index) } : prev
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
@@ -84,6 +111,10 @@ export default function ProfilePage() {
           linkedInUrl: form.linkedInUrl || null,
           gitHubUrl: form.gitHubUrl || null,
           cvFileUrl: form.cvFileUrl || null,
+          discipline: form.discipline,
+          proofLinks: form.proofLinks
+            .map((l) => ({ label: l.label.trim(), url: l.url.trim() }))
+            .filter((l) => l.label || l.url),
           visibility: form.visibility,
           discoverable: form.discoverable,
           notificationEmail: form.notificationEmail || null,
@@ -147,7 +178,24 @@ export default function ProfilePage() {
           />
         </Field>
 
-        <Field label="Core technologies" hint="Comma-separated, e.g. .NET, PostgreSQL, Next.js">
+        <Field label="Discipline" hint="Picks the right copy for a few fields below — no other effect.">
+          <select
+            value={form.discipline}
+            onChange={(e) => update("discipline", e.target.value as Discipline)}
+            className={inputClass}
+          >
+            {Object.entries(disciplineDisplayName).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          label={disciplineLabels[form.discipline].coreTechnologiesLabel}
+          hint={`${disciplineLabels[form.discipline].coreTechnologiesHint} Comma-separated.`}
+        >
           <input
             type="text"
             value={form.coreTechnologies}
@@ -192,6 +240,49 @@ export default function ProfilePage() {
             className={inputClass}
           />
         </Field>
+
+        <div>
+          <label className="block text-sm font-medium text-zinc-700">
+            {disciplineLabels[form.discipline].proofLinksLabel}
+            <span className="mt-1 block text-xs font-normal text-zinc-400">
+              Optional extra links — a portfolio site, published articles, certifications.
+            </span>
+          </label>
+          <div className="mt-2 flex flex-col gap-2">
+            {form.proofLinks.map((link, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Label"
+                  value={link.label}
+                  onChange={(e) => updateProofLink(i, "label", e.target.value)}
+                  className={`${inputClass} mt-0 w-32`}
+                />
+                <input
+                  type="url"
+                  placeholder="https://…"
+                  value={link.url}
+                  onChange={(e) => updateProofLink(i, "url", e.target.value)}
+                  className={`${inputClass} mt-0 flex-1`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeProofLink(i)}
+                  className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs font-medium text-zinc-500 hover:bg-zinc-50"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addProofLink}
+              className="self-start rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+            >
+              + Add link
+            </button>
+          </div>
+        </div>
 
         <Field
           label="Notification email"

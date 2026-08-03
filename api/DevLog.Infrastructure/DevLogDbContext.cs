@@ -35,6 +35,14 @@ public class DevLogDbContext : DbContext
             v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
             v => v.ToList());
 
+        // ProofLink is a record, so SequenceEqual/GetHashCode below get
+        // structural equality for free — no per-field comparer needed the
+        // way a plain class would require.
+        var proofLinkListComparer = new ValueComparer<List<ProofLink>>(
+            (a, b) => (a ?? new List<ProofLink>()).SequenceEqual(b ?? new List<ProofLink>()),
+            v => v.Aggregate(0, (hash, p) => HashCode.Combine(hash, p)),
+            v => v.ToList());
+
         modelBuilder.Entity<Tenant>(e =>
         {
             e.ToTable("tenants");
@@ -68,6 +76,13 @@ public class DevLogDbContext : DbContext
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
                     v => JsonSerializer.Deserialize<List<string>>(v, (JsonSerializerOptions?)null) ?? new List<string>())
                 .Metadata.SetValueComparer(stringListComparer);
+            e.Property(x => x.Discipline).HasConversion<string>();
+            e.Property(x => x.ProofLinks)
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+                    v => JsonSerializer.Deserialize<List<ProofLink>>(v, (JsonSerializerOptions?)null) ?? new List<ProofLink>())
+                .Metadata.SetValueComparer(proofLinkListComparer);
         });
 
         modelBuilder.Entity<Experience>(e =>

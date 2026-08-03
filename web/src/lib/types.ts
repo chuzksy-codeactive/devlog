@@ -22,6 +22,25 @@ export interface ExperienceEntry {
   keyAchievement: string;
 }
 
+// Mirrors DevLog.Domain.Entities.PortfolioDiscipline (Enums.cs) — multi-role
+// expansion. Purely a label-selection key (see discipline-labels.ts); no
+// frontend logic ever branches behaviorally on it.
+export type Discipline =
+  | "SoftwareEngineer"
+  | "ProductManager"
+  | "BusinessAnalyst"
+  | "DevOps"
+  | "ScrumMaster"
+  | "Other";
+
+// Mirrors DevLog.Domain.Entities.ProofLink — one entry in a Portfolio's
+// generalized ProofLinks list (supplement to the fixed githubUrl/cvUrl
+// fields below).
+export interface ProofLink {
+  label: string;
+  url: string;
+}
+
 export interface PortfolioData {
   slug: string;
   displayName: string;
@@ -35,6 +54,8 @@ export interface PortfolioData {
   githubUrl: string | null;
   cvUrl: string | null;
   photoUrl: string | null;
+  discipline: Discipline;
+  proofLinks: ProofLink[];
   experiences: ExperienceEntry[];
 }
 
@@ -81,6 +102,8 @@ export interface MyPortfolio {
   linkedInUrl: string | null;
   gitHubUrl: string | null;
   cvFileUrl: string | null;
+  discipline: Discipline;
+  proofLinks: ProofLink[];
   visibility: PortfolioVisibility;
   discoverable: boolean;
   notificationEmail: string | null;

@@ -33,6 +33,25 @@ public class Portfolio
     public string? GitHubUrl { get; set; }
     public string? CvFileUrl { get; set; }
 
+    // Multi-role expansion (MVP roadmap Phase 2 item, deliberately deferred
+    // until the goal was "onboard other developers," then picked back up
+    // once dogfooding widened past that). Discipline drives which label
+    // variant the frontend renders for a handful of fields (see
+    // web/src/lib/discipline-labels.ts) — nothing in this backend branches
+    // on it. Defaults to SoftwareEngineer so every tenant created before
+    // this field existed reads as unchanged.
+    public PortfolioDiscipline Discipline { get; set; } = PortfolioDiscipline.SoftwareEngineer;
+
+    // Generalized alternative/supplement to GitHubUrl above — "GitHub
+    // becomes one of several optional proof links (portfolio site,
+    // published articles, certifications)" per the Product Brief.
+    // Deliberately additive rather than a replacement: GitHubUrl/LinkedInUrl/
+    // CvFileUrl stay exactly as they are (common defaults every discipline
+    // can use, and removing them would drop already-filled-in creator data
+    // for no real benefit) — this is for anything else a discipline needs
+    // that doesn't have its own fixed field.
+    public List<ProofLink> ProofLinks { get; set; } = new();
+
     public PortfolioVisibility Visibility { get; set; } = PortfolioVisibility.Unlisted;
     public bool Discoverable { get; set; } = false;
 

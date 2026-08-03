@@ -72,3 +72,24 @@ public enum InterviewRequestStatus
     Accepted,
     Declined
 }
+
+// PORTFOLIOS.discipline — multi-role expansion (Product Brief's Phase 2
+// gap-closure item, MVP roadmap's "Multi-role support"). Deliberately just
+// a label/config driver, not a behavioral fork: nothing in the sanitization
+// pipeline, RAG, or RLS reads this — it exists purely so the frontend can
+// pick the right copy for a field ("Core technologies" vs. "Core skills/tools")
+// via a static lookup (web/src/lib/discipline-labels.ts), same shape as
+// ExperienceType's UI label map. Defaults to SoftwareEngineer so every
+// existing tenant needs zero migration-time action. String-backed
+// (.HasConversion<string>() in DevLogDbContext) — adding a new discipline
+// later is a pure code change, no migration, same reasoning as every other
+// enum in this schema.
+public enum PortfolioDiscipline
+{
+    SoftwareEngineer,
+    ProductManager,
+    BusinessAnalyst,
+    DevOps,
+    ScrumMaster,
+    Other
+}

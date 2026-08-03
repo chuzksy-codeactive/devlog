@@ -239,6 +239,11 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("cv_file_url");
 
+                    b.Property<string>("Discipline")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("discipline");
+
                     b.Property<bool>("Discoverable")
                         .HasColumnType("boolean")
                         .HasColumnName("discoverable");
@@ -273,6 +278,11 @@ namespace DevLog.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("positioning_line");
+
+                    b.Property<string>("ProofLinks")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("proof_links");
 
                     b.Property<string>("Visibility")
                         .IsRequired()

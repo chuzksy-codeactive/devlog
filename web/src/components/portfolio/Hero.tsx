@@ -1,5 +1,6 @@
 import { PortfolioData } from "@/lib/types";
 import { computeYearsOfExperience } from "@/lib/portfolio-utils";
+import { disciplineLabels } from "@/lib/discipline-labels";
 import { AskAiForm } from "./AskAiForm";
 
 function initials(name: string): string {
@@ -22,6 +23,7 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
     portfolio.currentRoleTitle ?? "Actively building — open to opportunities";
   const yearsLine =
     years !== null ? `${years}+ years of experience` : null;
+  const labels = disciplineLabels[portfolio.discipline];
 
   return (
     <section className="bg-zinc-50 px-6 py-20">
@@ -50,18 +52,25 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
 
           <p className="max-w-xl text-lg leading-relaxed text-zinc-900">{portfolio.positioningLine}</p>
 
-          <div className="flex flex-wrap gap-2">
-            {portfolio.coreTechnologies.map((tech) => (
-              <span
-                key={tech}
-                className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
+          {portfolio.coreTechnologies.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+                {labels.coreTechnologiesLabel}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {portfolio.coreTechnologies.map((tech) => (
+                  <span
+                    key={tech}
+                    className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600"
+                  >
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             {portfolio.githubUrl && (
               <a
                 href={portfolio.githubUrl}
@@ -72,6 +81,20 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
                 GitHub
               </a>
             )}
+            {/* Multi-role expansion — generalized supplement to GitHub above.
+                Labels are creator-typed (e.g. "Portfolio site", "Case study"),
+                not app-controlled copy, so no discipline-label lookup here. */}
+            {portfolio.proofLinks.map((link) => (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
+              >
+                {link.label || link.url}
+              </a>
+            ))}
             {portfolio.cvUrl ? (
               <a
                 href={portfolio.cvUrl}

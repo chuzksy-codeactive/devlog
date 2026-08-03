@@ -114,6 +114,8 @@ public class PortfolioController : ControllerBase
         if (request.LinkedInUrl is not null) portfolio.LinkedInUrl = request.LinkedInUrl;
         if (request.GitHubUrl is not null) portfolio.GitHubUrl = request.GitHubUrl;
         if (request.CvFileUrl is not null) portfolio.CvFileUrl = request.CvFileUrl;
+        if (request.Discipline is not null) portfolio.Discipline = request.Discipline.Value;
+        if (request.ProofLinks is not null) portfolio.ProofLinks = request.ProofLinks;
         if (request.Visibility is not null) portfolio.Visibility = request.Visibility.Value;
         if (request.Discoverable is not null) portfolio.Discoverable = request.Discoverable.Value;
         if (request.NotificationEmail is not null) portfolio.NotificationEmail = request.NotificationEmail;
@@ -146,6 +148,8 @@ public class PortfolioController : ControllerBase
         portfolio.LinkedInUrl,
         portfolio.GitHubUrl,
         portfolio.CvFileUrl,
+        portfolio.Discipline,
+        portfolio.ProofLinks,
         portfolio.Visibility,
         portfolio.Discoverable,
         portfolio.NotificationEmail
@@ -216,6 +220,14 @@ public class PortfolioController : ControllerBase
             githubUrl = portfolio.GitHubUrl,
             cvUrl = portfolio.CvFileUrl,
             photoUrl = portfolio.PhotoUrl,
+            // Multi-role expansion — discipline drives which label variant
+            // Hero.tsx renders for a field (e.g. "Core technologies" vs.
+            // "Core skills/tools"); proofLinks is the generalized
+            // supplement to githubUrl above. Both public: this is exactly
+            // the same data a recruiter is already trusted to see via the
+            // rest of this response.
+            discipline = portfolio.Discipline,
+            proofLinks = portfolio.ProofLinks,
             experiences = experiences.Select(e => new
             {
                 id = e.Id,
@@ -254,6 +266,8 @@ public class PortfolioController : ControllerBase
         string? LinkedInUrl,
         string? GitHubUrl,
         string? CvFileUrl,
+        PortfolioDiscipline? Discipline,
+        List<ProofLink>? ProofLinks,
         PortfolioVisibility? Visibility,
         bool? Discoverable,
         string? NotificationEmail);

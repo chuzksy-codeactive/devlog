@@ -861,6 +861,45 @@ git push
 
 ---
 
+## Milestone 18 — Multi-role support (`discipline` + generalized proof links)
+
+The roadmap's last deferred Phase 2 gap-closure item, picked back up now that dogfooding has widened past "onboard other developers" specifically. Purely a labeling/config feature, not a behavioral fork — nothing in the sanitization pipeline, RAG, or RLS reads `Discipline`. It exists so a Product Manager's or Business Analyst's portfolio doesn't say "Core technologies" the same way a Software Engineer's does, and so a non-engineer has somewhere to put proof-of-work links that aren't GitHub.
+
+Backend: new `PortfolioDiscipline` string-backed enum (`SoftwareEngineer, ProductManager, BusinessAnalyst, DevOps, ScrumMaster, Other`, defaults to `SoftwareEngineer` so every existing tenant reads unchanged) and a new `ProofLink` record (`Label`/`Url`), stored as a jsonb list on `Portfolio.ProofLinks` — same pattern as `CoreTechnologies`/`Experience.Technologies`, with its own `ValueComparer` in `DevLogDbContext`. Both fields wired through `PortfolioController`: `GET`/`PUT /api/portfolio/me` and the public `GET /api/portfolio/{slug}` all carry them now. Deliberately additive: `GitHubUrl`/`LinkedInUrl`/`CvFileUrl` are untouched — `ProofLinks` is a supplement for whatever a discipline needs that doesn't have its own fixed field, not a replacement, so no existing creator data is at risk.
+
+Frontend: `web/src/lib/discipline-labels.ts` is the static lookup map (label overrides + a human-readable discipline name), same shape as `types.ts`'s existing `experienceTypeLabel` map. `dashboard/profile/page.tsx` gets a Discipline `<select>`, a discipline-driven "Core technologies" label/hint, and a dynamic proof-links editor (add/remove label+URL rows). `Hero.tsx` renders the discipline-driven label above the technology chips (only when the list isn't empty) and lists `proofLinks` alongside the GitHub link — proof-link labels are creator-typed, not app copy, so no label lookup applies there.
+
+### Step 56 — apply the migration and rebuild
+
+```bash
+cd Devlog.os/api/DevLog.Infrastructure
+dotnet ef migrations add AddDisciplineAndProofLinksToPortfolio --project . --startup-project ../DevLog.Api
+cd ../DevLog.Api
+dotnet build
+dotnet run
+```
+```bash
+cd Devlog.os/web
+npm run dev
+```
+
+### Step 57 — smoke test
+
+1. `/dashboard/profile` → change Discipline away from "Software Engineer" → confirm the "Core technologies" field's label and hint text change immediately.
+2. Add two proof links (label + URL), remove one, save → reload the page → confirm the remaining one persisted.
+3. Visit your public `/{slug}` page → confirm the discipline-driven label appears above the technology chips, and the proof link you kept shows up next to the GitHub link, opening in a new tab.
+4. Switch Discipline back to "Software Engineer" and confirm the label reverts to "Core technologies."
+
+### Handoff — commit and push
+
+```bash
+git add .
+git commit -m "Milestone 18: Multi-role support (discipline + generalized proof links)"
+git push
+```
+
+---
+
 ## What comes after this
 
-Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16) and Learning Lab (Milestone 17) are both done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building.
+Phase 1's two deferred security/instrumentation gaps are closed, and guided onboarding is now complete on both paths — GitHub import (Milestone 13) and resume upload (Milestone 13b) — removing the blank-page problem for a new developer signing up cold, from either starting point. Paused visibility (Milestone 14) turned out to already be built. The creator analytics dashboard (Milestone 16), Learning Lab (Milestone 17), and multi-role support (Milestone 18) are all done — every Phase 2 creator-side item is now shipped except billing, which stays deliberately deferred. What's left in Phase 2 is entirely recruiter-side: Discover (Milestone 15), once there are enough public tenants for cross-candidate search to be worth building.
