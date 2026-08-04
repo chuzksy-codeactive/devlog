@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using System.Net.Http.Headers;
 
 namespace DevLog.Infrastructure;
 
@@ -82,6 +83,8 @@ public static class ServiceCollectionExtensions
             client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
         });
 
+        var openAiApiKey = configuration[$"{OpenAiOptions.SectionName}:ApiKey"];
+
         services.Configure<OpenAiOptions>(configuration.GetSection(OpenAiOptions.SectionName));
         services.AddHttpClient<OpenAiLlmProvider>((serviceProvider, client) =>
         {
@@ -89,7 +92,8 @@ public static class ServiceCollectionExtensions
                 ?? new OpenAiOptions();
 
             client.BaseAddress = new Uri("https://api.openai.com");
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {options.ApiKey}");
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", options.ApiKey.Trim());
         });
 
         var generationProvider = configuration["Ai:GenerationProvider"] ?? "OpenAI";
@@ -108,7 +112,8 @@ public static class ServiceCollectionExtensions
                 ?? new OpenAiOptions();
 
             client.BaseAddress = new Uri("https://api.openai.com");
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {options.ApiKey}");
+            client.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", options.ApiKey.Trim());
         });
 
         // Email (transactional) — backs InterviewRequestService's creator
