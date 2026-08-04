@@ -8,6 +8,13 @@
     "AuthorizedParty": "http://localhost:3000",
     "SecretKey": "REPLACE-WITH-YOUR-CLERK-SECRET-KEY"
   },
+  "KeyVault": {
+    "Enabled": false,
+    "VaultUri": "https://REPLACE-WITH-YOUR-KEYVAULT-NAME.vault.azure.net/"
+  },
+  "ApplicationInsights": {
+    "ConnectionString": "REPLACE-WITH-YOUR-APPLICATION-INSIGHTS-CONNECTION-STRING"
+  },
   "Ai": {
     "GenerationProvider": "OpenAI"
   },

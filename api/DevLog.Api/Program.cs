@@ -1,14 +1,46 @@
-using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
+using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using DevLog.Api.Middleware;
 using DevLog.Infrastructure;
-using DevLog.Infrastructure.Storage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var keyVaultEnabled = builder.Configuration.GetValue<bool>("KeyVault:Enabled");
+var keyVaultUriValue = builder.Configuration["KeyVault:VaultUri"];
+if (keyVaultEnabled)
+{
+    if (!Uri.TryCreate(keyVaultUriValue, UriKind.Absolute, out var keyVaultUri))
+    {
+        throw new InvalidOperationException("KeyVault is enabled but KeyVault:VaultUri is missing or invalid.");
+    }
+
+    builder.Configuration.AddAzureKeyVault(
+        keyVaultUri,
+        new DefaultAzureCredential(new DefaultAzureCredentialOptions
+        {
+            ExcludeInteractiveBrowserCredential = true
+        }));
+}
+
+var applicationInsightsConnectionString =
+    builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]
+    ?? builder.Configuration["ApplicationInsights:ConnectionString"];
+
+if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
+{
+    builder.Services
+        .AddOpenTelemetry()
+        .WithMetrics(metrics => metrics.AddMeter("DevLog.Security"))
+        .UseAzureMonitor(options =>
+    {
+        options.ConnectionString = applicationInsightsConnectionString;
+    });
+}
 
 builder.Services.AddDevLogInfrastructure(builder.Configuration, builder.Environment.IsDevelopment());
 

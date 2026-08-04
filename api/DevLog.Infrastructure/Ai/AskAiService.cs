@@ -35,17 +35,20 @@ public class AskAiService
     private readonly DevLogDbContext _db;
     private readonly IEmbeddingProvider _embeddingProvider;
     private readonly ILlmProvider _llmProvider;
+    private readonly PromptInjectionTelemetry _promptInjectionTelemetry;
     private readonly ILogger<AskAiService> _logger;
 
     public AskAiService(
         DevLogDbContext db,
         IEmbeddingProvider embeddingProvider,
         ILlmProvider llmProvider,
+        PromptInjectionTelemetry promptInjectionTelemetry,
         ILogger<AskAiService> logger)
     {
         _db = db;
         _embeddingProvider = embeddingProvider;
         _llmProvider = llmProvider;
+        _promptInjectionTelemetry = promptInjectionTelemetry;
         _logger = logger;
     }
 
@@ -70,6 +73,13 @@ public class AskAiService
             return new AskAiResult(AskAiOutcome.PortfolioNotFound);
         }
 
+        _promptInjectionTelemetry.Scan(
+            flow: "ask_ai",
+            inputType: "question",
+            content: question,
+            tenantId: portfolio.TenantId,
+            slug: slug);
+
         var tenantId = portfolio.TenantId;
 
         var recentQueryCount = await _db.AiQueryLogs
@@ -91,6 +101,13 @@ public class AskAiService
             .Take(TopK)
             .Select(e => e.ChunkText)
             .ToListAsync(cancellationToken);
+
+        _promptInjectionTelemetry.Scan(
+            flow: "ask_ai",
+            inputType: "retrieved_context",
+            content: string.Join("\n", topChunks),
+            tenantId: tenantId,
+            slug: slug);
 
         var answer = await _llmProvider.AnswerQuestionAsync(question, topChunks, cancellationToken);
 

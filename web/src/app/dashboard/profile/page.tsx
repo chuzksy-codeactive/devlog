@@ -18,7 +18,7 @@ type FormState = {
   linkedInUrl: string;
   gitHubUrl: string;
   gitHubVerified: boolean;
-  cvFileUrl: string;
+  hasUploadedCv: boolean;
   discipline: Discipline;
   proofLinks: ProofLink[];
   visibility: PortfolioVisibility;
@@ -38,7 +38,7 @@ function toFormState(p: MyPortfolio): FormState {
     linkedInUrl: p.linkedInUrl ?? "",
     gitHubUrl: p.gitHubUrl ?? "",
     gitHubVerified: p.gitHubVerified,
-    cvFileUrl: p.cvFileUrl ?? "",
+    hasUploadedCv: !!p.cvFileUrl,
     discipline: p.discipline,
     proofLinks: p.proofLinks,
     visibility: p.visibility,
@@ -199,7 +199,6 @@ export default function ProfilePage() {
             .filter(Boolean),
           linkedInUrl: form.linkedInUrl || null,
           gitHubUrl: form.gitHubUrl || null,
-          cvFileUrl: form.cvFileUrl || null,
           discipline: form.discipline,
           proofLinks: form.proofLinks
             .map((l) => ({ label: l.label.trim(), url: l.url.trim() }))
@@ -330,13 +329,13 @@ export default function ProfilePage() {
           </Field>
         </div>
 
-        <Field label="CV file URL" hint="A link to a hosted PDF — no file upload yet.">
-          <input
-            type="url"
-            value={form.cvFileUrl}
-            onChange={(e) => update("cvFileUrl", e.target.value)}
-            className={inputClass}
-          />
+        <Field label="CV uploaded" hint="Upload or replace your CV from the import page.">
+          <div className="mt-1 flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900">
+            <span>{form.hasUploadedCv ? "Yes" : "No"}</span>
+            <a href="/dashboard/import" className="text-indigo-600 underline hover:text-indigo-700">
+              Go to import
+            </a>
+          </div>
         </Field>
 
         <Field label="Photo URL" hint="A link to a hosted image — no file upload yet.">

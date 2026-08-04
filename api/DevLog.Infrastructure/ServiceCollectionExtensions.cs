@@ -152,6 +152,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IIpHashingService, HmacIpHashingService>();
 
         services.AddScoped<EmbeddingPipelineService>();
+        services.AddScoped<PromptInjectionTelemetry>();
         services.AddScoped<SanitizationPipelineService>();
         services.AddScoped<AskAiService>();
         services.AddScoped<InterviewRequestService>();
@@ -174,7 +175,7 @@ public static class ServiceCollectionExtensions
         // LocalDisk is still the default for local/dev, but AzureBlob can
         // be selected via configuration for private cloud storage.
         services.Configure<StorageOptions>(configuration.GetSection(StorageOptions.SectionName));
-        var storageProvider = configuration[$"{StorageOptions.SectionName}:Provider"] ?? "LocalDisk";
+        var storageProvider = configuration[$"{StorageOptions.SectionName}:Provider"] ?? "AzureBlob";
         if (storageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
         {
             services.AddScoped<IFileStorageProvider, AzureBlobFileStorageProvider>();

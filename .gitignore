@@ -9,7 +9,13 @@ web/.next/
 web/out/
 
 # Secrets — never commit real values
-api/DevLog.Api/appsettings.Development.json
+# Covers appsettings.Development.json, appsettings.Production.json, etc.
+# (anything environment-specific). Deliberately does NOT match the base
+# appsettings.json (no environment segment, contains no secrets — see
+# Milestone 20 deployment checklist verification) or the tracked
+# appsettings.Development.json.example template, since both end in a
+# different suffix shape than "appsettings.<Environment>.json".
+api/DevLog.Api/appsettings.*.json
 web/.env.local
 web/.env*.local
 

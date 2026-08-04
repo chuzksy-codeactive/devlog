@@ -41,15 +41,18 @@ public class SanitizationPipelineService
     private readonly DevLogDbContext _db;
     private readonly ILlmProvider _llmProvider;
     private readonly EmbeddingPipelineService _embeddingPipeline;
+    private readonly PromptInjectionTelemetry _promptInjectionTelemetry;
 
     public SanitizationPipelineService(
         DevLogDbContext db,
         ILlmProvider llmProvider,
-        EmbeddingPipelineService embeddingPipeline)
+        EmbeddingPipelineService embeddingPipeline,
+        PromptInjectionTelemetry promptInjectionTelemetry)
     {
         _db = db;
         _llmProvider = llmProvider;
         _embeddingPipeline = embeddingPipeline;
+        _promptInjectionTelemetry = promptInjectionTelemetry;
     }
 
     public async Task<RawEntry> SanitizeAsync(Guid rawEntryId, CancellationToken cancellationToken = default)
@@ -108,6 +111,12 @@ public class SanitizationPipelineService
             .Select(e => e.CompanyLabel)
             .Distinct()
             .ToListAsync(cancellationToken);
+
+        _promptInjectionTelemetry.Scan(
+            flow: "sanitization",
+            inputType: "raw_entry",
+            content: entry.RawContent,
+            tenantId: entry.TenantId);
 
         var result = await _llmProvider.SanitizeAsync(entry.RawContent, blocklist, cancellationToken);
 

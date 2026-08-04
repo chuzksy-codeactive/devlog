@@ -88,6 +88,7 @@ public class OnboardingImportService
     private readonly DevLogDbContext _db;
     private readonly IFileStorageProvider _fileStorageProvider;
     private readonly IMalwareScanner _malwareScanner;
+    private readonly PromptInjectionTelemetry _promptInjectionTelemetry;
     private readonly ILogger<OnboardingImportService> _logger;
 
     public OnboardingImportService(
@@ -96,6 +97,7 @@ public class OnboardingImportService
         DevLogDbContext db,
         IFileStorageProvider fileStorageProvider,
         IMalwareScanner malwareScanner,
+        PromptInjectionTelemetry promptInjectionTelemetry,
         ILogger<OnboardingImportService> logger)
     {
         _gitHubClient = gitHubClient;
@@ -103,6 +105,7 @@ public class OnboardingImportService
         _db = db;
         _fileStorageProvider = fileStorageProvider;
         _malwareScanner = malwareScanner;
+        _promptInjectionTelemetry = promptInjectionTelemetry;
         _logger = logger;
     }
 
@@ -141,6 +144,13 @@ public class OnboardingImportService
         }
 
         var context = BuildGitHubContext(data);
+
+        _promptInjectionTelemetry.Scan(
+            flow: "onboarding_github",
+            inputType: "github_context",
+            content: context,
+            tenantId: tenantId);
+
         var rawJson = await _llmProvider.SuggestOnboardingContentAsync(context, cancellationToken);
 
         var suggestions = TryParseGitHubSuggestions(rawJson, data);
@@ -204,6 +214,12 @@ public class OnboardingImportService
         {
             return new ResumeImportResult(ResumeImportOutcome.NoTextExtracted, cvFileUrl);
         }
+
+        _promptInjectionTelemetry.Scan(
+            flow: "onboarding_resume",
+            inputType: "resume_text",
+            content: resumeText,
+            tenantId: tenantId);
 
         var rawJson = await _llmProvider.SuggestOnboardingContentFromResumeAsync(resumeText, cancellationToken);
         var suggestions = TryParseResumeSuggestions(rawJson);
