@@ -17,7 +17,7 @@ public class DevLogDbContextFactory : IDesignTimeDbContextFactory<DevLogDbContex
 
         var connectionString = configuration.GetConnectionString("DevLogDb")
             ?? throw new InvalidOperationException(
-            "ConnectionStrings:DevLogDb not found — run dotnet ef commands from DevLog.Api so its appsettings files are picked up.");
+                "ConnectionStrings:DevLogDb not found — run dotnet ef commands from DevLog.Api so its appsettings files are picked up.");
 
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.UseVector();
