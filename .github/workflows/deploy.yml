@@ -1,0 +1,168 @@
+name: Deploy
+
+# Push to main only — this is what actually ships code, so it only runs
+# after a PR has already passed ci.yml as a required check and been merged.
+# Never triggers on pull_request.
+on:
+  push:
+    branches: [main]
+
+# Two things ship from a single push: the API (App Service, via a staging
+# slot + a manually-approved swap) and the frontend (Static Web App, which
+# has no slot/swap mechanism of its own — SWA's built-in PR preview
+# environments are the closest equivalent, but that's a different feature
+# from App Service slots, so the frontend just deploys straight to
+# production here). Only the API gets the staging-then-swap treatment the
+# checklist asked for.
+#
+# cancel-in-progress stays false here (unlike ci.yml) — a deploy already
+# underway should finish or fail on its own, not get killed mid-swap by a
+# second push landing on top of it.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-api:
+    name: Build + publish API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # SHA-pinned actions, see ci.yml's comment for why.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.x
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.x
+        with:
+          dotnet-version: "10.0.x"
+          cache: true
+          cache-dependency-path: |
+            api/**/*.csproj
+            api/DevLog.slnx
+
+      - name: Restore
+        run: dotnet restore api/DevLog.slnx
+
+      - name: Test
+        run: dotnet test api/DevLog.slnx --configuration Release
+        # Redundant with ci.yml's PR check, deliberately — never deploy code
+        # this exact workflow run hasn't itself just proven passes, rather
+        # than trusting a PR check from possibly several commits ago.
+
+      - name: Publish
+        run: dotnet publish api/DevLog.Api/DevLog.Api.csproj -c Release -o ./publish
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.x
+        with:
+          name: api-publish
+          path: ./publish
+
+  deploy-api-staging:
+    name: Deploy API to staging slot
+    needs: build-api
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Not the same environment as swap-api-to-production's `production` —
+    # scoping this to its own `staging` environment gives it a distinct
+    # entry in the repo's deployment audit trail (Settings → Environments →
+    # staging), even with no required reviewers on it. No GitHub-side setup
+    # needed for this one to work; environments are created automatically
+    # the first time a workflow references them.
+    environment: staging
+    permissions:
+      id-token: write # required for OIDC federated login, see AZURE_CLIENT_ID etc. below
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: api-publish
+          path: ./publish
+
+      # OIDC federated credential login — no long-lived Azure secret stored
+      # in GitHub at all. Requires an App Registration + federated
+      # credential (trusted for this repo/branch) + a role assignment
+      # granting it deploy rights on devlog-api, set up once in Azure
+      # ahead of time. See the deployment checklist for the one-time setup
+      # steps; these three values are GitHub Actions secrets either way.
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
+        with:
+          app-name: devlog-api
+          slot-name: staging
+          package: ./publish
+
+      - run: az logout
+        if: always()
+
+  smoke-test-staging:
+    name: Smoke-test staging before allowing a swap
+    needs: deploy-api-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Hits the /health endpoint added specifically for this (Program.cs) —
+      # deliberately dependency-free (no DB call), so this only proves the
+      # process came up and is serving requests after the deploy, not that
+      # the whole system is healthy. That broader check is still Phase 6's
+      # manual staging smoke test in the deployment checklist; this is a
+      # much smaller, fully automated tripwire in front of it. A few
+      # retries with backoff, since the slot can take a short moment to
+      # finish restarting right after a deploy.
+      - name: Wait for staging /health
+        run: |
+          url="https://devlog-api-staging.azurewebsites.net/health"
+          for i in 1 2 3 4 5; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+            if [ "$status" = "200" ]; then
+              echo "Staging healthy (attempt $i)."
+              exit 0
+            fi
+            echo "Attempt $i: got HTTP $status, retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::Staging slot never returned a healthy /health response — blocking the swap."
+          exit 1
+
+  deploy-frontend:
+    name: Deploy frontend (Static Web App)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.x
+
+      # skip_app_build is deliberately NOT set — Azure's own Oryx build
+      # system builds this itself (it auto-detects Next.js and handles
+      # hybrid/SSR rendering correctly, including the Clerk middleware this
+      # app relies on, which a plain static export could never serve). The
+      # env vars below are what that Oryx build needs; they're read at BUILD
+      # time by Next.js (NEXT_PUBLIC_* get baked into the client bundle),
+      # not at runtime, so they must be set here, not as App Service-style
+      # app settings after the fact.
+      - uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
+        env:
+          NEXT_PUBLIC_API_BASE_URL: "https://api.chuzksy.dev"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "web"
+          output_location: ""
+
+# The swap-to-production step used to live here as a job gated on GitHub's
+# native "required reviewers" environment protection rule. That feature is
+# Enterprise-only for private repositories (Free/Pro/Team plans only get it
+# on public repos) — same licensing wall as the Advanced Security /
+# secret-scanning gap. Moved to its own workflow, triggered only by a
+# manual button click, in swap-to-production.yml. See that file for why
+# this is arguably a stronger gate than an "Approve" click anyway.

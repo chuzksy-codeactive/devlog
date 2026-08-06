@@ -310,4 +310,12 @@ app.UseAuthorization();
 app.UseRateLimiter();
 app.MapControllers();
 
+// Deploy pipeline's staging smoke check (deploy.yml, before the
+// staging→production swap) hits this. Deliberately dependency-free — no DB
+// call, no tenant/auth middleware concerns — so it only ever answers "is
+// the process up and serving requests at all," not "is the database
+// reachable." A DB-down staging slot should still swap-block on the real
+// Phase 6 smoke test checklist, not silently pass here.
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+
 app.Run();
