@@ -61,6 +61,7 @@ public class AzureBlobFileStorageProvider : IFileStorageProvider
     {
         var blobName = $"{tenantId}/{fileName}";
         var blobClient = _containerClient.GetBlobClient(blobName);
+        
         await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
     }
 
