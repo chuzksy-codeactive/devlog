@@ -1,14 +1,12 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace DevLog.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     public partial class AddPortfolioViewEventsAndSanitizationRunLogs : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -61,7 +59,6 @@ namespace DevLog.Infrastructure.Migrations
                 columns: new[] { "tenant_id", "created_at" });
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(

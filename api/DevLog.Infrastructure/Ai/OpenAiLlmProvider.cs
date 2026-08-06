@@ -4,15 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace DevLog.Infrastructure.Ai;
 
-// OpenAI Chat Completions implementation of ILlmProvider — an alternative
-// to AnthropicLlmProvider, added 2026-07-05 because Chika was blocked
-// getting an Anthropic console API key working and needed a real swap-in,
-// not just a documented "you could use a different provider" possibility.
-// This is exactly the scenario the LLM Gateway abstraction (architecture
-// doc Section 5) was designed for: provider swap without pipeline
-// rewrites. Uses the exact same system prompts as AnthropicLlmProvider
-// (LlmSystemPrompts) so switching Ai:GenerationProvider changes only which
-// vendor answers, never the sanitization rules or the RAG safety framing.
 public class OpenAiLlmProvider : ILlmProvider
 {
     private readonly HttpClient _httpClient;
@@ -92,10 +83,6 @@ public class OpenAiLlmProvider : ILlmProvider
         return text.Trim();
     }
 
-    // Explicit JsonPropertyName throughout — same reasoning as
-    // AnthropicLlmProvider: PostAsJsonAsync here has no ASP.NET "Web" JSON
-    // defaults applied, so property names would otherwise serialize as
-    // PascalCase and be silently ignored by OpenAI's snake_case API.
     private record OpenAiChatRequest(
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("max_tokens")] int MaxTokens,

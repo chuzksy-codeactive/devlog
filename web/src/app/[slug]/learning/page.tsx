@@ -4,11 +4,6 @@ import { getPortfolioBySlug } from "@/lib/mock-portfolio";
 import { getLearningLogEntriesBySlug } from "@/lib/learning-lab";
 import { formatPublishedDate } from "@/lib/portfolio-utils";
 
-// Milestone 17 — Learning Lab, the 5th and last IA surface from the Product
-// Brief ("monthly diary + career retrospectives, unified as one growth
-// log"). Deliberately identical structure to [slug]/journal/page.tsx — same
-// pipeline, same rendering shape, different SourceEntryType and different
-// framing copy (retrospective/diary, not case-study).
 export default async function LearningLabPage({
   params,
 }: {

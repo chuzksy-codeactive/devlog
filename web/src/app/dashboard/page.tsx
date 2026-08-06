@@ -27,13 +27,6 @@ export default function DashboardOverviewPage() {
       })
       .catch(() => setStatus("error"));
 
-    // Milestone 17's retention nudge — computed live on every dashboard
-    // load rather than emailed by a background job (no job queue exists in
-    // this codebase yet; see LearningLabController's doc comment). Fetched
-    // independently of the portfolio call and fails silently (no banner)
-    // rather than surfacing its own error state — a missed nudge is a
-    // minor inconvenience, not something worth a second error message on
-    // the same page.
     request<LearningLabReminderStatus>("/api/learning-lab/reminder")
       .then(setReminder)
       .catch(() => {});

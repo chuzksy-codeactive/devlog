@@ -25,9 +25,6 @@ public class DevLogDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Required once, for the migration to emit CREATE EXTENSION — pgvector
-        // is preinstalled in the docker-compose image but still needs to be
-        // enabled per-database.
         modelBuilder.HasPostgresExtension("vector");
 
         var stringListComparer = new ValueComparer<List<string>>(
@@ -35,9 +32,6 @@ public class DevLogDbContext : DbContext
             v => v.Aggregate(0, (hash, s) => HashCode.Combine(hash, s.GetHashCode())),
             v => v.ToList());
 
-        // ProofLink is a record, so SequenceEqual/GetHashCode below get
-        // structural equality for free — no per-field comparer needed the
-        // way a plain class would require.
         var proofLinkListComparer = new ValueComparer<List<ProofLink>>(
             (a, b) => (a ?? new List<ProofLink>()).SequenceEqual(b ?? new List<ProofLink>()),
             v => v.Aggregate(0, (hash, p) => HashCode.Combine(hash, p)),
@@ -50,10 +44,6 @@ public class DevLogDbContext : DbContext
             e.Property(x => x.Slug).IsRequired();
             e.HasIndex(x => x.Slug).IsUnique();
             e.Property(x => x.UserId).IsRequired();
-            // One Tenant per Clerk user — also the DB-level backstop against
-            // a race between two near-simultaneous first requests from the
-            // same brand-new user both trying to provision (see
-            // TenantProvisioningService's retry-on-conflict handling).
             e.HasIndex(x => x.UserId).IsUnique();
 
             e.HasOne(x => x.Portfolio)
@@ -153,9 +143,6 @@ public class DevLogDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.SourceType).HasConversion<string>();
             e.Property(x => x.Vector).HasColumnType("vector(1536)");
-            // Looked up by (tenant, source) on re-embedding (delete-then-insert)
-            // and scanned per-tenant during vector search — see
-            // EmbeddingPipelineService and AskAiController.
             e.HasIndex(x => new { x.TenantId, x.SourceType, x.SourceId });
 
             e.HasOne(x => x.Tenant)

@@ -4,13 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace DevLog.Infrastructure.Ai;
 
-// Anthropic Messages API implementation of the LLM Gateway. Registered as
-// itself (not directly against ILlmProvider) in ServiceCollectionExtensions,
-// with the Ai:GenerationProvider config switch deciding whether this or
-// OpenAiLlmProvider actually gets resolved as ILlmProvider — see that file's
-// comment for why (Chika couldn't get an Anthropic console API key working,
-// 2026-07-05, so OpenAI needed to be a real swap-in, not just a documented
-// possibility).
 public class AnthropicLlmProvider : ILlmProvider
 {
     private readonly HttpClient _httpClient;

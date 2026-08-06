@@ -1,8 +1,5 @@
 namespace DevLog.Domain.Entities;
 
-// Written every time a raw entry is sanitized and approved. This is what
-// makes the anonymization pipeline defensible after the fact if a dispute
-// ever arises — see architecture doc Section 3.
 public class SanitizationAudit
 {
     public Guid Id { get; set; }

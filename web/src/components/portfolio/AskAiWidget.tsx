@@ -3,11 +3,6 @@
 import { useState } from "react";
 import { AskAiForm } from "./AskAiForm";
 
-// Persistent floating AI assistant shell — Product Brief: "Ask AI —
-// persistent floating assistant available on every page." Home renders its
-// own inline copy (embedded in the hero) via the same AskAiForm; this
-// floating version is what's available on Experience/Sprint Journal/
-// Learning Lab once those exist.
 export function AskAiWidget({ slug, displayName }: { slug: string; displayName: string }) {
   const [isOpen, setIsOpen] = useState(false);
 

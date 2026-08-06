@@ -11,21 +11,8 @@ import {
   experienceTypeLabel,
 } from "@/lib/types";
 
-// Milestone 13 — guided onboarding, GitHub-import half. Deliberately a
-// review-then-accept flow, not an auto-save: this page only ever calls
-// POST /api/onboarding/github-import (read-only, generates suggestions)
-// and then the same POST /api/experiences / POST /api/entries endpoints
-// the manual forms on /dashboard/experience and /dashboard/journal already
-// use — nothing about how a suggestion gets saved is different from typing
-// it in by hand, which is what keeps this page from needing its own
-// safety rules on top of the ones those endpoints already enforce.
 export default function ImportPage() {
   const { request } = useApi();
-  // Milestone 19 — GitHub import no longer takes a typed username; it only
-  // ever pulls from the tenant's own Clerk-verified account
-  // (PortfolioController's me/github/sync). This page just needs to know
-  // whether that connection exists yet, to decide between showing an
-  // import button and a "connect GitHub first" prompt.
   const [gitHubVerified, setGitHubVerified] = useState<boolean | null>(null);
   const [gitHubUrl, setGitHubUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -44,11 +31,6 @@ export default function ImportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Milestone 13b — resume import. Kept as separate state from the GitHub
-  // import above rather than unified: the two flows have different result
-  // shapes (a resume import always yields a cvFileUrl and never a
-  // draftEntry) and running them independently means importing from both
-  // sources in one visit doesn't clobber either result.
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [resumeStatus, setResumeStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [resumeErrorMessage, setResumeErrorMessage] = useState<string | null>(null);

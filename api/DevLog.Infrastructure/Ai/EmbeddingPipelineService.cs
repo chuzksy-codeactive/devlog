@@ -4,12 +4,6 @@ using Pgvector;
 
 namespace DevLog.Infrastructure.Ai;
 
-// The embedding half of Section 2's RAG pipeline. Triggered from exactly
-// one place — SanitizationPipelineService.ApproveAsync — per Section 1's
-// cross-cutting decision that "the embedding pipeline has exactly one
-// entry point," which is what keeps unsanitized content from ever being
-// embedded. Synchronous for this milestone, same simplification already
-// made for sanitization (no Hangfire queue yet).
 public class EmbeddingPipelineService
 {
     private readonly DevLogDbContext _db;
@@ -32,23 +26,6 @@ public class EmbeddingPipelineService
             cancellationToken);
     }
 
-    // Milestone 12 bugfix: Ask AI was answering "no evidence" for questions
-    // a candidate's Experience data clearly answered (e.g. "any C#
-    // experience?" when C# was right there in a role's Technologies list),
-    // because nothing ever embedded Experience rows at all — Ask AI's
-    // vector search can only ever see what's actually in the `embeddings`
-    // table, and only EmbedPublishedEntryAsync ever wrote to it. Unlike
-    // Sprint Journal entries, Experience rows skip the sanitize pipeline
-    // entirely and embed directly: CompanyLabel is free text the creator
-    // types themselves, already pre-anonymized by design (see Experience.cs
-    // — "never a foreign key to a real employer record"), so there's
-    // nothing here that needs an LLM sanitization pass first. Called
-    // directly from ExperienceController on create/update (and
-    // RemoveExperienceEmbeddingsAsync below on delete) rather than from
-    // any single "entry point" the way SanitizationPipelineService.ApproveAsync
-    // is for published entries — that single-entry-point rule exists
-    // specifically to guarantee unsanitized content never gets embedded,
-    // which doesn't apply here since there's no sanitization step to skip.
     public async Task EmbedExperienceAsync(Experience experience, CancellationToken cancellationToken = default)
     {
         var text = BuildExperienceText(experience);
@@ -61,10 +38,6 @@ public class EmbeddingPipelineService
             cancellationToken);
     }
 
-    // Called from ExperienceController.Delete — a removed Experience row
-    // must not leave orphaned, unreachable-by-id embedding rows behind
-    // (same reasoning as the delete-then-insert inside ReplaceEmbeddingsAsync,
-    // just with nothing to re-insert).
     public async Task RemoveExperienceEmbeddingsAsync(Guid experienceId, CancellationToken cancellationToken = default)
     {
         var existing = await _db.Embeddings
@@ -77,10 +50,6 @@ public class EmbeddingPipelineService
         }
     }
 
-    // A short, natural-language flattening of the structured row — written
-    // the way a recruiter's question is actually phrased ("any C#
-    // experience?"), not as a label:value dump, so it embeds and retrieves
-    // the way the rest of the RAG prompt content does.
     private static string BuildExperienceText(Experience experience)
     {
         var period = experience.EndDate is { } end
@@ -107,10 +76,6 @@ public class EmbeddingPipelineService
         return string.Join("\n\n", lines);
     }
 
-    // Shared delete-then-insert body for both source types — re-embedding
-    // an edited row (published entry or experience) should replace stale
-    // chunks wholesale, not leave orphaned rows from a previous version
-    // pointing at outdated text.
     private async Task ReplaceEmbeddingsAsync(
         Guid tenantId,
         EmbeddingSourceType sourceType,

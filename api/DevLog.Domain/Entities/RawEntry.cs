@@ -1,9 +1,5 @@
 namespace DevLog.Domain.Entities;
 
-// Never exposed publicly — enforced by RLS granting the anon/public role
-// zero access to this table (architecture doc Section 1's "critical
-// isolation detail"). Every sprint entry, experience draft, and learning
-// log entry passes through here before sanitization.
 public class RawEntry
 {
     public Guid Id { get; set; }
@@ -12,22 +8,12 @@ public class RawEntry
 
     public RawEntryType EntryType { get; set; }
 
-    // No title field existed anywhere in this schema until Milestone 9 —
-    // not on RawEntry, not on PublishedEntry, not even in the architecture
-    // doc's own ERD. Entries were designed as a single free-text blob from
-    // the start (see TextChunker's paragraph-based chunking note). Added
-    // because a Sprint Journal listing page needs something to show before
-    // a reader opens the full entry.
     public string Title { get; set; } = string.Empty;
 
     public string RawContent { get; set; } = string.Empty;
     public RawEntryStatus Status { get; set; } = RawEntryStatus.Draft;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    // The LLM-sanitized draft, stored so the creator can review it across
-    // requests before approving — set when the sanitize pipeline runs,
-    // cleared/overwritten on re-sanitization. Not the same as
-    // PublishedEntry.SanitizedContent, which only exists after approval.
     public string? SanitizedPreview { get; set; }
     public string? SanitizationModelVersion { get; set; }
 
