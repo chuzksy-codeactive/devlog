@@ -42,26 +42,37 @@ public class ValidationIntegrationTests : IClassFixture<ValidationTestApiFactory
     }
 
     [Fact]
-    public async Task UpdatePortfolio_InvalidPhotoUrlScheme_ReturnsBadRequest()
+    public async Task CreateInterviewRequest_EmptyNote_ReturnsValidationProblem()
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue(TestAuthHandler.SchemeName);
 
-        var response = await client.PutAsJsonAsync("/api/portfolio/me", new
+        var response = await client.PostAsJsonAsync("/api/portfolio/test/interview-requests", new
         {
-            photoUrl = "javascript:alert(1)"
+            recruiterEmail = "recruiter@example.com",
+            recruiterName = "Recruiter",
+            note = ""
         });
 
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("photoUrl must be an absolute http/https URL", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Note", body, StringComparison.OrdinalIgnoreCase);
     }
 }
 
 public class ValidationTestApiFactory : WebApplicationFactory<Program>
 {
+    public ValidationTestApiFactory()
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+        Environment.SetEnvironmentVariable(
+            "ConnectionStrings__DevLogDbRuntime",
+            "Host=localhost;Port=5432;Database=devlog;Username=devlog_app;Password=devlog_app");
+        Environment.SetEnvironmentVariable(
+            "IpHashing__Secret",
+            "D5F78A4C21E390B64FA2D8715C39BE04216A5FD3B2C91E87");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
