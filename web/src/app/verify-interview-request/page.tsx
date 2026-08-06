@@ -4,14 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-// Milestone 10 — the landing page for the confirmation link
-// InterviewRequestService.SendVerificationEmailAsync emails a recruiter.
-// Deliberately a top-level route (not nested under /[slug]) since the link
-// itself carries every piece of identifying context (slug, requestId,
-// token) as query params rather than path segments — nothing about this
-// page needs a portfolio lookup of its own, it just forwards the token to
-// POST /api/portfolio/{slug}/interview-requests/{id}/verify and reports
-// what came back.
 type VerifyState =
   | "loading"
   | "verified"

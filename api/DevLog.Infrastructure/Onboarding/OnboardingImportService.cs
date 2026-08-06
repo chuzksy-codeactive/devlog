@@ -14,24 +14,10 @@ public enum OnboardingSuggestionOutcome
     GitHubUserNotFound,
     NoPublicReposFound,
     GitHubRateLimited,
-    // Milestone 19 — the tenant hasn't connected (or Clerk hasn't verified)
-    // a GitHub account yet. Distinct from GitHubUserNotFound: that outcome
-    // means GitHub itself couldn't find the account; this one means DevLog
-    // never got as far as asking GitHub, because there's no verified
-    // account on file to ask about.
     GitHubNotConnected,
     Error
 }
 
-// StartDate/EndDate come from the repo's own created_at/pushed_at, not the
-// LLM — GitHub's own timestamps are exact; asking the model to guess dates
-// would just be a worse version of data already available. EndDate =
-// pushed_at is a deliberate default, not "this project is finished" — it's
-// "here's when the developer was last actively working on it," a
-// reasonable draft the creator can blank out to "present" if it's still
-// actively maintained; nothing here saves without the creator reviewing it
-// first regardless. RepoUrl is null for resume-sourced suggestions (Milestone
-// 13b) — there's no repo to link to.
 public record SuggestedExperience(
     ExperienceType ExperienceType,
     string CompanyLabel,
@@ -58,28 +44,10 @@ public enum ResumeImportOutcome
     Error
 }
 
-// CvFileUrl is always populated once storage succeeds, even on a
-// NoTextExtracted/RateLimited/Error outcome for the AI half — the resume
-// file itself is real and worth hosting regardless of whether suggestions
-// could be drafted from it this time.
 public record ResumeImportResult(ResumeImportOutcome Outcome, string? CvFileUrl, OnboardingSuggestions? Suggestions = null);
 
-// Orchestrates Milestone 13's GitHub import and Milestone 13b's resume
-// import: fetch/extract source data, ask the LLM to draft suggestions,
-// parse the result into the same shapes ExperienceController/EntriesController
-// already accept. The GitHub half stays fully stateless/read-only. The
-// resume half necessarily touches the database (storing the file, updating
-// Portfolio.CvFileUrl, logging against the rate cap) but still never
-// creates Experience rows itself — the creator reviews suggestions and
-// saves them (or edits first) through the normal endpoints, same as
-// GitHub import.
 public class OnboardingImportService
 {
-    // Mirrors SanitizationPipelineService's MaxRunsPerTenantPerHour shape —
-    // an authenticated creator action that costs a real LLM call, capped
-    // lower than Ask AI's anonymous-facing limit since this is a
-    // deliberate, infrequent self-serve action, not something a stranger
-    // hits repeatedly.
     private const int MaxResumeImportsPerTenantPerHour = 5;
     private const string ResumeFileName = "resume.pdf";
 
@@ -109,16 +77,6 @@ public class OnboardingImportService
         _logger = logger;
     }
 
-    // Milestone 19 — takes tenantId instead of a client-submitted username.
-    // Previously this trusted whatever username the frontend sent, which
-    // meant anyone could import a stranger's public repos into their own
-    // onboarding drafts. Now the only username this will ever fetch from
-    // GitHub is the one Clerk has independently verified belongs to the
-    // signed-in creator (PortfolioController's me/github/sync endpoint is
-    // the only place GitHubVerified/GitHubUrl get set together) — same
-    // "look it up server-side from the authenticated tenant, don't trust a
-    // client-submitted value for anything that grants access" posture as
-    // every other tenant-scoped lookup in this codebase.
     public async Task<OnboardingSuggestionResult> SuggestFromGitHubAsync(
         Guid tenantId,
         CancellationToken cancellationToken = default)
@@ -159,21 +117,11 @@ public class OnboardingImportService
             : new OnboardingSuggestionResult(OnboardingSuggestionOutcome.Suggested, suggestions);
     }
 
-    // Milestone 13b. pdfContent must be a seekable, positioned-at-0 stream —
-    // read twice (once verbatim for storage, once via PdfPig for text
-    // extraction), which is why OnboardingController buffers the upload
-    // into a MemoryStream before calling this rather than passing the raw
-    // request stream straight through.
     public async Task<ResumeImportResult> SuggestFromResumeAsync(
         Guid tenantId,
         Stream pdfContent,
         CancellationToken cancellationToken = default)
     {
-        // Always store first — the creator explicitly chose to upload and
-        // host this resume; that succeeds independently of whether the AI
-        // extraction below finds anything usable (e.g. a scanned/image PDF
-        // still deserves to be linked from the public portfolio, even
-        // though PdfPig can't read text out of it).
         pdfContent.Position = 0;
         var cvFileUrl = await _fileStorageProvider.SaveAsync(tenantId, ResumeFileName, pdfContent, cancellationToken);
 
@@ -224,9 +172,6 @@ public class OnboardingImportService
         var rawJson = await _llmProvider.SuggestOnboardingContentFromResumeAsync(resumeText, cancellationToken);
         var suggestions = TryParseResumeSuggestions(rawJson);
 
-        // Logged after the LLM call regardless of whether parsing
-        // succeeded — a real call (and a real cost) happened either way,
-        // so it counts against the rate cap either way.
         _db.ResumeImportLogs.Add(new ResumeImportLog { Id = Guid.NewGuid(), TenantId = tenantId, CreatedAt = DateTime.UtcNow });
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -255,11 +200,6 @@ public class OnboardingImportService
         return sb.ToString();
     }
 
-    // Matches suggestions back to repos by list position (the prompt
-    // explicitly asks for "exactly one experiences entry per repo, in the
-    // same order") rather than by name, so a model that slightly reformats
-    // a repo name in its output still lines up correctly with the repo's
-    // own real StartDate/EndDate/RepoUrl.
     private static OnboardingSuggestions? TryParseGitHubSuggestions(string rawJson, GitHubImportData data)
     {
         try
@@ -307,21 +247,10 @@ public class OnboardingImportService
         }
         catch (JsonException)
         {
-            // The model returned something that isn't valid JSON matching
-            // the requested shape — surfaced to the caller as a generic
-            // Error outcome (429/404-style specificity doesn't apply here;
-            // there's nothing more actionable to tell the creator than
-            // "try again").
             return null;
         }
     }
 
-    // Unlike the GitHub parser, there's no external list to align results
-    // against by position — every suggested experience comes straight from
-    // the LLM's own read of the resume, dates included (StartDate/EndDate
-    // here are the one place in this file the LLM's own guesses are used
-    // directly, since a resume's dates only exist in the text itself,
-    // unlike a GitHub repo's created_at/pushed_at).
     private static OnboardingSuggestions? TryParseResumeSuggestions(string rawJson)
     {
         try
@@ -356,9 +285,6 @@ public class OnboardingImportService
                     RepoUrl: null));
             }
 
-            // Resumes don't naturally produce Sprint-Journal-shaped draft
-            // content the way a GitHub README does — no draftEntry field
-            // is requested in the resume prompt at all.
             return new OnboardingSuggestions(experiences, DraftEntry: null);
         }
         catch (JsonException)

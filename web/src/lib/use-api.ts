@@ -2,14 +2,6 @@
 
 import { useAuth } from "@clerk/nextjs";
 
-// Milestone 11 — every dashboard page needs to call the authenticated .NET
-// API with a real Clerk session token attached. Every prior creator-side
-// call in this codebase was made by hand with curl and a manually-pasted
-// bearer token; this is the first time the frontend mints and attaches one
-// itself. getToken() (no template argument) returns Clerk's default session
-// JWT — the same one the backend's Clerk:Authority/AuthorizedParty config
-// was already built to validate (see DevLog.Api's JwtBearer setup), so no
-// backend change was needed to support this.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
 
 export class ApiError extends Error {
@@ -26,12 +18,6 @@ export function useApi() {
   async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
     const token = await getToken();
 
-    // FormData bodies (Milestone 13b's resume upload) must NOT get an
-    // explicit Content-Type — fetch/the browser sets
-    // "multipart/form-data; boundary=..." itself only when the header is
-    // left unset. Forcing "application/json" here (the default for every
-    // other caller of this function) would send a boundary-less
-    // multipart body the API can't parse.
     const isFormData = options.body instanceof FormData;
 
     const response = await fetch(`${API_BASE_URL}${path}`, {

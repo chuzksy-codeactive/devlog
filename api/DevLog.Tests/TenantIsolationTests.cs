@@ -7,24 +7,6 @@ using Xunit;
 
 namespace DevLog.Tests;
 
-// This is the Sprint 0 exit-criterion test from the checklist — do not skip
-// it. It requires the docker-compose Postgres running AND
-// sql/001_row_level_security.sql through sql/005_create_app_role.sql
-// already applied. It proves RLS itself blocks cross-tenant reads, not
-// application code: the query below deliberately has no WHERE tenant_id
-// clause.
-//
-// Connects as devlog_app, not devlog, as of Milestone 8's RLS
-// force-on-owner fix — this matters more than it looks like. `devlog` (the
-// docker-compose POSTGRES_USER) is a genuine Postgres superuser, and
-// Postgres unconditionally disables row security for superusers. That
-// means every time this suite ran against `devlog`, from Sprint 0 through
-// Milestone 7, it could only ever have proven the RLS *policy definitions*
-// were syntactically consistent with the test's expectations — not that
-// RLS was actually blocking anything for the role real app traffic uses,
-// because it wasn't being tested against that role at all. This is the
-// first version of this test that can actually fail the way it's supposed
-// to if a policy is missing or wrong.
 public class TenantIsolationTests
 {
     private const string ConnectionString =
@@ -86,7 +68,6 @@ public class TenantIsolationTests
 
         await using var queryAsTenantA = CreateContext(tenantAId);
 
-        // Deliberately no .Where(x => x.TenantId == tenantAId) here.
         var visibleToTenantA = await queryAsTenantA.RawEntries.ToListAsync();
 
         Assert.Single(visibleToTenantA);
@@ -97,19 +78,6 @@ public class TenantIsolationTests
     [Fact]
     public async Task NoTenantContext_Sees_Nothing()
     {
-        // A connection with app.current_tenant never set (e.g. a background
-        // job that forgot to set tenant context) should see zero rows, not
-        // everything. This is what current_setting(..., true) resolving to
-        // NULL should produce against the RLS policy.
-        //
-        // Seed context's tenant must match the row's TenantId — this was a
-        // dormant bug (CreateContext(Guid.NewGuid()) seeding a row tagged
-        // with a *different*, unrelated tenantId) that stayed invisible
-        // only because RLS was never actually being enforced against the
-        // superuser role this suite used to connect as (see the class doc
-        // comment). Under real enforcement, a mismatched app.current_tenant
-        // would fail raw_entries' tenant_isolation WITH CHECK on insert and
-        // this seed step would throw, not just misreport what it seeded.
         var tenantId = Guid.NewGuid();
         await using var seed = CreateContext(tenantId);
         seed.Tenants.Add(new Tenant { Id = tenantId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-{tenantId}" });

@@ -14,15 +14,6 @@ using Microsoft.Extensions.Options;
 
 namespace DevLog.Api.Controllers;
 
-// Note: [Authorize] is class-level, but GetPublicPortfolio below overrides
-// it with [AllowAnonymous] — same anonymous-by-slug pattern as
-// AskAiService/InterviewRequestService/SprintJournalController, just kept
-// in this controller rather than a new one since it's still "portfolio"
-// data, one route segment over from /me. ASP.NET Core's routing resolves
-// the literal "/api/portfolio/me" ahead of the parameterized
-// "/api/portfolio/{slug}" automatically, so there's no ambiguity between
-// the two actions below.
-
 [ApiController]
 [Route("api/portfolio")]
 [Authorize]
@@ -62,17 +53,6 @@ public class PortfolioController : ControllerBase
             return Unauthorized("No tenant context resolved from the current token.");
         }
 
-        // An explicit filter is required here now, not just defense in
-        // depth — sql/004 gave portfolios a public_read RLS policy (Ask AI
-        // and Request Interview both need to look up a portfolio by slug
-        // anonymously), so more than one row is legitimately visible to an
-        // authenticated caller: their own, plus any other tenant's public
-        // portfolio. "No WHERE clause, RLS enforces scope" only holds for
-        // tables where a caller can never see anyone else's row at all
-        // (raw_entries, entries via EntriesController) — that invariant
-        // doesn't hold here, so FirstOrDefaultAsync() with no filter could
-        // return a different tenant's public portfolio instead of the
-        // caller's own.
         var portfolio = await _db.Portfolios
             .Include(p => p.Tenant)
             .FirstOrDefaultAsync(p => p.TenantId == tenantId);
@@ -82,12 +62,6 @@ public class PortfolioController : ControllerBase
             return NotFound();
         }
 
-        // Shaped rather than returning the raw entity — mainly to include
-        // Slug (lives on Tenant, not Portfolio; the dashboard needs it to
-        // link out to the public portfolio, which nothing before Milestone
-        // 11 ever needed). Also sidesteps Tenant<->Portfolio being a
-        // circular EF navigation, which System.Text.Json would otherwise
-        // choke on now that Tenant is actually included.
         return Ok(ToMyPortfolioDto(portfolio));
     }
 
@@ -121,8 +95,6 @@ public class PortfolioController : ControllerBase
         });
     }
 
-    // Public recruiter-side CV access. Returns a short-lived signed URL
-    // rather than exposing a permanent blob/static path in portfolio payloads.
     [AllowAnonymous]
     [EnableRateLimiting("PublicCvAccess")]
     [HttpGet("{slug}/cv-access-url")]
@@ -158,15 +130,6 @@ public class PortfolioController : ControllerBase
         });
     }
 
-    // PUT /api/portfolio/me — closes the "no update endpoint exists yet"
-    // gap flagged since Milestone 5/6 (NotificationEmail, and everything
-    // else on Portfolio, had to be set via SQL until now). Deliberately a
-    // partial update: only fields present (non-null) in the request
-    // overwrite the entity, so a creator can change one field without
-    // resending everything. Slug lives on Tenant, not Portfolio, and isn't
-    // editable here — TenantProvisioningService's placeholder slug is
-    // permanent until a dedicated rename endpoint exists (flagged there,
-    // not fixed here).
     [HttpPut("me")]
     public async Task<IActionResult> UpdateMyPortfolio([FromBody] UpdatePortfolioRequest request)
     {
@@ -175,14 +138,6 @@ public class PortfolioController : ControllerBase
             return Unauthorized("No tenant context resolved from the current token.");
         }
 
-        // .Include(p => p.Tenant) here too, for the same reason as
-        // GetMyPortfolio — the shaped DTO below needs Slug regardless, and
-        // relying on TenantResolutionMiddleware's own earlier Tenant lookup
-        // to have incidentally fixed up this navigation via EF's change
-        // tracker (which is what caused this endpoint's original bug: it
-        // returned the raw entity, and that same incidental fixup turned
-        // Tenant<->Portfolio into a live reference cycle that
-        // System.Text.Json then choked on) isn't something to depend on.
         var portfolio = await _db.Portfolios
             .Include(p => p.Tenant)
             .FirstOrDefaultAsync(p => p.TenantId == tenantId);
@@ -244,13 +199,6 @@ public class PortfolioController : ControllerBase
         if (request.CoreTechnologies is not null) portfolio.CoreTechnologies = request.CoreTechnologies;
         if (request.LinkedInUrl is not null) portfolio.LinkedInUrl = linkedInUrl;
         if (request.GitHubUrl is not null) portfolio.GitHubUrl = gitHubUrl;
-        // Milestone 19 — once GitHubVerified, GitHubUrl is sourced only
-        // from POST me/github/sync (a real Clerk-confirmed account), never
-        // from a hand-typed PUT body. Silently ignoring rather than 400ing:
-        // the profile form no longer renders an editable field for this
-        // once verified, so a request carrying GitHubUrl here means either
-        // a stale client or someone bypassing the UI — neither is worth
-        // failing the rest of an otherwise-valid update over.
         if (request.GitHubUrl is not null && !portfolio.GitHubVerified) portfolio.GitHubUrl = gitHubUrl;
         if (request.Discipline is not null) portfolio.Discipline = request.Discipline.Value;
         if (normalizedProofLinks is not null) portfolio.ProofLinks = normalizedProofLinks;
@@ -263,20 +211,6 @@ public class PortfolioController : ControllerBase
         return Ok(ToMyPortfolioDto(portfolio));
     }
 
-    // POST /api/portfolio/me/github/sync — Milestone 19. Called by the
-    // frontend right after Clerk's own createExternalAccount(oauth_github)
-    // flow completes (dashboard/profile/page.tsx). Deliberately does not
-    // trust anything the frontend reports about that flow's outcome — it
-    // independently asks Clerk's Backend API, via the already-known Clerk
-    // user id from this request's own validated JWT ("sub" claim, same one
-    // TenantResolutionMiddleware reads for provisioning), whether that user
-    // actually has a verified GitHub external account. If yes, GitHubUrl is
-    // overwritten from the verified username (not merged with whatever was
-    // there before) and GitHubVerified flips true. If no — not connected,
-    // or a connection attempt didn't complete — GitHubVerified is set
-    // false and GitHubUrl is left alone, so a creator who backs out of the
-    // OAuth flow doesn't lose a link they'd already saved by hand before
-    // this feature existed.
     [HttpPost("me/github/sync")]
     public async Task<IActionResult> SyncGitHubVerification(CancellationToken cancellationToken)
     {
@@ -315,16 +249,6 @@ public class PortfolioController : ControllerBase
         return Ok(ToMyPortfolioDto(portfolio));
     }
 
-    // Shared by GetMyPortfolio/UpdateMyPortfolio — the creator-authenticated
-    // shape (adds Slug, Visibility, Discoverable, NotificationEmail on top
-    // of what GetPublicPortfolio exposes). Never return a Portfolio entity
-    // directly from an action: Tenant<->Portfolio is a circular EF
-    // navigation, and the moment anything else in the same request scope
-    // (TenantResolutionMiddleware's own Tenant lookup runs on every
-    // authenticated request) has already tracked the matching Tenant row,
-    // EF's change-tracker fixup silently wires the two together — System.Text.Json
-    // then throws "a possible object cycle was detected" trying to
-    // serialize it, regardless of whether this query itself included Tenant.
     private static object ToMyPortfolioDto(Portfolio portfolio) => new
     {
         slug = portfolio.Tenant!.Slug,
@@ -346,16 +270,6 @@ public class PortfolioController : ControllerBase
         portfolio.NotificationEmail
     };
 
-    // GET /api/portfolio/{slug} — anonymous, public-facing. Replaces
-    // web/src/lib/mock-portfolio.ts, which every public page (Home,
-    // Experience) has run on exclusively since Milestone 3; nothing before
-    // this endpoint ever actually served real portfolio data. Same
-    // portfolio-by-slug + visibility-check pattern as
-    // AskAiService/InterviewRequestService/SprintJournalController.
-    // Includes experiences inline (a single response, matching the shape
-    // the frontend's PortfolioData type already expects) rather than
-    // making the client issue a second call to ExperienceController, which
-    // is creator-authenticated only anyway and not meant for public reads.
     [HttpGet("{slug}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetPublicPortfolio(string slug)
@@ -369,17 +283,6 @@ public class PortfolioController : ControllerBase
             return NotFound();
         }
 
-        // Milestone 12 — the portfolio_view_events half of the roadmap's
-        // "instrument everything... populated from day one" item. Logged
-        // here rather than via Next.js middleware/analytics, so a view
-        // counts once per real backend load regardless of frontend caching
-        // behavior. Best-effort: a logging failure must never break the
-        // actual page load, same "the real work already succeeded" posture
-        // as InterviewRequestService's notification email. Unlike that
-        // email send, though, a failure here gets logged, not silently
-        // swallowed — sql/008 fixed the one way this was actually failing
-        // (a missing public_insert RLS policy for the anonymous caller),
-        // found only because it failed with zero visibility the first time.
         try
         {
             _db.PortfolioViewEvents.Add(new PortfolioViewEvent
@@ -409,22 +312,9 @@ public class PortfolioController : ControllerBase
             currentRoleTitle = portfolio.CurrentRole,
             coreTechnologies = portfolio.CoreTechnologies,
             githubUrl = portfolio.GitHubUrl,
-            // Milestone 19 — surfaced publicly so Hero.tsx can show a
-            // "Verified" mark next to the GitHub link. This is the actual
-            // point of verification from a recruiter's perspective, not
-            // just a creator-side nicety; the creator-authenticated
-            // GitHubVerified above exists so the profile form can decide
-            // whether the field is editable, this is the same fact shown
-            // to the audience it's meant to reassure.
             githubVerified = portfolio.GitHubVerified,
             hasCv = !string.IsNullOrWhiteSpace(portfolio.CvFileUrl),
             photoUrl = portfolio.PhotoUrl,
-            // Multi-role expansion — discipline drives which label variant
-            // Hero.tsx renders for a field (e.g. "Core technologies" vs.
-            // "Core skills/tools"); proofLinks is the generalized
-            // supplement to githubUrl above. Both public: this is exactly
-            // the same data a recruiter is already trusted to see via the
-            // rest of this response.
             discipline = portfolio.Discipline,
             proofLinks = portfolio.ProofLinks,
             experiences = experiences.Select(e => new

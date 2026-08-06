@@ -2,11 +2,6 @@
 
 import { useState } from "react";
 
-// Shared core used by both the Home hero's embedded ask-box (Product
-// Brief: "the AI ask-box embedded directly in the hero, not buried in a
-// separate tab") and AskAiWidget's floating panel on every other page.
-// Calls the real POST /api/portfolio/{slug}/ask endpoint (embedding
-// pipeline + RAG milestone) — no longer a placeholder.
 export function AskAiForm({
   slug,
   displayName,

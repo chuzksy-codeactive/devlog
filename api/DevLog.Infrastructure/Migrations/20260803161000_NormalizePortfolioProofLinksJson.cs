@@ -6,19 +6,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace DevLog.Infrastructure.Migrations
 {
-    /// <inheritdoc />
     [DbContext(typeof(DevLogDbContext))]
     [Migration("20260803161000_NormalizePortfolioProofLinksJson")]
     public partial class NormalizePortfolioProofLinksJson : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Some databases may already have run an earlier scaffolded form of
-            // AddDisciplineAndProofLinksToPortfolio where proof_links was
-            // backfilled as a JSON string instead of the JSON array required by
-            // Portfolio.ProofLinks' List<ProofLink> converter. Normalize those
-            // rows before reads try to materialize Portfolio again.
             migrationBuilder.Sql("""
                 UPDATE portfolios
                 SET proof_links = '[]'::jsonb
@@ -46,9 +39,6 @@ namespace DevLog.Infrastructure.Migrations
                 END $$;
                 """);
 
-            // The same original scaffold issue could also have left the paired
-            // discipline column as an empty string, which would fail enum
-            // conversion immediately after proof_links is fixed.
             migrationBuilder.Sql("""
                 UPDATE portfolios
                 SET discipline = 'SoftwareEngineer'
@@ -62,7 +52,6 @@ namespace DevLog.Infrastructure.Migrations
                 """);
         }
 
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("""

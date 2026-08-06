@@ -1,11 +1,5 @@
 import { ExperienceEntry } from "./types";
 
-// Years of experience is derived, not stored — computed from the earliest
-// Employer-type experience's start date to now (or to that role's end date
-// if none are still current). Deliberately excludes PersonalProject/
-// Education/OpenSource/Freelance from this specific stat so "years of
-// experience" keeps its conventional recruiter-facing meaning; those types
-// still show up in the timeline itself.
 export function computeYearsOfExperience(experiences: ExperienceEntry[]): number | null {
   const employerSpans = experiences.filter((e) => e.experienceType === "Employer");
   if (employerSpans.length === 0) {

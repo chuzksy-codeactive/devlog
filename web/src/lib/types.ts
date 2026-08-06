@@ -1,6 +1,3 @@
-// Mirrors DevLog.Domain.Entities.ExperienceType (api/DevLog.Domain/Entities/Enums.cs).
-// Kept in sync by hand until the OpenAPI-generated TS client exists —
-// see DevLog-Technical-Architecture.md Section 5's codegen note.
 export type ExperienceType =
   | "Employer"
   | "PersonalProject"
@@ -11,9 +8,6 @@ export type ExperienceType =
 export interface ExperienceEntry {
   id: string;
   experienceType: ExperienceType;
-  // Sanitized descriptor for Employer rows ("a Series B fintech, payments
-  // team"), or a short project label for everything else — never a real
-  // employer name. See Section 3's anonymization pipeline.
   companyLabel: string;
   title: string;
   startDate: string; // ISO date (yyyy-MM-dd)
@@ -22,9 +16,6 @@ export interface ExperienceEntry {
   keyAchievement: string;
 }
 
-// Mirrors DevLog.Domain.Entities.PortfolioDiscipline (Enums.cs) — multi-role
-// expansion. Purely a label-selection key (see discipline-labels.ts); no
-// frontend logic ever branches behaviorally on it.
 export type Discipline =
   | "SoftwareEngineer"
   | "ProductManager"
@@ -33,9 +24,6 @@ export type Discipline =
   | "ScrumMaster"
   | "Other";
 
-// Mirrors DevLog.Domain.Entities.ProofLink — one entry in a Portfolio's
-// generalized ProofLinks list (supplement to the fixed githubUrl
-// field below).
 export interface ProofLink {
   label: string;
   url: string;
@@ -44,11 +32,7 @@ export interface ProofLink {
 export interface PortfolioData {
   slug: string;
   displayName: string;
-  // One-line positioning statement for the hero — not a generic "About me."
   positioningLine: string;
-  // Null is a real, designed-for state (Product Brief: "graceful
-  // non-employed state") — render as "Actively building" / "Aspiring
-  // [role]" instead of a title, never as an empty string.
   currentRoleTitle: string | null;
   coreTechnologies: string[];
   githubUrl: string | null;
@@ -68,8 +52,6 @@ export const experienceTypeLabel: Record<ExperienceType, string> = {
   Education: "Education",
 };
 
-// Mirrors GET /api/portfolio/:slug/entries — deliberately without `content`,
-// matching the backend's listing/detail split (SprintJournalController.cs).
 export interface SprintJournalEntrySummary {
   id: string;
   title: string;
@@ -77,20 +59,12 @@ export interface SprintJournalEntrySummary {
   publishedAt: string; // ISO datetime
 }
 
-// Mirrors GET /api/portfolio/:slug/entries/:id — adds the full sanitized
-// markdown body, rendered only through SanitizedMarkdown.tsx, never
-// dangerouslySetInnerHTML directly (architecture doc Section 9's stored-XSS
-// fix).
 export interface SprintJournalEntryDetail extends SprintJournalEntrySummary {
   content: string;
 }
 
 export type PortfolioVisibility = "Public" | "Unlisted" | "Paused";
 
-// Mirrors GET/PUT /api/portfolio/me (PortfolioController) — the
-// creator-authenticated shape, a superset of the public PortfolioData
-// (adds Visibility/Discoverable/NotificationEmail, which are never exposed
-// publicly).
 export interface MyPortfolio {
   slug: string;
   headline: string;
@@ -102,15 +76,6 @@ export interface MyPortfolio {
   coreTechnologies: string[];
   linkedInUrl: string | null;
   gitHubUrl: string | null;
-  // Milestone 19 — true only once ClerkUserService has independently
-  // confirmed a verified GitHub external account via POST
-  // /api/portfolio/me/github/sync. While true, gitHubUrl is read-only in
-  // the profile form (sourced from the verified account, not typed).
-  // Capital H matches this interface's existing gitHubUrl casing (straight
-  // System.Text.Json camelCase of the entity's GitHubVerified property);
-  // PortfolioData below uses the lowercase githubVerified/githubUrl casing
-  // instead, matching PortfolioController's public anonymous object, which
-  // was already lowercase before this milestone.
   gitHubVerified: boolean;
   cvFileUrl: string | null;
   discipline: Discipline;
@@ -120,7 +85,6 @@ export interface MyPortfolio {
   notificationEmail: string | null;
 }
 
-// Mirrors ExperienceController's DTO shape (GET /api/experiences/me, etc.)
 export interface MyExperience {
   id: string;
   experienceType: ExperienceType;
@@ -132,7 +96,6 @@ export interface MyExperience {
   keyAchievement: string;
 }
 
-// Mirrors EntriesController's DTO shape (GET /api/entries, etc.)
 export type RawEntryStatus = "Draft" | "Sanitizing" | "PendingApproval" | "Approved" | "Rejected";
 export type RawEntryType = "SprintEntry" | "Experience" | "LearningLog";
 
@@ -147,13 +110,6 @@ export interface MyEntry {
   createdAt: string;
 }
 
-// Mirrors OnboardingController's GitHub-import and resume-import response
-// shapes (OnboardingImportService.SuggestFromGitHubAsync /
-// SuggestFromResumeAsync). Nothing here is saved yet — these are
-// suggestions the creator reviews and explicitly accepts, one at a time,
-// through the normal /api/experiences and /api/entries endpoints.
-// repoUrl is null for resume-sourced suggestions (Milestone 13b) — there's
-// no repo to link to.
 export interface SuggestedExperience {
   experienceType: ExperienceType;
   companyLabel: string;
@@ -175,18 +131,12 @@ export interface OnboardingSuggestions {
   draftEntry: SuggestedEntry | null;
 }
 
-// Mirrors POST /api/onboarding/resume-import's response shape
-// (OnboardingController.ResumeImport). cvFileUrl is always populated on a
-// 200 — the file is stored regardless of whether suggestions could be
-// drafted from it. suggestions/message are mutually exclusive: a scanned
-// or image-only PDF returns message instead of suggestions.
 export interface ResumeImportResponse {
   cvFileUrl: string;
   suggestions: OnboardingSuggestions | null;
   message?: string;
 }
 
-// Mirrors CreatorInterviewRequestsController's DTO shape.
 export type InterviewRequestStatus = "Pending" | "Accepted" | "Declined";
 
 export interface MyInterviewRequest {
@@ -200,10 +150,6 @@ export interface MyInterviewRequest {
   respondedAt: string | null;
 }
 
-// Mirrors GET /api/analytics/summary (AnalyticsController, Milestone 16).
-// Read-only aggregation over data that's been logging since Milestone 5
-// (interview_requests) and Milestone 12 (portfolio_view_events,
-// ai_query_logs) — this is the first UI ever built on top of it.
 export interface DailyCount {
   date: string; // yyyy-MM-dd
   count: number;
@@ -223,18 +169,9 @@ export interface AnalyticsSummary {
   queriesByDay: DailyCount[];
 }
 
-// Mirrors GET /api/portfolio/:slug/learning[/:id] (LearningLabController,
-// Milestone 17) — identical shape to the Sprint Journal entry types, since
-// both surfaces are the same raw_entries -> sanitize -> approve ->
-// published_entries pipeline filtered by a different SourceEntryType.
-// Aliased rather than duplicated so the two surfaces can't silently drift
-// apart in shape without a compiler error.
 export type LearningLogEntrySummary = SprintJournalEntrySummary;
 export type LearningLogEntryDetail = SprintJournalEntryDetail;
 
-// Mirrors GET /api/learning-lab/reminder (LearningLabController) — the
-// Milestone 17 retention nudge, computed live rather than emailed by a
-// background job (see LearningLabController's doc comment for why).
 export interface LearningLabReminderStatus {
   lastPublishedAt: string | null;
   daysSinceLastEntry: number | null;

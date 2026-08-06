@@ -1,18 +1,6 @@
 import Link from "next/link";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 
-// Still a placeholder, not the real marketing/root page — Phase 1 is a
-// dogfood build, and the actual public "browse all portfolios" experience
-// (Discover) is a Phase 2 item per the roadmap. Each creator's portfolio
-// lives at /[slug] (see src/app/[slug]/). Milestone 11 added the
-// sign-in/dashboard entry point — before this there was no way to reach the
-// creator side of the product from the UI at all.
-//
-// Uses Show (when="signed-out"/"signed-in") rather than the classic
-// SignedIn/SignedOut components — the installed @clerk/nextjs (7.6.1)
-// doesn't export those at all; confirmed directly against the installed
-// package's export list, not assumed. Show is Clerk's current unified
-// conditional-render primitive.
 export default function RootPage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">

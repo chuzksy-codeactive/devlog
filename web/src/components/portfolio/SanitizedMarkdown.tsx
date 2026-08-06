@@ -2,32 +2,6 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
-// The actual fix for architecture doc Section 9's "stored XSS in rendered
-// entries" — Sprint Journal content (PublishedEntry.SanitizedContent,
-// including code snippets) is creator-controlled and renders on public
-// pages recruiters view, so it's treated as untrusted at render time no
-// matter what the write-time sanitization pipeline already did to it.
-//
-// react-markdown parses markdown into React elements directly — it never
-// calls dangerouslySetInnerHTML unless the rehype-raw plugin is added,
-// which is deliberately never imported anywhere in this codebase. That
-// alone blocks literal <script>/<img onerror> tags in the source text
-// (they render as inert text, not markup). rehypeSanitize adds a second,
-// independent layer on top: an allowlist-based pass over the parsed AST
-// that also strips dangerous constructs markdown syntax itself can
-// produce — javascript: URIs in [text](url) links/images, event-handler
-// attributes, <style>/<script> nodes a plugin might otherwise introduce.
-//
-// Schema is defaultSchema (rehype-sanitize's GitHub-flavored-markdown-safe
-// allowlist) with nothing loosened — no raw HTML passthrough, per the
-// architecture doc's instruction, full stop.
-//
-// Styled via ReactMarkdown's `components` map with explicit Tailwind
-// utility classes, matching every other component in this codebase, rather
-// than the @tailwindcss/typography plugin's `prose` classes — that plugin
-// isn't installed anywhere else here, and adding a new dependency just for
-// this one component's styling isn't worth it when the palette (zinc/
-// indigo) already has an established convention to match.
 const markdownComponents: Components = {
   h1: ({ children }) => (
     <h2 className="mt-8 text-2xl font-semibold text-zinc-900 first:mt-0">{children}</h2>
@@ -51,9 +25,6 @@ const markdownComponents: Components = {
     <blockquote className="mt-4 border-l-2 border-zinc-200 pl-4 text-zinc-500 italic">{children}</blockquote>
   ),
   code: ({ children, className }) => {
-    // No `inline` prop in react-markdown v9+ — a fenced code block's <code>
-    // always has a `language-*` className from remark-gfm; an inline
-    // `code` span never does. That's the actual signal, not a prop.
     const isBlock = Boolean(className);
     return isBlock ? (
       <code className={className}>{children}</code>

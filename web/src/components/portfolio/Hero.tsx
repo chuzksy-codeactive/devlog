@@ -16,10 +16,6 @@ function initials(name: string): string {
 export function Hero({ portfolio }: { portfolio: PortfolioData }) {
   const years = computeYearsOfExperience(portfolio.experiences);
 
-  // Graceful non-employed state (Product Brief, Home section): no title
-  // and no "0 years" forced into a prominent spot for someone without
-  // formal experience yet — this is a designed-for state, not a fallback
-  // to apologize for.
   const roleLine =
     portfolio.currentRoleTitle ?? "Actively building — open to opportunities";
   const yearsLine =
