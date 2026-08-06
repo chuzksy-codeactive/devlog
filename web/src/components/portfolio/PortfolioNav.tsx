@@ -4,13 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { RequestInterviewButton } from "./RequestInterviewButton";
 
-// The 5-surface IA from the Product Brief: Home, Experience, Sprint
-// Journal, Learning Lab, plus the persistent Ask AI + Request Interview
-// actions (those two render separately — see AskAiWidget/RequestInterviewButton —
-// since they're not "pages," they're persistent across all of them).
-// All four routes are real as of Milestone 17 — Learning Lab was the last
-// one still gated behind `enabled: false` ("Coming soon"), now that
-// LearningLabController and its public pages exist.
 const NAV_ITEMS = [
   { href: "", label: "Home", enabled: true },
   { href: "/experience", label: "Experience", enabled: true },

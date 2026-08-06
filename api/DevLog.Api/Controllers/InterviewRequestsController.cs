@@ -5,12 +5,6 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace DevLog.Api.Controllers;
 
-// Deliberately anonymous — no [Authorize] — same reasoning as
-// AskAiController: the MVP roadmap's Phase 1 scope is "anonymous
-// browsing... Request Interview," and recruiter accounts/login don't exist
-// until Phase 2 billing. The creator-facing half (inbox, accept, decline)
-// lives in CreatorInterviewRequestsController instead, since it needs the
-// opposite trust boundary.
 [ApiController]
 [Route("api/portfolio/{slug}/interview-requests")]
 public class InterviewRequestsController : ControllerBase
@@ -22,9 +16,6 @@ public class InterviewRequestsController : ControllerBase
         _interviewRequestService = interviewRequestService;
     }
 
-    // Milestone 20 — tighter than AskAi's policy: each call here sends a
-    // real email (verification, then creator notification once confirmed),
-    // a cost and an inbox-spam surface Ask AI doesn't have.
     [EnableRateLimiting("InterviewRequestCreate")]
     [HttpPost]
     public async Task<IActionResult> Create(
@@ -57,16 +48,6 @@ public class InterviewRequestsController : ControllerBase
         };
     }
 
-    // POST /api/portfolio/{slug}/interview-requests/{id}/verify — reached by
-    // a recruiter clicking the confirmation link in their email
-    // (InterviewRequestService.SendVerificationEmailAsync), via the
-    // frontend's /verify-interview-request page. Deliberately anonymous,
-    // same as Create above — the token itself is the credential, not a
-    // session. `slug` isn't used for the lookup (the request id + token
-    // pair is already globally unique and self-authenticating) but stays in
-    // the route for consistency with the rest of this controller.
-    // Looser than Create's policy — this doesn't send email, and a
-    // recruiter retrying a mistyped/expired token is normal usage, not abuse.
     [EnableRateLimiting("InterviewRequestVerify")]
     [HttpPost("{id:guid}/verify")]
     public async Task<IActionResult> Verify(

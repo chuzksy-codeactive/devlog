@@ -2,12 +2,6 @@
 
 import { useState } from "react";
 
-// Gap-closure feature #1 — "the actual conversion action... the single
-// most load-bearing addition." Wired to the real
-// POST /api/portfolio/{slug}/interview-requests endpoint (Milestone 5).
-// Deliberately minimal: recruiter email + optional name + a note, no
-// recruiter login — Phase 1 has no recruiter accounts, same anonymous-by-
-// design reasoning as AskAiForm.
 export function RequestInterviewButton({ slug }: { slug: string }) {
   const [open, setOpen] = useState(false);
   const [recruiterEmail, setRecruiterEmail] = useState("");

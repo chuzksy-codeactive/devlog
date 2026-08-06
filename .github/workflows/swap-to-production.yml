@@ -1,16 +1,5 @@
 name: Swap staging → production
 
-# Manual trigger only, deliberately — this is the "require manual approval
-# before swapping" gate from the deployment checklist. GitHub's native way
-# to do this is a required-reviewer rule on an environment, but that's
-# Enterprise-only for private repos (Free/Pro/Team only get it on public
-# repos) — same wall we hit with Advanced Security / secret scanning.
-#
-# This is arguably stronger than an "Approve" click on an already-running
-# workflow: nothing runs at all — not even a paused, waiting job — until
-# someone deliberately comes here and clicks Run workflow. The
-# `confirm` input adds a second speed bump against a stray click doing
-# something real to production.
 on:
   workflow_dispatch:
     inputs:
@@ -27,11 +16,6 @@ jobs:
     name: Swap staging into production
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Kept even though the required-reviewer protection rule isn't
-    # available on this plan — it's still what the `github-production`
-    # federated credential (see DevLog-Azure-OIDC-Setup-Guide.md) trusts,
-    # and it still gives this run its own entry in the repo's Deployments
-    # audit trail, separate from `staging`'s.
     environment: production
     permissions:
       id-token: write
@@ -43,7 +27,7 @@ jobs:
           echo "::error::Confirmation input was '${{ inputs.confirm }}', not 'swap'. Aborting — nothing was touched."
           exit 1
 
-      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
+      - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

@@ -5,24 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DevLog.Api.Controllers;
 
-// Milestone 13 — guided onboarding. Creator-authenticated (matches the
-// roadmap's "guided onboarding" being a creator-side feature). The GitHub
-// import half doesn't touch ICurrentTenantAccessor.TenantId at all — it
-// only ever generates suggestions, it never persists anything itself.
-// Saving a suggestion is just a normal POST /api/experiences or POST
-// /api/entries call from the frontend once the creator has reviewed it.
-// Milestone 13b's resume import DOES need the tenant id — unlike GitHub
-// import, it writes (the uploaded file, Portfolio.CvFileUrl, the rate-limit
-// log row) as an unavoidable side effect of "store the file regardless of
-// AI-extraction success," not just to generate suggestions.
 [ApiController]
 [Route("api/onboarding")]
 [Authorize]
 public class OnboardingController : ControllerBase
 {
-    // 3 MB cap — resumes should stay lightweight and text-centric. Also
-    // keeps worst-case memory use bounded, since SuggestFromResumeAsync
-    // buffers the file into memory to read it twice (store, then extract).
     private const long MaxResumeFileSizeBytes = 3 * 1024 * 1024;
 
     private static readonly string[] AllowedPdfContentTypes =
@@ -40,12 +27,6 @@ public class OnboardingController : ControllerBase
         _tenantAccessor = tenantAccessor;
     }
 
-    // Milestone 19 — no longer takes a request body. Previously accepted
-    // any client-submitted username with zero ownership check (anyone could
-    // import a stranger's public repos as their own onboarding content);
-    // now it only ever pulls from the tenant's own Clerk-verified GitHub
-    // account, resolved server-side by OnboardingImportService from
-    // ICurrentTenantAccessor — see that method's doc comment.
     [HttpPost("github-import")]
     public async Task<IActionResult> GitHubImport(CancellationToken cancellationToken)
     {
@@ -71,9 +52,6 @@ public class OnboardingController : ControllerBase
         };
     }
 
-    // PDF magic bytes ("%PDF-"). A user could rename any file to .pdf, and
-    // browsers don't reliably send an honest Content-Type for uploads —
-    // checking the actual bytes is the only check worth trusting here.
     private static readonly byte[] PdfMagicBytes = "%PDF-"u8.ToArray();
 
     [HttpPost("resume-import")]
@@ -105,10 +83,6 @@ public class OnboardingController : ControllerBase
             return BadRequest("Only PDF resumes are supported.");
         }
 
-        // Buffered once here (not passed as the raw request stream) so it
-        // can be read twice downstream: SuggestFromResumeAsync stores the
-        // exact bytes via IFileStorageProvider, then rewinds and reads
-        // again for PdfTextExtractor.
         var buffer = new MemoryStream();
         await file.CopyToAsync(buffer, cancellationToken);
         buffer.Position = 0;

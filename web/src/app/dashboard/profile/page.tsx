@@ -56,21 +56,8 @@ export default function ProfilePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [gitHubStatus, setGitHubStatus] = useState<"idle" | "connecting" | "syncing">("idle");
   const [gitHubErrorMessage, setGitHubErrorMessage] = useState<string | null>(null);
-  // Guards the auto-sync effect below from firing more than once per page
-  // load — without it, a sync that comes back not-yet-verified (Clerk's
-  // OAuth callback can take a moment to fully record) would otherwise retry
-  // on every render instead of just once after the redirect back.
   const autoSyncedRef = useRef(false);
 
-  // Clerk treats linking a new external account as a "sensitive" operation
-  // that requires session reverification (a fresh password/MFA check),
-  // independent of and unrelated to anything on DevLog's own backend or the
-  // Clerk:SecretKey config — the very first request this flow makes
-  // (POST .../v1/me/external_accounts) is browser-to-Clerk directly, before
-  // DevLog's own sync endpoint is ever called. Without this wrapper,
-  // createExternalAccount just throws a 403 "session_reverification_required"
-  // outright; wrapping it in useReverification is what makes Clerk show its
-  // own step-up-auth modal and automatically retry once the user clears it.
   const createExternalAccountWithReverification = useReverification(
     (params: { strategy: "oauth_github"; redirectUrl: string }) => user!.createExternalAccount(params)
   );
@@ -86,23 +73,10 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Milestone 19 — after Clerk's own OAuth flow redirects back here,
-  // user.externalAccounts (Clerk's client-side view) shows the new
-  // connection before DevLog's own backend knows about it. This doesn't
-  // trust that client-side view for anything — it's only a trigger to ask
-  // the backend to independently confirm via Clerk's Backend API (see
-  // ClerkUserService) and persist the result.
   useEffect(() => {
     if (autoSyncedRef.current || !form || form.gitHubVerified || !user) {
       return;
     }
-    // "github" here, not "oauth_github" — Clerk's frontend SDK reports the
-    // bare provider name on ExternalAccountResource.provider, while its
-    // Backend API (what ClerkUserService calls server-side) reports the
-    // full "oauth_github" strategy name for the same field. Two different
-    // casings for the same fact, from the same vendor, depending which
-    // side of the wire you're on — worth remembering if this check ever
-    // silently stops matching after a Clerk SDK upgrade.
     const hasGitHubExternalAccount = user.externalAccounts?.some((a) => a.provider === "github");
     if (!hasGitHubExternalAccount) {
       return;
@@ -118,8 +92,6 @@ export default function ProfilePage() {
       const updated = await request<MyPortfolio>("/api/portfolio/me/github/sync", { method: "POST" });
       setForm((prev) => (prev ? { ...prev, gitHubUrl: updated.gitHubUrl ?? "", gitHubVerified: updated.gitHubVerified } : prev));
     } catch {
-      // Best-effort — if this fails the field just stays in its previous
-      // state and the "Connect GitHub" button remains available to retry.
     } finally {
       setGitHubStatus("idle");
     }

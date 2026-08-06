@@ -4,10 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 
-// Milestone 11 — the creator-facing nav. Mirrors PortfolioNav's shape
-// (sticky header, pill-style active link) so the two halves of the product
-// feel like the same app, even though this one is auth-gated and the other
-// is public.
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/profile", label: "Profile" },

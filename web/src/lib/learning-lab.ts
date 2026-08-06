@@ -1,11 +1,5 @@
 import { LearningLogEntryDetail, LearningLogEntrySummary } from "./types";
 
-// Milestone 17 — real fetch against GET /api/portfolio/:slug/learning[/:id]
-// (LearningLabController), built real from day one rather than starting as
-// a mock fixture — mock-journal.ts's swap-later promise sat unfulfilled from
-// Milestone 9 through Milestone 16's bugfix, so this surface skips that
-// step entirely. Same shape and same server-side-fetch reasoning as
-// mock-portfolio.ts/mock-journal.ts.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
 
 export async function getLearningLogEntriesBySlug(slug: string): Promise<LearningLogEntrySummary[]> {

@@ -4,14 +4,6 @@ import { useEffect, useState } from "react";
 import { useApi } from "@/lib/use-api";
 import { AnalyticsSummary, DailyCount } from "@/lib/types";
 
-// Milestone 16 — first UI ever built on top of instrumentation the roadmap
-// deliberately started early (portfolio_view_events + ai_query_logs since
-// Milestone 12, interview_requests since Milestone 5). Read-only: this page
-// calls GET /api/analytics/summary once and renders it, no writes anywhere.
-// Deliberately no chart library — a plain CSS bar chart (divs sized by
-// percentage height) covers "views/queries over the last 30 days" without
-// adding a new dependency, matching this project's existing all-explicit-
-// utility-classes styling convention.
 export default function AnalyticsDashboardPage() {
   const { request } = useApi();
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);

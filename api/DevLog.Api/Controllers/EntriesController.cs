@@ -9,10 +9,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DevLog.Api.Controllers;
 
-// Covers Section 3's full flow: create draft -> sanitize -> creator
-// approves -> published_entries + sanitization_audit. Every endpoint is
-// creator-only (role = creator per Section 4's role table); recruiters
-// never touch raw_entries at all.
 [ApiController]
 [Route("api/entries")]
 [Authorize]
@@ -32,9 +28,6 @@ public class EntriesController : ControllerBase
         _tenantAccessor = tenantAccessor;
     }
 
-    // POST /api/entries — create a raw draft. tenant_id comes from the
-    // verified JWT via ICurrentTenantAccessor, never from the request body —
-    // Section 4's "never from client input directly" rule.
     [HttpPost]
     public async Task<IActionResult> CreateEntry([FromBody] CreateEntryRequest request)
     {
@@ -70,12 +63,6 @@ public class EntriesController : ControllerBase
         return CreatedAtAction(nameof(GetEntry), new { id = entry.Id }, ToDto(entry));
     }
 
-    // GET /api/entries — the creator's own entries (all statuses: Draft
-    // through Approved/Rejected), newest first. Milestone 11 addition — the
-    // dashboard's journal composer needed a way to show existing drafts
-    // without knowing their ids upfront; every prior endpoint here required
-    // one. No WHERE tenant_id clause, same RLS-scopes-it pattern as GetEntry
-    // below.
     [HttpGet]
     public async Task<IActionResult> ListMine()
     {
@@ -86,9 +73,6 @@ public class EntriesController : ControllerBase
         return Ok(entries.Select(ToDto));
     }
 
-    // GET /api/entries/{id} — creator's own view, including the sanitized
-    // preview once it exists. No WHERE tenant_id clause — same deliberate
-    // pattern as PortfolioController; RLS is what actually enforces scope.
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetEntry(Guid id)
     {
@@ -96,9 +80,6 @@ public class EntriesController : ControllerBase
         return entry is null ? NotFound() : Ok(ToDto(entry));
     }
 
-    // POST /api/entries/{id}/sanitize — runs the LLM sanitization pass,
-    // stores the result as SanitizedPreview. Synchronous for this milestone
-    // (no Hangfire queue yet); safe to call again on a Draft/Rejected entry.
     [HttpPost("{id:guid}/sanitize")]
     public async Task<IActionResult> SanitizeEntry(Guid id, CancellationToken cancellationToken)
     {
@@ -107,10 +88,6 @@ public class EntriesController : ControllerBase
             var entry = await _sanitizationPipeline.SanitizeAsync(id, cancellationToken);
             return Ok(ToDto(entry));
         }
-        // Caught ahead of InvalidOperationException below — Milestone 12's
-        // two cost-abuse limits are refusals, not bad requests, so they get
-        // 429 rather than 400, same status AskAiController already uses for
-        // its own rate limit.
         catch (SanitizationLimitExceededException ex)
         {
             return StatusCode(StatusCodes.Status429TooManyRequests, ex.Message);
@@ -121,9 +98,6 @@ public class EntriesController : ControllerBase
         }
     }
 
-    // POST /api/entries/{id}/approve — creator confirms the sanitized
-    // preview is safe to publish. Writes published_entries + sanitization_audit
-    // in one transaction (SaveChangesAsync inside ApproveAsync).
     [HttpPost("{id:guid}/approve")]
     public async Task<IActionResult> ApproveEntry(Guid id, CancellationToken cancellationToken)
     {

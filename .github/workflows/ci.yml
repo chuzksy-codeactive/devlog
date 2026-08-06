@@ -1,20 +1,12 @@
 name: CI
 
-# Runs on every PR into main. Deliberately does NOT deploy anything — that's
-# deploy.yml's job, gated on push to main only, after this has already
-# passed once as a required PR check.
 on:
   pull_request:
     branches: [main]
 
-# Least-privilege default: this workflow only ever reads the repo and posts
-# check results, never touches Azure or writes anything back.
 permissions:
   contents: read
 
-# New commits on the same PR branch supersede any in-flight run for that
-# branch — no point burning minutes finishing a check on a diff that's
-# already been overwritten.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -25,20 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      # GitHub's native secret scanning / push protection (Settings →
-      # Advanced Security) isn't available on this repo — it requires an
-      # org-owned repo on a paid plan (or GHAS add-on), and this is a
-      # personal-account private repo, deliberately not moved into a paid
-      # org just for this. gitleaks is the practical substitute: same idea
-      # (block a PR that introduces something that looks like a secret),
-      # just enforced in CI instead of natively by GitHub. No license key
-      # needed — gitleaks-action is free for personal-account repos,
-      # license keys are only required scanning org-owned repos.
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.x
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          fetch-depth: 0 # gitleaks needs full history to diff the PR's commit range correctly
+          fetch-depth: 0
 
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -47,14 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      # Pinned to a commit SHA, not the `v4` tag — a compromised or
-      # force-moved tag can't silently change what this workflow runs.
-      # `# v4.x.x` comments record which released version each SHA
-      # corresponds to, so bumping later is a deliberate lookup-and-replace,
-      # not a guess.
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.x
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.x
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
         with:
           dotnet-version: "10.0.x"
           cache: true
@@ -71,11 +49,6 @@ jobs:
       - name: Test
         run: dotnet test api/DevLog.slnx --no-build --configuration Release
 
-      # `dotnet list package --vulnerable` exits 0 even when it finds
-      # vulnerable packages — it's a report, not a gate, by default. Fail
-      # the step ourselves by grepping its own "no vulnerable packages"
-      # sentinel line rather than trusting the exit code. Closes checklist
-      # finding #131.
       - name: Check for vulnerable NuGet packages
         run: |
           dotnet list api/DevLog.slnx package --vulnerable --include-transitive > vuln-report.txt
@@ -93,9 +66,9 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.x
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.x
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: "npm"
@@ -110,13 +83,6 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # Real production secrets (Clerk keys, real API URL) are intentionally
-      # NOT available to this job — a PR from a fork doesn't get repo
-      # secrets in GitHub Actions, and this job shouldn't need them just to
-      # prove the app compiles. Dummy values only, so `next build` can run
-      # end to end without ever needing a real credential here. This is a
-      # correctness check, not a deployable artifact — deploy.yml does the
-      # real build with real values.
       - name: Build (structural check only, dummy env)
         env:
           NEXT_PUBLIC_API_BASE_URL: "https://example.invalid"
@@ -124,10 +90,5 @@ jobs:
           CLERK_SECRET_KEY: "sk_test_dummy_ci_value_not_real"
         run: npm run build
 
-      # npm audit's default --audit-level is "low", which is noisy enough
-      # to fail CI on transitive dev-dependency issues that don't affect
-      # the shipped app. --audit-level=high keeps this a real gate rather
-      # than something that gets reflexively ignored. Closes checklist
-      # finding #131.
       - name: Audit dependencies
         run: npm audit --audit-level=high

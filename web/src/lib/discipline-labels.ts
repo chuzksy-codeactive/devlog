@@ -1,22 +1,8 @@
 import type { Discipline } from "./types";
 
-// Multi-role expansion — static label overrides per discipline, same shape
-// as types.ts's experienceTypeLabel map. Discipline is a pure config key
-// (see PortfolioDiscipline's doc comment in Enums.cs): nothing here branches
-// app behavior, it only swaps copy so a Product Manager's portfolio doesn't
-// say "Core technologies" the same way a Software Engineer's does.
-//
-// Extending this later (a new field, a new discipline) is a pure code
-// change — no migration, no backend involvement, matching the
-// string-backed-enum reasoning in DevLogDbContext.
 export interface DisciplineLabelSet {
-  // Field label for Portfolio.CoreTechnologies — a chip list on Hero.tsx and
-  // the corresponding form field on dashboard/profile/page.tsx.
   coreTechnologiesLabel: string;
-  // Placeholder/help text shown under the core-technologies field in the
-  // profile form, to steer what a non-engineer actually types there.
   coreTechnologiesHint: string;
-  // Heading for the ProofLinks section on Hero.tsx and the profile form.
   proofLinksLabel: string;
 }
 
@@ -53,9 +39,6 @@ export const disciplineLabels: Record<Discipline, DisciplineLabelSet> = {
   },
 };
 
-// Human-readable label for the Discipline select in dashboard/profile —
-// separate from DisciplineLabelSet above since this describes the
-// discipline itself, not a field it drives.
 export const disciplineDisplayName: Record<Discipline, string> = {
   SoftwareEngineer: "Software Engineer",
   ProductManager: "Product Manager",

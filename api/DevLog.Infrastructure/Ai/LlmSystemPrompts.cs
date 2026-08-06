@@ -2,12 +2,6 @@ using System.Text.Json;
 
 namespace DevLog.Infrastructure.Ai;
 
-// Shared between every ILlmProvider implementation (Anthropic, OpenAI, and
-// whatever gets added later) so switching the configured generation
-// provider (Ai:GenerationProvider) can never accidentally change the
-// sanitization rules or the RAG prompt-injection defenses depending on
-// which vendor happens to be active — the prompts are the product's actual
-// safety logic, not vendor-specific detail.
 public static class LlmSystemPrompts
 {
     public static string BuildSanitizationSystemPrompt(IReadOnlyList<string> blocklistTerms)
@@ -67,14 +61,6 @@ public static class LlmSystemPrompts
             """;
     }
 
-    // Milestone 13 — guided onboarding's extraction prompt. Structured JSON
-    // out (not free text) because the caller (OnboardingImportService)
-    // needs to map the result onto Experience-shaped fields and a draft
-    // RawEntry, not just display prose. Everything this produces is a
-    // suggestion a human reviews and explicitly saves through the existing
-    // ExperienceController/EntriesController endpoints — nothing here
-    // writes to the database itself, so there's no sanitize-pipeline
-    // bypass to guard against the way there would be for a real entry.
     public static string BuildOnboardingSuggestionSystemPrompt()
     {
         return """
@@ -120,16 +106,6 @@ public static class LlmSystemPrompts
     public static string WrapGitHubDataForSuggestion(string gitHubContext) =>
         $"<github_repo_data>\n{EscapePromptTagContent(gitHubContext)}\n</github_repo_data>";
 
-    // Milestone 13b — resume extraction. The critical difference from the
-    // GitHub prompt above: resume text names real employers verbatim, and
-    // Experience entries built from it never pass through
-    // SanitizationPipelineService the way Sprint Journal entries do. This
-    // prompt has to do that anonymization itself, applying the same
-    // "role-accurate generic substitute" rule BuildSanitizationSystemPrompt
-    // uses (e.g. "a Series B fintech, payments team" instead of the real
-    // company name) — extraction and sanitization happen in the same pass
-    // here, not two separate ones, because there is no second pass for
-    // Experience data.
     public static string BuildResumeSuggestionSystemPrompt()
     {
         return """
@@ -180,9 +156,6 @@ public static class LlmSystemPrompts
     public static string WrapResumeTextForSuggestion(string resumeText) =>
         $"<resume_text>\n{EscapePromptTagContent(resumeText)}\n</resume_text>";
 
-    // Both providers wrap raw content/context the same way — kept here too
-    // so the tagged, "this is untrusted data" framing is identical regardless
-    // of which vendor is generating the response.
     public static string WrapEntryForSanitization(string rawContent) =>
         $"<entry_to_sanitize>\n{EscapePromptTagContent(rawContent)}\n</entry_to_sanitize>";
 
