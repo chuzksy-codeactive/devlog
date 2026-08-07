@@ -15,7 +15,8 @@ web/out/
 # Milestone 20 deployment checklist verification) or the tracked
 # appsettings.Development.json.example template, since both end in a
 # different suffix shape than "appsettings.<Environment>.json".
-api/DevLog.Api/appsettings.*.json
+api/appsettings.*.json
+api/**/appsettings.*.json
 web/.env.local
 web/.env*.local
 
