@@ -48,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: staging
+    outputs:
+      webapp-url: ${{ steps.deploy_api.outputs.webapp-url }}
     permissions:
       id-token: write
       contents: read
@@ -63,7 +65,8 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383
+      - id: deploy_api
+        uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383
         with:
           app-name: devlog-api
           slot-name: staging
@@ -80,9 +83,12 @@ jobs:
     steps:
       - name: Wait for staging /health
         run: |
-          url="https://devlog-api-staging.azurewebsites.net/health"
+          url="${{ needs.deploy-api-staging.outputs.webapp-url }}/health"
           for i in 1 2 3 4 5; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+            status=$(curl -sS -o /dev/null -w "%{http_code}" "$url" || true)
+            if [ -z "$status" ]; then
+              status="000"
+            fi
             if [ "$status" = "200" ]; then
               echo "Staging healthy (attempt $i)."
               exit 0
