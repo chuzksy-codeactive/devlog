@@ -49,7 +49,7 @@ jobs:
     timeout-minutes: 15
     environment: staging
     outputs:
-      webapp-url: ${{ steps.deploy_api.outputs.webapp-url }}
+      webapp_url: ${{ steps.deploy_api.outputs['webapp-url'] }}
     permissions:
       id-token: write
       contents: read
@@ -83,7 +83,7 @@ jobs:
     steps:
       - name: Wait for staging /health
         run: |
-          url="${{ needs.deploy-api-staging.outputs.webapp-url }}/health"
+          url="${{ needs['deploy-api-staging'].outputs.webapp_url }}/health"
           for i in 1 2 3 4 5; do
             status=$(curl -sS -o /dev/null -w "%{http_code}" "$url" || true)
             if [ -z "$status" ]; then
