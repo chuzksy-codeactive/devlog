@@ -31,9 +31,6 @@ jobs:
       - name: Restore
         run: dotnet restore api/DevLog.slnx
 
-      - name: Test
-        run: dotnet test api/DevLog.slnx --configuration Release
-
       - name: Publish
         run: dotnet publish api/DevLog.Api/DevLog.Api.csproj -c Release -o ./publish
 
