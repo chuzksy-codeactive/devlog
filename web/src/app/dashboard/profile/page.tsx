@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useReverification, useUser } from "@clerk/nextjs";
 import { isReverificationCancelledError } from "@clerk/nextjs/errors";
+import Link from "next/link";
 import { useApi } from "@/lib/use-api";
 import { Discipline, MyPortfolio, PortfolioVisibility, ProofLink } from "@/lib/types";
 import { disciplineDisplayName, disciplineLabels } from "@/lib/discipline-labels";
@@ -82,20 +83,16 @@ export default function ProfilePage() {
       return;
     }
     autoSyncedRef.current = true;
-    syncGitHub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, user]);
-
-  async function syncGitHub() {
-    setGitHubStatus("syncing");
-    try {
-      const updated = await request<MyPortfolio>("/api/portfolio/me/github/sync", { method: "POST" });
-      setForm((prev) => (prev ? { ...prev, gitHubUrl: updated.gitHubUrl ?? "", gitHubVerified: updated.gitHubVerified } : prev));
-    } catch {
-    } finally {
-      setGitHubStatus("idle");
-    }
-  }
+    void (async () => {
+      try {
+        const updated = await request<MyPortfolio>("/api/portfolio/me/github/sync", { method: "POST" });
+        setForm((prev) =>
+          prev ? { ...prev, gitHubUrl: updated.gitHubUrl ?? "", gitHubVerified: updated.gitHubVerified } : prev,
+        );
+      } catch {
+      }
+    })();
+  }, [form, request, user]);
 
   async function handleConnectGitHub() {
     if (!user) return;
@@ -304,9 +301,9 @@ export default function ProfilePage() {
         <Field label="CV uploaded" hint="Upload or replace your CV from the import page.">
           <div className="mt-1 flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900">
             <span>{form.hasUploadedCv ? "Yes" : "No"}</span>
-            <a href="/dashboard/import" className="text-indigo-600 underline hover:text-indigo-700">
+            <Link href="/dashboard/import" className="text-indigo-600 underline hover:text-indigo-700">
               Go to import
-            </a>
+            </Link>
           </div>
         </Field>
 
