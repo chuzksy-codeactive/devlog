@@ -27,10 +27,10 @@ function VerifyInterviewRequestContent() {
   const slug = searchParams.get("slug");
   const requestId = searchParams.get("requestId");
   const token = searchParams.get("token");
+  const hasMissingParams = !slug || !requestId || !token;
 
   useEffect(() => {
-    if (!slug || !requestId || !token) {
-      setState("missingParams");
+    if (hasMissingParams) {
       return;
     }
 
@@ -71,9 +71,9 @@ function VerifyInterviewRequestContent() {
     return () => {
       cancelled = true;
     };
-  }, [slug, requestId, token]);
+  }, [hasMissingParams, slug, requestId, token]);
 
-  return <StatusShell state={state} slug={slug} />;
+  return <StatusShell state={hasMissingParams ? "missingParams" : state} slug={slug} />;
 }
 
 function StatusShell({ state, slug }: { state: VerifyState; slug?: string | null }) {
