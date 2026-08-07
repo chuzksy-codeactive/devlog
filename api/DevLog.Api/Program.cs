@@ -33,11 +33,6 @@ var applicationInsightsConnectionString =
 
 if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
 {
-    builder.Services.AddApplicationInsightsTelemetry(options =>
-    {
-        options.ConnectionString = applicationInsightsConnectionString;
-    });
-
     builder.Services
         .AddOpenTelemetry()
         .WithMetrics(metrics => metrics.AddMeter("DevLog.Security"))

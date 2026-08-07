@@ -85,7 +85,7 @@ Working checklist for taking DevLog from local dev to production on Azure. Order
 ## Phase 5 — Observability
 
 - [x] Create an Application Insights resource and connect it to the API App Service — this auto-injects `APPLICATIONINSIGHTS_CONNECTION_STRING` and `ApplicationInsightsAgent_EXTENSION_VERSION` as app settings; no manual Key Vault wiring needed for this one, `AddApplicationInsightsTelemetry()` reads that env var automatically. (Optional hardening: move the connection string into Key Vault and swap the value to a `@Microsoft.KeyVault(...)` reference, keeping the same setting name — lower priority than the other six secrets since this one is write-only telemetry access, not a data credential.)
-- [x] Wire `builder.Services.AddApplicationInsightsTelemetry()` in `Program.cs`.
+- [x] Standardize API telemetry on a single Azure Monitor OpenTelemetry pipeline in `Program.cs` (`AddOpenTelemetry().UseAzureMonitor(...)`) to avoid duplicate ingestion from dual SDK registration.
 - [ ] Set up basic alerts: 5xx rate, p95 response time, unhandled exceptions.
 
 ## Phase 6 — Smoke test on staging (before every production swap)
