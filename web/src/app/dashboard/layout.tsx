@@ -1,6 +1,14 @@
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const { userId } = await auth();
+  if (!userId) {
+    redirect("/");
+  }
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-zinc-50">
       <DashboardNav />

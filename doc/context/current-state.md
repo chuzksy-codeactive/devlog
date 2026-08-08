@@ -10,7 +10,8 @@
 ## In progress
 - Phase 5 observability is partially complete: telemetry export is wired and alert setup steps are documented; Azure alert rules are still pending creation.
 - Phase 6 end-to-end staging smoke tests are still pending beyond `/health`.
-- Frontend production URL is still returning 500; deploy logs showed `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` resolving empty when sourced from GitHub variables, so deployment docs/workflow were aligned to source it from GitHub secrets for now.
+- Production cutover was completed (DNS + staging→production swap) and frontend/API production auth+CORS issues were resolved; remaining work is observability alerts plus full smoke-test closure.
+- Dashboard auth UX hardening completed in code: `/dashboard` now server-guards on Clerk auth and redirects signed-out users to `/`; home page auth state uses `SignedIn`/`SignedOut` plus explicit `afterSignOutUrl` to avoid stale "Go to dashboard" state after logout.
 
 ## Blockers
 - No hard blocker currently for CI/CD deploy flow.

@@ -133,7 +133,7 @@ Working checklist for taking DevLog from local dev to production on Azure. Order
 
 ## Phase 7 — Go live
 
-- [ ] Point production DNS at the App Service / Static Web App.
-- [ ] Swap the staging slot into production.
+- [x] Point production DNS at the App Service / Static Web App.
+- [x] Swap the staging slot into production.
 - [ ] Re-run the Phase 6 smoke test against the real production URL.
 - [ ] Update `GETTING-STARTED.md`, `DevLog-Build-Journal.md`, and `DevLog-MVP-Roadmap.md` with the deployment milestone and production URLs.
