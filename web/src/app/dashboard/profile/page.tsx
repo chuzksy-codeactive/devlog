@@ -185,17 +185,17 @@ export default function ProfilePage() {
   }
 
   if (status === "loading") {
-    return <p className="text-sm text-zinc-500">Loading your profile…</p>;
+    return <p className="text-sm text-white/60">Loading your profile…</p>;
   }
 
   if (!form) {
-    return <p className="text-sm text-red-600">Couldn&apos;t load your profile — check that the API is running.</p>;
+    return <p className="text-sm text-rose-300">Couldn&apos;t load your profile — check that the API is running.</p>;
   }
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Profile</h1>
-      {slug && <p className="mt-1 text-sm text-zinc-500">Public URL: devlog.app/{slug}</p>}
+      <h1 className="text-2xl font-semibold tracking-tight text-white">Profile</h1>
+      {slug && <p className="mt-1 text-sm text-white/60">Public URL: workfolio.app/{slug}</p>}
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
         <Field label="Display name" hint="Shown as the page title on your Home page.">
@@ -263,11 +263,11 @@ export default function ProfilePage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">GitHub</label>
+            <label className="block text-sm font-medium text-white/78">GitHub</label>
             {form.gitHubVerified ? (
-              <div className="mt-1 flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900">
+              <div className="mt-1 flex items-center gap-2 rounded-xl border border-white/12 bg-white/8 px-3 py-2 text-sm text-white">
                 <span className="truncate">{form.gitHubUrl}</span>
-                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                <span className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-0.5 text-xs font-medium text-emerald-200">
                   Verified
                 </span>
               </div>
@@ -276,17 +276,17 @@ export default function ProfilePage() {
                 type="button"
                 onClick={handleConnectGitHub}
                 disabled={gitHubStatus !== "idle"}
-                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+                className="mt-1 w-full rounded-xl border border-white/12 bg-white/8 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/12 disabled:opacity-50"
               >
                 {gitHubStatus === "connecting" ? "Redirecting to GitHub…" : gitHubStatus === "syncing" ? "Confirming…" : "Connect GitHub"}
               </button>
             )}
-            <span className="mt-1 block text-xs font-normal text-zinc-400">
+            <span className="mt-1 block text-xs font-normal text-white/45">
               {form.gitHubVerified
                 ? "Sourced from your connected GitHub account — disconnect it in Clerk to change this."
                 : "Connects your real GitHub account so the link on your public page is verified, not just typed."}
             </span>
-            {gitHubErrorMessage && <p className="mt-1 text-xs text-red-600">{gitHubErrorMessage}</p>}
+            {gitHubErrorMessage && <p className="mt-1 text-xs text-rose-300">{gitHubErrorMessage}</p>}
           </div>
           <Field label="LinkedIn URL">
             <input
@@ -299,9 +299,9 @@ export default function ProfilePage() {
         </div>
 
         <Field label="CV uploaded" hint="Upload or replace your CV from the import page.">
-          <div className="mt-1 flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900">
+          <div className="mt-1 flex items-center justify-between rounded-xl border border-white/12 bg-white/8 px-3 py-2 text-sm text-white">
             <span>{form.hasUploadedCv ? "Yes" : "No"}</span>
-            <Link href="/dashboard/import" className="text-indigo-600 underline hover:text-indigo-700">
+            <Link href="/dashboard/import" className="text-indigo-200 underline hover:text-indigo-100">
               Go to import
             </Link>
           </div>
@@ -317,9 +317,9 @@ export default function ProfilePage() {
         </Field>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-700">
+          <label className="block text-sm font-medium text-white/78">
             {disciplineLabels[form.discipline].proofLinksLabel}
-            <span className="mt-1 block text-xs font-normal text-zinc-400">
+            <span className="mt-1 block text-xs font-normal text-white/45">
               Optional extra links — a portfolio site, published articles, certifications.
             </span>
           </label>
@@ -343,7 +343,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => removeProofLink(i)}
-                  className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-2 text-xs font-medium text-zinc-500 hover:bg-zinc-50"
+                  className="shrink-0 rounded-xl border border-white/12 px-2.5 py-2 text-xs font-medium text-white/70 transition hover:bg-white/10"
                 >
                   Remove
                 </button>
@@ -352,7 +352,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={addProofLink}
-              className="self-start rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+              className="self-start rounded-xl border border-white/12 px-3 py-1.5 text-xs font-medium text-white/80 transition hover:bg-white/10"
             >
               + Add link
             </button>
@@ -383,7 +383,7 @@ export default function ProfilePage() {
           </select>
         </Field>
 
-        {errorMessage && <p className="text-sm text-red-600">{errorMessage}</p>}
+        {errorMessage && <p className="text-sm text-rose-300">{errorMessage}</p>}
 
         <div className="flex items-center gap-3">
           <button
@@ -393,7 +393,7 @@ export default function ProfilePage() {
           >
             {status === "saving" ? "Saving…" : "Save changes"}
           </button>
-          {status === "saved" && <span className="text-sm text-emerald-600">Saved.</span>}
+          {status === "saved" && <span className="text-sm text-emerald-300">Saved.</span>}
         </div>
       </form>
     </div>
@@ -401,7 +401,7 @@ export default function ProfilePage() {
 }
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400";
+  "mt-1 w-full rounded-xl border border-white/12 bg-white px-3 py-2 text-sm text-zinc-950 outline-none placeholder:text-zinc-500 focus:border-indigo-300 focus:bg-white";
 
 function Field({
   label,
@@ -413,10 +413,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block text-sm font-medium text-zinc-700">
+    <label className="block text-sm font-medium text-white/78">
       {label}
       {children}
-      {hint && <span className="mt-1 block text-xs font-normal text-zinc-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs font-normal text-white/45">{hint}</span>}
     </label>
   );
 }
