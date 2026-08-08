@@ -103,6 +103,7 @@ jobs:
     name: Deploy frontend (Static Web App)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: production
     permissions:
       contents: read
     steps:

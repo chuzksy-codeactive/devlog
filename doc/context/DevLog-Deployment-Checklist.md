@@ -87,6 +87,39 @@ Working checklist for taking DevLog from local dev to production on Azure. Order
 - [x] Create an Application Insights resource and connect it to the API App Service — this auto-injects `APPLICATIONINSIGHTS_CONNECTION_STRING` and `ApplicationInsightsAgent_EXTENSION_VERSION` as app settings; no manual Key Vault wiring needed for this one, and the OpenTelemetry Azure Monitor pipeline reads the same connection string directly. (Optional hardening: move the connection string into Key Vault and swap the value to a `@Microsoft.KeyVault(...)` reference, keeping the same setting name — lower priority than the other six secrets since this one is write-only telemetry access, not a data credential.)
 - [x] Wire telemetry export in `Program.cs` via `AddOpenTelemetry().UseAzureMonitor(...)` (single pipeline to avoid duplicate Application Insights ingestion).
 - [ ] Set up basic alerts: 5xx rate, p95 response time, unhandled exceptions.
+  - [ ] Create an Azure Monitor **Action Group** (e.g., `devlog-prod-critical`) with at least one email receiver; optional Teams/Slack/webhook receiver.
+  - [ ] Create alert rule: **API 5xx rate spike** (scope: production Application Insights resource, severity: Sev2).
+    - Preferred signal: Log alert (scheduled query) over 5-minute windows, with both an error-rate threshold and a minimum traffic gate to avoid low-volume noise.
+    - Suggested KQL:
+      ```kusto
+      let window = 5m;
+      let total = requests
+      | where timestamp > ago(window)
+      | where cloud_RoleName == "devlog-api"
+      | summarize totalCount = count();
+      let failed = requests
+      | where timestamp > ago(window)
+      | where cloud_RoleName == "devlog-api"
+      | where toint(resultCode) between (500 .. 599)
+      | summarize failedCount = count();
+      total
+      | join kind=inner failed on 1==1
+      | extend failureRatePct = iif(totalCount == 0, 0.0, (todouble(failedCount) / todouble(totalCount)) * 100.0)
+      | where totalCount >= 20 and failureRatePct > 1.0
+      ```
+  - [ ] Create alert rule: **API p95 response time breach** (scope: production Application Insights resource, severity: Sev3).
+    - Preferred signal: Metric alert on Request duration, Aggregation: `95th percentile`, Window: `10 minutes`, Threshold: start at `> 800 ms`, tune after baseline data.
+  - [ ] Create alert rule: **Unhandled exception spike** (scope: production Application Insights resource, severity: Sev2).
+    - Suggested KQL:
+      ```kusto
+      exceptions
+      | where timestamp > ago(5m)
+      | where cloud_RoleName == "devlog-api"
+      | summarize exceptionCount = count()
+      | where exceptionCount >= 5
+      ```
+  - [ ] Attach all three rules to the same Action Group, enable each rule, and validate once by triggering a controlled test case from staging/prod-safe diagnostics.
+  - [ ] Add an Azure Workbook dashboard (requests, 5xx %, p95 latency, exception count) for pre-swap checks and incident triage.
 
 ## Phase 6 — Smoke test on staging (before every production swap)
 
