@@ -10,6 +10,7 @@
 ## In progress
 - Phase 5 observability is partially complete: telemetry export is wired and alert setup steps are documented; Azure alert rules are still pending creation.
 - Phase 6 end-to-end staging smoke tests are still pending beyond `/health`.
+- Frontend production URL is still returning 500; deploy logs showed `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` resolving empty when sourced from GitHub variables, so deployment docs/workflow were aligned to source it from GitHub secrets for now.
 
 ## Blockers
 - No hard blocker currently for CI/CD deploy flow.

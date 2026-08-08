@@ -8,9 +8,13 @@
 - Done when: Every checklist item passes on staging, including onboarding flows, sanitize/publish, Ask AI, interview request + verification + creator notification, signed CV expiry, HTTPS/HSTS behavior, and rate-limit enforcement.
 
 ## Next 3
+- Task: Resolve frontend 500 on Static Web App root and confirm landing page renders.
+- Done when: `https://app.chuzksy.dev/` and the SWA default hostname both return HTTP 200 and show the DevLog landing page after deploy with the secret-based Clerk publishable key source.
+
+## Next 4
 - Task: Validate Postmark delivery path with a real Server API token and confirm creator notification delivery for interview requests.
 - Done when: A real interview request flow produces a delivered creator email, with no send failures in API logs.
 
-## Next 4
+## Next 5
 - Task: Keep context continuity disciplined after each merge.
 - Done when: `current-state.md`, `decisions.md`, `deployment-status.md`, and `next-actions.md` are updated in the same PR (or immediately after merge) for every infra/behavior change.

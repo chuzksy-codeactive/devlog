@@ -1,4 +1,14 @@
 # decisions.md
+## 2026-08-08
+### Decision
+- Source `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` from GitHub **secrets** in deploy workflow/docs instead of GitHub variables.
+
+### Why
+- Frontend deploy logs showed the publishable key resolving as empty when referenced from `vars.*`, leading to SWA runtime 500 responses from middleware.
+
+### Trade-off
+- The key is still public at runtime (`NEXT_PUBLIC_`), so this does not increase runtime secrecy; it is purely a reliability choice for this repo's CI variable resolution behavior.
+
 ## 2026-08-07
 ### Decision
 - Use a mixed alert strategy for Phase 5 observability: query-based alert for 5xx error *rate*, metric alert for p95 request latency, and query-based alert for exception spikes.
