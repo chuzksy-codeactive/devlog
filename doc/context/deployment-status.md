@@ -2,6 +2,7 @@
 ## Phase
 - Current: **Phase 5 (Observability)** in progress.
 - Phase 4 (CI/CD deploy pipeline): functionally unblocked and validated with successful `push` deploy run.
+- Phase 5 checklist now includes a concrete implementation runbook for alerts and dashboard setup; execution in Azure is still pending.
 
 ## Latest workflow runs
 - Deploy (main): **success** — run `31215484705`, commit `f4b8bb09ff9be86ebb208d8162d36d59cd929f2c` (PR #7 merge commit).

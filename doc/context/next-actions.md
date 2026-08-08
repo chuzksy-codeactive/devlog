@@ -1,7 +1,7 @@
 # next-actions.md
 ## Next 1
 - Task: Configure Azure Monitor / Application Insights alerts for production reliability.
-- Done when: Three alert rules exist and notify your action group: (1) API 5xx rate spike, (2) p95 response time threshold breach, (3) unhandled exception count spike.
+- Done when: One Action Group exists and is attached to three enabled rules: (1) 5xx rate > 1% for 5m with request-count floor, (2) p95 request duration > 800ms for 10m, (3) exception count spike over 5m. A workbook dashboard (requests/failure %/p95/exceptions) is also saved.
 
 ## Next 2
 - Task: Run full Phase 6 staging smoke test checklist end-to-end.

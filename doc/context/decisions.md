@@ -1,6 +1,18 @@
 # decisions.md
 ## 2026-08-07
 ### Decision
+- Use a mixed alert strategy for Phase 5 observability: query-based alert for 5xx error *rate*, metric alert for p95 request latency, and query-based alert for exception spikes.
+
+### Why
+- Error-rate alerts need denominator control (minimum total request count) to avoid false positives during low traffic; query alerts handle that cleanly.
+- p95 latency maps directly to a native metric percentile alert and is lower maintenance than computing percentiles manually in KQL.
+- Exception spikes are naturally represented in the `exceptions` table with straightforward rolling-window thresholds.
+
+### Trade-off
+- This introduces two alert types (metric + scheduled query), so portal management is slightly more complex, but each signal uses the most reliable mechanism.
+
+## 2026-08-07
+### Decision
 - Use only the Azure Monitor OpenTelemetry pipeline for API telemetry (`AddOpenTelemetry().UseAzureMonitor(...)`), and do not run `AddApplicationInsightsTelemetry()` in parallel.
 
 ### Why

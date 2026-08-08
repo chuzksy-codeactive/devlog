@@ -5,9 +5,10 @@
 - Deploy workflow trigger on `push` to `main` is confirmed working.
 - Azure OIDC staging authentication issue fixed (federated credential subject aligned to GitHub environment token format).
 - Secret-scan regression from `api/appsettings.Development.json` was removed from PR history and ignore rules were hardened for environment-specific appsettings files.
+- Observability implementation runbook added to `DevLog-Deployment-Checklist.md` with concrete alert definitions (5xx rate, p95 latency, exception spikes), Action Group wiring, and dashboard follow-up.
 
 ## In progress
-- Phase 5 observability is partially complete: telemetry export is wired; alert rules are still pending.
+- Phase 5 observability is partially complete: telemetry export is wired and alert setup steps are documented; Azure alert rules are still pending creation.
 - Phase 6 end-to-end staging smoke tests are still pending beyond `/health`.
 
 ## Blockers
