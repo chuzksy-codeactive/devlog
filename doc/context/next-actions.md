@@ -18,3 +18,7 @@
 ## Next 5
 - Task: Keep context continuity disciplined after each merge.
 - Done when: `current-state.md`, `decisions.md`, `deployment-status.md`, and `next-actions.md` are updated in the same PR (or immediately after merge) for every infra/behavior change.
+
+## Next 6
+- Task: Re-run smoke tests on production and close Phase 7.
+- Done when: Phase 6 checks are re-run against production URLs and `GETTING-STARTED.md`, `DevLog-Build-Journal.md`, and `DevLog-MVP-Roadmap.md` are updated with the production milestone.
