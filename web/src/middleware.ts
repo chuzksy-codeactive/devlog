@@ -3,6 +3,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 const apiOrigin = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
+const clerkAccountsOrigin = "https://accounts.chuzksy.dev";
 
 export default clerkMiddleware(
   async (auth, req) => {
@@ -13,7 +14,7 @@ export default clerkMiddleware(
   {
     contentSecurityPolicy: {
       directives: {
-        "connect-src": [apiOrigin],
+        "connect-src": [apiOrigin, clerkAccountsOrigin],
         "img-src": ["https:", "data:"],
       },
     },
