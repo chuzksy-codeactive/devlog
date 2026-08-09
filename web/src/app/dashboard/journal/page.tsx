@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useApi } from "@/lib/use-api";
 import { MyEntry, MyPortfolio, RawEntryType } from "@/lib/types";
@@ -19,8 +19,36 @@ const STATUS_LABEL: Record<MyEntry["status"], string> = {
   Rejected: "Rejected",
 };
 
+const statusTone: Record<MyEntry["status"], string> = {
+  Draft: "border-amber-300/18 bg-amber-500/10 text-amber-100",
+  Sanitizing: "border-cyan-300/18 bg-cyan-500/10 text-cyan-100",
+  PendingApproval: "border-indigo-300/18 bg-indigo-500/10 text-indigo-100",
+  Approved: "border-emerald-300/18 bg-emerald-500/10 text-emerald-100",
+  Rejected: "border-rose-300/18 bg-rose-500/10 text-rose-100",
+};
+
 const inputClass =
-  "mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400";
+  "mt-1 w-full rounded-xl border border-white/12 bg-white px-3 py-2 text-sm text-zinc-950 outline-none placeholder:text-zinc-500 focus:border-indigo-300 focus:bg-white";
+
+function summarizeEntries(entries: MyEntry[]) {
+  return [
+    {
+      label: "Entries",
+      value: String(entries.length),
+      helper: entries.length > 0 ? "Drafts and published journal moments" : "Start with your first entry",
+    },
+    {
+      label: "Published",
+      value: String(entries.filter((entry) => entry.status === "Approved").length),
+      helper: "Visible on your public portfolio",
+    },
+    {
+      label: "Needs review",
+      value: String(entries.filter((entry) => entry.status === "PendingApproval").length),
+      helper: "Sanitized and ready to approve",
+    },
+  ];
+}
 
 export default function JournalDashboardPage() {
   const { request } = useApi();
@@ -45,63 +73,124 @@ export default function JournalDashboardPage() {
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = selectedId && selectedId !== "new" ? entries.find((e) => e.id === selectedId) ?? null : null;
+  const summary = useMemo(() => summarizeEntries(entries), [entries]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
-      <div>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Sprint Journal</h1>
+    <div className="flex flex-col gap-8">
+      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/6 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-100">
+              <span className="h-2 w-2 rounded-full bg-indigo-300" />
+              Sprint Journal
+            </div>
+            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">
+              Write freely. Sanitize safely. Publish the strongest version.
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/68">
+              Capture the real story behind delivery work, then review the sanitized version before it goes public.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button
+                onClick={() => setSelectedId("new")}
+                className="rounded-full bg-indigo-500 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
+              >
+                Write new entry
+              </button>
+              <span className="rounded-full border border-white/10 bg-white/6 px-4 py-3 text-sm text-white/65">
+                Select an entry to compare raw content with its sanitized preview.
+              </span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-[#101525] p-5">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Publishing pipeline</p>
+            {summary.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-white/50">{item.label}</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-white">{item.value}</p>
+                <p className="mt-2 text-sm leading-6 text-white/62">{item.helper}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <button
-          onClick={() => setSelectedId("new")}
-          className="mt-4 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Write new entry
-        </button>
+      </section>
 
-        {status === "error" && <p className="mt-4 text-sm text-red-600">Couldn&apos;t load entries.</p>}
+      <section className="grid gap-6 xl:grid-cols-[340px_1fr]">
+        <aside className="rounded-[1.75rem] border border-white/10 bg-white/6 p-5 backdrop-blur">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Entries</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">Journal queue</h2>
+            </div>
+          </div>
 
-        <div className="mt-4 flex flex-col gap-1.5">
-          {entries.map((entry) => (
-            <button
-              key={entry.id}
-              onClick={() => setSelectedId(entry.id)}
-              className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                selectedId === entry.id
-                  ? "border-indigo-200 bg-indigo-50"
-                  : "border-transparent bg-white hover:border-zinc-200"
-              }`}
-            >
-              <p className="truncate font-medium text-zinc-900">{entry.title}</p>
-              <p className="text-xs text-zinc-400">{STATUS_LABEL[entry.status]}</p>
-            </button>
-          ))}
-          {status === "ready" && entries.length === 0 && (
-            <p className="text-sm text-zinc-500">No entries yet.</p>
+          {status === "error" && (
+            <p className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              Couldn&apos;t load entries.
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-col gap-3">
+            {entries.map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => setSelectedId(entry.id)}
+                className={`rounded-[1.25rem] border p-4 text-left transition ${
+                  selectedId === entry.id
+                    ? "border-indigo-300/25 bg-indigo-500/12"
+                    : "border-white/10 bg-white/5 hover:border-white/16 hover:bg-white/7"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">
+                      {ENTRY_TYPE_LABEL[entry.entryType]}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-white">{entry.title}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusTone[entry.status]}`}>
+                    {entry.status === "Approved" ? "Live" : entry.status === "PendingApproval" ? "Review" : entry.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-white/45">{STATUS_LABEL[entry.status]}</p>
+              </button>
+            ))}
+
+            {status === "loading" && <p className="text-sm text-white/60">Loading entries…</p>}
+
+            {status === "ready" && entries.length === 0 && (
+              <div className="rounded-[1.25rem] border border-dashed border-white/12 bg-white/4 p-5 text-center">
+                <p className="text-sm text-white/65">No entries yet. Start your first journal draft.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <div>
+          {selectedId === "new" && (
+            <NewEntryForm
+              onCreated={(id) => {
+                load();
+                setSelectedId(id);
+              }}
+            />
+          )}
+          {selected && (
+            <EntryDetail
+              entry={selected}
+              slug={slug}
+              onChanged={() => load()}
+            />
+          )}
+          {!selectedId && (
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/6 p-8 backdrop-blur">
+              <p className="text-sm text-white/60">Select an entry on the left, or write a new one.</p>
+            </div>
           )}
         </div>
-      </div>
-
-      <div>
-        {selectedId === "new" && (
-          <NewEntryForm
-            onCreated={(id) => {
-              load();
-              setSelectedId(id);
-            }}
-          />
-        )}
-        {selected && (
-          <EntryDetail
-            entry={selected}
-            slug={slug}
-            onChanged={() => load()}
-          />
-        )}
-        {!selectedId && (
-          <p className="text-sm text-zinc-500">Select an entry, or write a new one.</p>
-        )}
-      </div>
+      </section>
     </div>
   );
 }
@@ -135,14 +224,17 @@ function NewEntryForm({ onCreated }: { onCreated: (id: string) => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <h2 className="font-medium text-zinc-900">New entry</h2>
-      <p className="mt-1 text-xs text-zinc-400">
-        Write freely, including real employer/project names — the sanitization pass strips those before
-        anything becomes public. Only a Sprint Journal entry shows up on your public /journal page.
-      </p>
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
-        <label className="text-xs font-medium text-zinc-500">
+    <div className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 backdrop-blur">
+      <div className="mb-5">
+        <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">New draft</p>
+        <h2 className="mt-2 text-2xl font-semibold text-white">Capture a new journal entry</h2>
+        <p className="mt-2 text-sm leading-7 text-white/62">
+          Write with real internal detail here — the sanitization pass is what prepares it for public review.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <label className="text-sm font-medium text-white/78">
           Type
           <select value={entryType} onChange={(e) => setEntryType(e.target.value as RawEntryType)} className={inputClass}>
             {Object.entries(ENTRY_TYPE_LABEL).map(([value, label]) => (
@@ -152,25 +244,30 @@ function NewEntryForm({ onCreated }: { onCreated: (id: string) => void }) {
             ))}
           </select>
         </label>
-        <label className="text-xs font-medium text-zinc-500">
+
+        <label className="text-sm font-medium text-white/78">
           Title
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
         </label>
-        <label className="text-xs font-medium text-zinc-500">
+
+        <label className="text-sm font-medium text-white/78">
           Content
           <textarea
-            rows={10}
+            rows={12}
             value={rawContent}
             onChange={(e) => setRawContent(e.target.value)}
             className={inputClass}
+            placeholder="Describe what you built, the problem, the constraints, the decisions, and the outcome."
           />
         </label>
-        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        {error && <p className="text-sm text-rose-300">{error}</p>}
+
         <div className="flex justify-end">
           <button
             type="submit"
             disabled={saving}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save draft"}
           </button>
@@ -220,65 +317,73 @@ function EntryDetail({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between">
+    <div className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 backdrop-blur">
+      <div className="flex flex-col gap-5 border-b border-white/10 pb-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">
-            {ENTRY_TYPE_LABEL[entry.entryType]}
-          </p>
-          <h2 className="mt-0.5 text-lg font-medium text-zinc-900">{entry.title}</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">
+              {ENTRY_TYPE_LABEL[entry.entryType]}
+            </span>
+            <span className={`rounded-full border px-3 py-1 text-xs font-medium ${statusTone[entry.status]}`}>
+              {STATUS_LABEL[entry.status]}
+            </span>
+          </div>
+          <h2 className="mt-3 text-2xl font-semibold text-white">{entry.title}</h2>
         </div>
-        <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600">
-          {STATUS_LABEL[entry.status]}
-        </span>
+
+        <div className="flex flex-wrap gap-3">
+          {entry.status !== "Approved" && (
+            <button
+              onClick={handleSanitize}
+              disabled={busy}
+              className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+            >
+              {entry.sanitizedPreview ? "Re-sanitize" : "Sanitize"}
+            </button>
+          )}
+          {entry.status === "PendingApproval" && (
+            <button
+              onClick={handleApprove}
+              disabled={busy}
+              className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 disabled:opacity-50"
+            >
+              Approve &amp; publish
+            </button>
+          )}
+          {entry.status === "Approved" && slug && entry.entryType === "SprintEntry" && (
+            <Link href={`/${slug}/journal`} className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-indigo-100 transition hover:bg-white/10">
+              View public journal
+            </Link>
+          )}
+          {entry.status === "Approved" && slug && entry.entryType === "LearningLog" && (
+            <Link href={`/${slug}/learning`} className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-indigo-100 transition hover:bg-white/10">
+              View Learning Lab
+            </Link>
+          )}
+        </div>
       </div>
 
-      <div className="mt-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">Raw content</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-600">{entry.rawContent}</p>
-      </div>
+      <div className="mt-6 grid gap-5 xl:grid-cols-2">
+        <section className="rounded-[1.5rem] border border-white/10 bg-[#111626] p-5">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Raw content</p>
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-white/72">{entry.rawContent}</p>
+        </section>
 
-      {entry.sanitizedPreview && (
-        <div className="mt-4 rounded-lg bg-emerald-50 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
+        <section className="rounded-[1.5rem] border border-emerald-300/14 bg-emerald-500/8 p-5">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-100/75">
             Sanitized preview {entry.sanitizationModelVersion ? `(${entry.sanitizationModelVersion})` : ""}
           </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-700">{entry.sanitizedPreview}</p>
-        </div>
-      )}
-
-      {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-
-      <div className="mt-4 flex items-center gap-3">
-        {entry.status !== "Approved" && (
-          <button
-            onClick={handleSanitize}
-            disabled={busy}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
-          >
-            {entry.sanitizedPreview ? "Re-sanitize" : "Sanitize"}
-          </button>
-        )}
-        {entry.status === "PendingApproval" && (
-          <button
-            onClick={handleApprove}
-            disabled={busy}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            Approve &amp; publish
-          </button>
-        )}
-        {entry.status === "Approved" && slug && entry.entryType === "SprintEntry" && (
-          <Link href={`/${slug}/journal`} className="text-sm font-medium text-indigo-600 underline">
-            View on your public journal →
-          </Link>
-        )}
-        {entry.status === "Approved" && slug && entry.entryType === "LearningLog" && (
-          <Link href={`/${slug}/learning`} className="text-sm font-medium text-indigo-600 underline">
-            View on your public Learning Lab →
-          </Link>
-        )}
+          {entry.sanitizedPreview ? (
+            <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-white/78">{entry.sanitizedPreview}</p>
+          ) : (
+            <p className="mt-4 text-sm leading-7 text-white/56">
+              No sanitized preview yet. Run the sanitization step to generate the recruiter-safe version of this entry.
+            </p>
+          )}
+        </section>
       </div>
+
+      {error && <p className="mt-4 text-sm text-rose-300">{error}</p>}
     </div>
   );
 }
