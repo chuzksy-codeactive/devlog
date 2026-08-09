@@ -42,9 +42,10 @@ public class AnthropicLlmProvider : ILlmProvider
 
     public async Task<string> SuggestOnboardingContentAsync(
         string gitHubContext,
+        bool anonymizeProjectNames = false,
         CancellationToken cancellationToken = default)
     {
-        var systemPrompt = LlmSystemPrompts.BuildOnboardingSuggestionSystemPrompt();
+        var systemPrompt = LlmSystemPrompts.BuildGitHubImportSystemPrompt(anonymizeProjectNames);
         var userContent = LlmSystemPrompts.WrapGitHubDataForSuggestion(gitHubContext);
 
         return await CallAnthropicAsync(systemPrompt, userContent, cancellationToken);
@@ -52,9 +53,10 @@ public class AnthropicLlmProvider : ILlmProvider
 
     public async Task<string> SuggestOnboardingContentFromResumeAsync(
         string resumeText,
+        bool anonymizeCompanyNames = false,
         CancellationToken cancellationToken = default)
     {
-        var systemPrompt = LlmSystemPrompts.BuildResumeSuggestionSystemPrompt();
+        var systemPrompt = LlmSystemPrompts.BuildResumeImportSystemPrompt(anonymizeCompanyNames);
         var userContent = LlmSystemPrompts.WrapResumeTextForSuggestion(resumeText);
 
         return await CallAnthropicAsync(systemPrompt, userContent, cancellationToken);
