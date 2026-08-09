@@ -89,7 +89,7 @@ jobs:
       - name: Build (structural check only, dummy env)
         env:
           NEXT_PUBLIC_API_BASE_URL: "https://example.invalid"
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ZHVtbXktY2ktdmFsdWUk"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_dummy_ci_value_not_real"
           CLERK_SECRET_KEY: "sk_test_dummy_ci_value_not_real"
         run: npm run build
 
