@@ -169,7 +169,11 @@ export default function InterviewRequestsPage() {
               {r.status === "Pending" && acceptingId !== r.id && (
                 <div className="flex gap-3 text-sm font-medium">
                   <button
-                    onClick={() => setAcceptingId(r.id)}
+onClick={() => {
+  setError(null);
+  setContactInstructions("");
+  setAcceptingId(r.id);
+}}
                     className="rounded-full bg-indigo-500 px-4 py-2 text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
                   >
                     Accept
