@@ -55,7 +55,7 @@ export function ExperienceTimeline({ experiences, slug }: { experiences: Experie
           )}
 
           {/* Key achievement */}
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-700">{entry.keyAchievement}</p>
+          <p className="mt-4 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{entry.keyAchievement}</p>
 
           {/* Sprint Journal link */}
           <div className="mt-4 border-t border-[#ede9e3] pt-4">

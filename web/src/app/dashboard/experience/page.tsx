@@ -194,7 +194,7 @@ export default function ExperiencePage() {
                   <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white">
                     {exp.title} <span className="text-white/50">— {exp.companyLabel}</span>
                   </h2>
-                  <p className="mt-4 max-w-3xl text-base leading-8 text-white/72">{exp.keyAchievement}</p>
+                  <p className="mt-4 max-w-3xl whitespace-pre-wrap text-base leading-8 text-white/72">{exp.keyAchievement}</p>
                 </div>
 
                 <div className="flex gap-3 text-sm font-medium">
