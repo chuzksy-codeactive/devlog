@@ -192,6 +192,7 @@ function BarChart({
           <div
             key={d.date}
             title={`${d.date}: ${d.count}`}
+            aria-hidden="true"
             className="flex-1 rounded-t-full bg-gradient-to-t from-indigo-500/75 to-indigo-200 transition-opacity hover:opacity-85"
             style={{ height: `${Math.max(3, (d.count / max) * 100)}%` }}
           />
