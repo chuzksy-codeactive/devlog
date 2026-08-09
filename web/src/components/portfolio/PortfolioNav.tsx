@@ -16,7 +16,7 @@ export function PortfolioNav({ slug, displayName }: { slug: string; displayName:
   const basePath = `/${slug}`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[#e8e5e0] bg-[#faf9f7]/90 backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
         <Link href={basePath} className="font-semibold tracking-tight text-zinc-900">
           {displayName}
