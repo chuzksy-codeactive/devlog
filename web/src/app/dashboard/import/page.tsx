@@ -285,7 +285,7 @@ export default function ImportPage() {
         <section className="flex flex-col gap-6">
           <div className="rounded-[1.25rem] border border-indigo-300/18 bg-indigo-500/10 p-4">
             <p className="text-sm text-indigo-100">
-              <span className="font-semibold">👁️ These will be public:</span> The company names and project details from your GitHub and resume are preserved and will be visible to recruiters on your public portfolio. Edit any entry before saving if you'd like to change details.
+              <span className="font-semibold">👁️ These will be public:</span> The company names and project details from your GitHub and resume are preserved and will be visible to recruiters on your public portfolio. Edit any entry before saving if you&apos;d like to change details.
             </p>
           </div>
           {suggestions.experiences.length > 0 && (
