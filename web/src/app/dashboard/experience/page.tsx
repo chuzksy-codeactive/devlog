@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useApi } from "@/lib/use-api";
 import { formatDateRange } from "@/lib/portfolio-utils";
 import { ExperienceType, MyExperience, experienceTypeLabel } from "@/lib/types";
+import { AchievementDescription } from "@/components/portfolio/AchievementDescription";
 
 type FormState = {
   experienceType: ExperienceType;
@@ -194,7 +195,11 @@ export default function ExperiencePage() {
                   <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white">
                     {exp.title} <span className="text-white/50">— {exp.companyLabel}</span>
                   </h2>
-                  <p className="mt-4 max-w-3xl whitespace-pre-wrap text-base leading-8 text-white/72">{exp.keyAchievement}</p>
+                  <AchievementDescription
+                    text={exp.keyAchievement}
+                    paragraphClassName="mt-4 max-w-3xl whitespace-pre-wrap text-base leading-8 text-white/72"
+                    listClassName="mt-4 max-w-3xl list-disc space-y-1.5 pl-6 text-base leading-8 text-white/72"
+                  />
                 </div>
 
                 <div className="flex gap-3 text-sm font-medium">
