@@ -385,8 +385,9 @@ function SuggestionCard({
           <p className="mt-4 text-base leading-8 text-white/72">{exp.keyAchievement}</p>
         </div>
 
-        <button
-          onClick={onAdd}
+<button
+  type="button"
+  onClick={onAdd}
           disabled={added}
           className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
             added
