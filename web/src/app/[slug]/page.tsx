@@ -50,7 +50,7 @@ export default async function HomePage({
                     <span className="block text-sm font-normal text-zinc-500">{exp.companyLabel}</span>
                   </p>
                   <p className="mt-1 text-xs text-zinc-400">{formatDateRange(exp.startDate, exp.endDate)}</p>
-                  <p className="mt-3 text-sm leading-relaxed text-zinc-700">{exp.keyAchievement}</p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{exp.keyAchievement}</p>
                   {exp.technologies.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {exp.technologies.slice(0, 4).map((t) => (
@@ -91,7 +91,7 @@ export default async function HomePage({
               {mostRecent.title}
               <span className="block text-lg font-normal text-zinc-500">{mostRecent.companyLabel}</span>
             </p>
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-zinc-600">
+            <p className="mt-3 max-w-2xl whitespace-pre-wrap text-base leading-relaxed text-zinc-600">
               {mostRecent.keyAchievement}
             </p>
           </div>

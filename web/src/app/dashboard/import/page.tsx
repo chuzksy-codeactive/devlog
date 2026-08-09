@@ -392,7 +392,7 @@ function SuggestionCard({
           <p className="mt-2 text-sm text-white/45">
             {exp.startDate} — {exp.endDate ?? "Present"}
           </p>
-          <p className="mt-4 text-base leading-8 text-white/72">{exp.keyAchievement}</p>
+          <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-white/72">{exp.keyAchievement}</p>
         </div>
 
 <button
