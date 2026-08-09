@@ -14,7 +14,7 @@ const inputClass =
   "mt-1 w-full rounded-xl border border-white/12 bg-white px-3 py-2 text-sm text-zinc-950 outline-none placeholder:text-zinc-500 focus:border-indigo-300 focus:bg-white";
 
 function formatRequestDate(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
+return new Date(iso).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
