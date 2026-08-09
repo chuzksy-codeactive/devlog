@@ -212,7 +212,7 @@ export default function ImportPage() {
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Source one</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Import from GitHub</h2>
           <p className="mt-3 text-sm leading-7 text-white/62">
-            Pull suggestions from your public repositories. Nothing is saved until you review and explicitly add it.
+            Pull suggestions from your public repositories. Real project names are preserved. Nothing is saved until you review and explicitly add it.
           </p>
 
           {gitHubVerified === false && (
@@ -246,7 +246,7 @@ export default function ImportPage() {
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Source two</p>
           <h2 className="mt-2 text-2xl font-semibold text-white">Import from resume</h2>
           <p className="mt-3 text-sm leading-7 text-white/62">
-            Upload a PDF resume to host it as your CV download and generate anonymized experience suggestions from it.
+            Upload a PDF resume to host it as your CV download and generate experience suggestions from it. Real company names are preserved.
           </p>
 
           <form onSubmit={handleResumeUpload} className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -283,6 +283,11 @@ export default function ImportPage() {
 
       {suggestions && (
         <section className="flex flex-col gap-6">
+          <div className="rounded-[1.25rem] border border-indigo-300/18 bg-indigo-500/10 p-4">
+            <p className="text-sm text-indigo-100">
+              <span className="font-semibold">👁️ These will be public:</span> The company names and project details from your GitHub and resume are preserved and will be visible to recruiters on your public portfolio. Edit any entry before saving if you&apos;d like to change details.
+            </p>
+          </div>
           {suggestions.experiences.length > 0 && (
             <div>
               <div className="mb-4">
@@ -334,6 +339,11 @@ export default function ImportPage() {
 
       {resumeResult?.suggestions && resumeResult.suggestions.experiences.length > 0 && (
         <section>
+          <div className="mb-4 rounded-[1.25rem] border border-indigo-300/18 bg-indigo-500/10 p-4">
+            <p className="text-sm text-indigo-100">
+              <span className="font-semibold">👁️ These will be public:</span> The company names and job details extracted from your resume will be visible to recruiters on your public portfolio. Edit any entry before saving if needed.
+            </p>
+          </div>
           <div className="mb-4">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Resume suggestions</p>
             <h2 className="mt-2 text-2xl font-semibold text-white">Suggested experience entries</h2>

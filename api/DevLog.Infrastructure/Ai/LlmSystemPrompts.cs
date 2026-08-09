@@ -63,7 +63,22 @@ public static class LlmSystemPrompts
 
     public static string BuildOnboardingSuggestionSystemPrompt()
     {
-        return """
+        return BuildGitHubImportSystemPrompt(anonymizeProjectNames: false);
+    }
+
+    public static string BuildGitHubImportSystemPrompt(bool anonymizeProjectNames = false)
+    {
+        var projectNameRule = anonymizeProjectNames
+            ? """
+                Replace project/repo names with generic descriptors if they mention specific
+                employer names or proprietary systems (e.g., "internal payments service" → "a payments processing service").
+                """
+            : """
+                Preserve real project and repository names exactly as they appear on GitHub.
+                These are public artifacts that the developer intentionally chose to highlight.
+                """;
+
+        return $$"""
             You are helping a developer bootstrap their DevLog portfolio from their public
             GitHub activity, so they don't have to start from a blank page. You will be given
             summaries of a few of their public repositories (name, description, language,
@@ -89,7 +104,9 @@ public static class LlmSystemPrompts
               }
             }
 
-            Rules:
+            {{projectNameRule}}
+
+            Other rules:
             1. Include exactly one "experiences" entry per repo you were given, in the same
                order they were given in.
             2. "draftEntry" should be based on whichever single repo has the most substantial
@@ -108,8 +125,29 @@ public static class LlmSystemPrompts
 
     public static string BuildResumeSuggestionSystemPrompt()
     {
-        return """
-            You are helping a developer bootstrap their DevLog portfolio from their resume,
+        return BuildResumeImportSystemPrompt(anonymizeCompanyNames: true);
+    }
+
+    public static string BuildResumeImportSystemPrompt(bool anonymizeCompanyNames = false)
+    {
+        var companyLabelRule = anonymizeCompanyNames
+            ? """
+                CRITICAL rule on companyLabel — this is the most important rule in this prompt:
+                NEVER output a real employer or client name. Replace every employer with a
+                role-accurate generic substitute the way a sanitization pass would (e.g. "a
+                Series B fintech, payments team" instead of naming the company; "a healthcare
+                SaaS startup" instead of naming it). This document has no separate anonymization
+                step after you — you ARE the anonymization step for this data. Getting this wrong
+                means a real employer name reaches the developer's public portfolio.
+                """
+            : """
+                Preserve REAL employer and client names exactly as written on the resume.
+                The developer owns this portfolio — they will see these entries before any public visibility.
+                Only improve clarity, grammar, and professional tone.
+                """;
+
+        return $$"""
+            You are helping a developer import career experience into their DevLog portfolio from their resume,
             so they don't have to start from a blank page. You will be given the raw text
             extracted from their resume PDF.
 
@@ -121,7 +159,7 @@ public static class LlmSystemPrompts
               "experiences": [
                 {
                   "experienceType": "Employer" or "Freelance" or "Education",
-                  "companyLabel": "a role-accurate GENERIC descriptor, never the real company name",
+                  "companyLabel": "{{(anonymizeCompanyNames ? "a role-accurate GENERIC descriptor, never the real company name" : "the company name exactly as written on the resume")}}", 
                   "title": "the job/role title as given, e.g. 'Backend Engineer'",
                   "technologies": ["list", "of", "technologies", "mentioned", "for", "this", "role"],
                   "keyAchievement": "1-2 sentences summarizing what was built or accomplished in this role",
@@ -131,13 +169,7 @@ public static class LlmSystemPrompts
               ]
             }
 
-            CRITICAL rule on companyLabel — this is the most important rule in this prompt:
-            NEVER output a real employer or client name. Replace every employer with a
-            role-accurate generic substitute the way a sanitization pass would (e.g. "a
-            Series B fintech, payments team" instead of naming the company; "a healthcare
-            SaaS startup" instead of naming it). This document has no separate anonymization
-            step after you — you ARE the anonymization step for this data. Getting this wrong
-            means a real employer name reaches the developer's public portfolio.
+            {{companyLabelRule}}
 
             Other rules:
             1. One "experiences" entry per distinct role/position found in the resume, in

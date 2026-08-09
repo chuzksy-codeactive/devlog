@@ -14,10 +14,12 @@ public interface ILlmProvider
 
     Task<string> SuggestOnboardingContentAsync(
         string gitHubContext,
+        bool anonymizeProjectNames = false,
         CancellationToken cancellationToken = default);
 
     Task<string> SuggestOnboardingContentFromResumeAsync(
         string resumeText,
+        bool anonymizeCompanyNames = false,
         CancellationToken cancellationToken = default);
 }
 

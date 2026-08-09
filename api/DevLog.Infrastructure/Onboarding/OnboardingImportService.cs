@@ -109,7 +109,7 @@ public class OnboardingImportService
             content: context,
             tenantId: tenantId);
 
-        var rawJson = await _llmProvider.SuggestOnboardingContentAsync(context, cancellationToken);
+        var rawJson = await _llmProvider.SuggestOnboardingContentAsync(context, anonymizeProjectNames: false, cancellationToken);
 
         var suggestions = TryParseGitHubSuggestions(rawJson, data);
         return suggestions is null
@@ -169,7 +169,7 @@ public class OnboardingImportService
             content: resumeText,
             tenantId: tenantId);
 
-        var rawJson = await _llmProvider.SuggestOnboardingContentFromResumeAsync(resumeText, cancellationToken);
+        var rawJson = await _llmProvider.SuggestOnboardingContentFromResumeAsync(resumeText, anonymizeCompanyNames: false, cancellationToken);
         var suggestions = TryParseResumeSuggestions(rawJson);
 
         _db.ResumeImportLogs.Add(new ResumeImportLog { Id = Guid.NewGuid(), TenantId = tenantId, CreatedAt = DateTime.UtcNow });
