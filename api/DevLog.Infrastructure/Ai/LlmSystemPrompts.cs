@@ -162,7 +162,7 @@ public static class LlmSystemPrompts
                   "companyLabel": "{{(anonymizeCompanyNames ? "a role-accurate GENERIC descriptor, never the real company name" : "the company name exactly as written on the resume")}}", 
                   "title": "the job/role title as given, e.g. 'Backend Engineer'",
                   "technologies": ["list", "of", "technologies", "mentioned", "for", "this", "role"],
-                  "keyAchievement": "2-4 sentences describing key responsibilities, achievements, and impact. Capture multiple distinct accomplishments if relevant to preserve detail.",
+                  "keyAchievement": "the original achievement/responsibility text from the resume with grammar fixes only",
                   "startDate": "yyyy-MM, best guess from the resume text",
                   "endDate": "yyyy-MM, or null if the resume shows this as current/present"
                 }
@@ -176,10 +176,12 @@ public static class LlmSystemPrompts
                the order they appear.
             2. Preserve technology names, technical scope, and outcomes accurately — these
                are the valuable, non-identifying content and must not be diluted away.
-            3. For "keyAchievement", capture the full scope of work: include multiple 
-               distinct responsibilities, projects, and achievements from the role when 
-               present in the resume. Do NOT compress into just one sentence — expand to 
-               2-4 sentences to preserve detail.
+            3. For "keyAchievement", preserve the ORIGINAL TEXT from the resume. Only fix:
+               - Grammar errors (e.g., "helpped" → "helped")
+               - Typos and spelling mistakes
+               - Professional tone (awkward phrasing → clearer phrasing)
+               Do NOT expand, summarize, or rewrite the content. Keep the same length and
+               detail level as the original resume text.
             4. If a date is genuinely unclear from the text, make a reasonable estimate
                rather than omitting the entry — the developer reviews and can correct dates
                before saving.
