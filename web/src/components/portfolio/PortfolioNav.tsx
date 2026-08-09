@@ -18,9 +18,16 @@ export function PortfolioNav({ slug, displayName }: { slug: string; displayName:
   return (
     <header className="sticky top-0 z-40 border-b border-[#e8e5e0] bg-[#faf9f7]/90 backdrop-blur">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-        <Link href={basePath} className="font-semibold tracking-tight text-zinc-900">
-          {displayName}
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link href={basePath} className="font-semibold tracking-tight text-zinc-900">
+            {displayName}
+          </Link>
+          <span className="hidden h-3.5 w-px bg-zinc-300 sm:block" />
+          <span className="hidden items-center gap-1 sm:flex">
+            <span className="text-[10px] font-medium text-zinc-400">powered by</span>
+            <span className="text-[10px] font-bold tracking-tight text-indigo-500">Workfolio</span>
+          </span>
+        </div>
         <div className="flex items-center gap-4">
           <nav className="flex items-center gap-1">
             {NAV_ITEMS.map((item) => {
