@@ -155,11 +155,16 @@ export default function ImportPage() {
 
   const summary = useMemo(
     () => [
-      {
-        label: "GitHub",
-        value: gitHubVerified ? "Connected" : "Needs setup",
-        helper: gitHubVerified ? gitHubUrl ?? "Verified source ready" : "Connect GitHub in your profile before importing",
-      },
+{
+  label: "GitHub",
+  value: gitHubVerified === null ? "Checking…" : gitHubVerified ? "Connected" : "Needs setup",
+  helper:
+    gitHubVerified === null
+      ? "Verifying your profile connection"
+      : gitHubVerified
+        ? gitHubUrl ?? "Verified source ready"
+        : "Connect GitHub in your profile before importing",
+},
       {
         label: "GitHub suggestions",
         value: suggestions ? String(suggestions.experiences.length) : "0",
