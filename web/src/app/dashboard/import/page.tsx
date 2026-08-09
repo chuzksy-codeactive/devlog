@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ApiError, useApi } from "@/lib/use-api";
 import {
@@ -10,6 +10,10 @@ import {
   SuggestedExperience,
   experienceTypeLabel,
 } from "@/lib/types";
+
+const cardTone = "rounded-[1.5rem] border border-white/10 bg-white/6 p-5 backdrop-blur";
+const inputClass =
+  "w-full rounded-xl border border-white/12 bg-white px-3 py-2 text-sm text-zinc-950 outline-none file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs placeholder:text-zinc-500 focus:border-indigo-300 focus:bg-white";
 
 export default function ImportPage() {
   const { request } = useApi();
@@ -149,98 +153,148 @@ export default function ImportPage() {
     setDraftSaved(true);
   }
 
+  const summary = useMemo(
+    () => [
+      {
+        label: "GitHub",
+        value: gitHubVerified ? "Connected" : "Needs setup",
+        helper: gitHubVerified ? gitHubUrl ?? "Verified source ready" : "Connect GitHub in your profile before importing",
+      },
+      {
+        label: "GitHub suggestions",
+        value: suggestions ? String(suggestions.experiences.length) : "0",
+        helper: "Potential experience entries from repositories",
+      },
+      {
+        label: "Resume suggestions",
+        value: resumeResult?.suggestions ? String(resumeResult.suggestions.experiences.length) : "0",
+        helper: "Potential experience entries from your CV",
+      },
+    ],
+    [gitHubUrl, gitHubVerified, resumeResult?.suggestions, suggestions]
+  );
+
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Import from GitHub</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Pull suggestions from your public repositories — nothing is saved until you review and add it.
-      </p>
+    <div className="flex flex-col gap-8">
+      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/6 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-100">
+              <span className="h-2 w-2 rounded-full bg-indigo-300" />
+              Guided import
+            </div>
+            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">Bring your work in, then curate what deserves to stay.</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/68">
+              Import suggestions from GitHub or your resume, review them carefully, and only add the pieces that strengthen your portfolio.
+            </p>
+          </div>
 
-      {gitHubVerified === false && (
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Connect your GitHub account before importing — this makes sure you can only pull suggestions
-          from repositories you actually own.{" "}
-          <Link href="/dashboard/profile" className="font-medium underline">
-            Connect it in your profile
-          </Link>
-          .
+          <div className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-[#101525] p-5">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Import snapshot</p>
+            {summary.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-white/50">{item.label}</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-white">{item.value}</p>
+                <p className="mt-2 text-sm leading-6 text-white/62">{item.helper}</p>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      </section>
 
-      {gitHubVerified && (
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleImport}
-            disabled={status === "loading"}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-          >
-            {status === "loading" ? "Importing…" : "Import from GitHub"}
-          </button>
-          {gitHubUrl && <span className="text-sm text-zinc-500">{gitHubUrl}</span>}
+      <section className="grid gap-6 xl:grid-cols-2">
+        <div className={cardTone}>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Source one</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Import from GitHub</h2>
+          <p className="mt-3 text-sm leading-7 text-white/62">
+            Pull suggestions from your public repositories. Nothing is saved until you review and explicitly add it.
+          </p>
+
+          {gitHubVerified === false && (
+            <div className="mt-5 rounded-[1.25rem] border border-amber-300/18 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+              Connect your GitHub account before importing.{" "}
+              <Link href="/dashboard/profile" className="font-medium underline">
+                Open profile setup
+              </Link>
+              .
+            </div>
+          )}
+
+          {gitHubVerified && (
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={status === "loading"}
+                className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 disabled:opacity-50"
+              >
+                {status === "loading" ? "Importing…" : "Import from GitHub"}
+              </button>
+              {gitHubUrl && <span className="text-sm text-white/55">{gitHubUrl}</span>}
+            </div>
+          )}
+
+          {status === "error" && errorMessage && <p className="mt-4 text-sm text-rose-300">{errorMessage}</p>}
         </div>
-      )}
 
-      {status === "error" && errorMessage && (
-        <p className="mt-4 text-sm text-red-600">{errorMessage}</p>
-      )}
+        <div className={cardTone}>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Source two</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">Import from resume</h2>
+          <p className="mt-3 text-sm leading-7 text-white/62">
+            Upload a PDF resume to host it as your CV download and generate anonymized experience suggestions from it.
+          </p>
+
+          <form onSubmit={handleResumeUpload} className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              className={`${inputClass} flex-1`}
+            />
+            <button
+              type="submit"
+              disabled={resumeStatus === "loading"}
+              className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 disabled:opacity-50"
+            >
+              {resumeStatus === "loading" ? "Uploading…" : "Upload PDF"}
+            </button>
+          </form>
+
+          {resumeStatus === "error" && resumeErrorMessage && <p className="mt-4 text-sm text-rose-300">{resumeErrorMessage}</p>}
+
+          {resumeResult && (
+            <div className="mt-5 rounded-[1.25rem] border border-emerald-300/18 bg-emerald-500/10 p-4">
+              <p className="text-sm text-emerald-100">
+                Resume saved as your CV download.{" "}
+                <a href={resumeResult.cvFileUrl} target="_blank" rel="noreferrer" className="font-medium underline">
+                  View file
+                </a>
+              </p>
+              {resumeResult.message && <p className="mt-2 text-sm text-white/65">{resumeResult.message}</p>}
+            </div>
+          )}
+        </div>
+      </section>
 
       {suggestions && (
-        <div className="mt-8 flex flex-col gap-6">
+        <section className="flex flex-col gap-6">
           {suggestions.experiences.length > 0 && (
             <div>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-                Suggested experience entries
-              </h2>
-              <div className="mt-3 flex flex-col gap-3">
+              <div className="mb-4">
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">GitHub suggestions</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Suggested experience entries</h2>
+              </div>
+              <div className="flex flex-col gap-4">
                 {suggestions.experiences.map((exp, i) => {
                   const added = addedExperiences.has(i);
                   return (
-                    <div key={i} className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">
-                            {experienceTypeLabel[exp.experienceType]}
-                          </p>
-                          <p className="mt-0.5 font-medium text-zinc-900">
-                            {exp.title} — {exp.companyLabel}
-                          </p>
-                          <p className="text-xs text-zinc-400">
-                            {exp.startDate} — {exp.endDate ?? "Present"}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleAddExperience(i, exp)}
-                          disabled={added}
-                          className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:bg-zinc-300"
-                        >
-                          {added ? "Added" : "Add to Experience"}
-                        </button>
-                      </div>
-                      <p className="mt-2 text-sm text-zinc-600">{exp.keyAchievement}</p>
-                      {exp.technologies.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {exp.technologies.map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-600"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      {exp.repoUrl && (
-                        <a
-                          href={exp.repoUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 inline-block text-xs text-indigo-600 underline"
-                        >
-                          View repo on GitHub
-                        </a>
-                      )}
-                    </div>
+                    <SuggestionCard
+                      key={`github-${i}`}
+                      exp={exp}
+                      added={added}
+                      actionLabel={added ? "Added" : "Add to Experience"}
+                      onAdd={() => handleAddExperience(i, exp)}
+                    />
                   );
                 })}
               </div>
@@ -248,128 +302,117 @@ export default function ImportPage() {
           )}
 
           {suggestions.draftEntry && (
-            <div>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-                Suggested Sprint Journal draft
-              </h2>
-              <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-                <p className="font-medium text-zinc-900">{suggestions.draftEntry.title}</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm text-zinc-600">
-                  {suggestions.draftEntry.rawContent}
+            <div className={cardTone}>
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Journal suggestion</p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">{suggestions.draftEntry.title}</h2>
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-white/72">{suggestions.draftEntry.rawContent}</p>
+              {draftSaved ? (
+                <p className="mt-4 text-sm text-emerald-200">
+                  Saved as a draft.{" "}
+                  <Link href="/dashboard/journal" className="underline">
+                    Open it in the journal
+                  </Link>{" "}
+                  to review, sanitize, and publish.
                 </p>
-                {draftSaved ? (
-                  <p className="mt-3 text-xs text-emerald-600">
-                    Saved as a draft.{" "}
-                    <Link href="/dashboard/journal" className="underline">
-                      Open it in the journal
-                    </Link>{" "}
-                    to review, sanitize, and publish — same as any other entry.
-                  </p>
-                ) : (
-                  <button
-                    onClick={handleUseDraft}
-                    className="mt-3 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
-                  >
-                    Use as Sprint Journal draft
-                  </button>
-                )}
-              </div>
+              ) : (
+                <button
+                  onClick={handleUseDraft}
+                  className="mt-5 rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
+                >
+                  Use as Sprint Journal draft
+                </button>
+              )}
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      <hr className="mt-10 border-zinc-200" />
-
-      <h1 className="mt-10 text-2xl font-semibold tracking-tight text-zinc-900">Import from Resume</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Upload a PDF resume — we&rsquo;ll host it as your CV download and draft experience suggestions from it.
-        Company names are anonymized during extraction, same as everywhere else in DevLog; nothing is saved
-        until you review and add it.
-      </p>
-
-      <form onSubmit={handleResumeUpload} className="mt-4 flex gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="application/pdf"
-          className="flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-2 file:py-1 file:text-xs"
-        />
-        <button
-          type="submit"
-          disabled={resumeStatus === "loading"}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {resumeStatus === "loading" ? "Uploading…" : "Upload"}
-        </button>
-      </form>
-
-      {resumeStatus === "error" && resumeErrorMessage && (
-        <p className="mt-4 text-sm text-red-600">{resumeErrorMessage}</p>
-      )}
-
-      {resumeResult && (
-        <div className="mt-6 flex flex-col gap-6">
-          <p className="text-sm text-emerald-600">
-            Resume saved as your CV download.{" "}
-            <a href={resumeResult.cvFileUrl} target="_blank" rel="noreferrer" className="underline">
-              View file
-            </a>
-          </p>
-
-          {resumeResult.message && <p className="text-sm text-zinc-500">{resumeResult.message}</p>}
-
-          {resumeResult.suggestions && resumeResult.suggestions.experiences.length > 0 && (
-            <div>
-              <h2 className="text-sm font-medium uppercase tracking-wide text-zinc-500">
-                Suggested experience entries
-              </h2>
-              <div className="mt-3 flex flex-col gap-3">
-                {resumeResult.suggestions.experiences.map((exp, i) => {
-                  const added = addedResumeExperiences.has(i);
-                  return (
-                    <div key={i} className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-indigo-600">
-                            {experienceTypeLabel[exp.experienceType]}
-                          </p>
-                          <p className="mt-0.5 font-medium text-zinc-900">
-                            {exp.title} — {exp.companyLabel}
-                          </p>
-                          <p className="text-xs text-zinc-400">
-                            {exp.startDate} — {exp.endDate ?? "Present"}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleAddResumeExperience(i, exp)}
-                          disabled={added}
-                          className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:bg-zinc-300"
-                        >
-                          {added ? "Added" : "Add to Experience"}
-                        </button>
-                      </div>
-                      <p className="mt-2 text-sm text-zinc-600">{exp.keyAchievement}</p>
-                      {exp.technologies.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {exp.technologies.map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-600"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+      {resumeResult?.suggestions && resumeResult.suggestions.experiences.length > 0 && (
+        <section>
+          <div className="mb-4">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Resume suggestions</p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Suggested experience entries</h2>
+          </div>
+          <div className="flex flex-col gap-4">
+            {resumeResult.suggestions.experiences.map((exp, i) => {
+              const added = addedResumeExperiences.has(i);
+              return (
+                <SuggestionCard
+                  key={`resume-${i}`}
+                  exp={exp}
+                  added={added}
+                  actionLabel={added ? "Added" : "Add to Experience"}
+                  onAdd={() => handleAddResumeExperience(i, exp)}
+                />
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
+  );
+}
+
+function SuggestionCard({
+  exp,
+  added,
+  actionLabel,
+  onAdd,
+}: {
+  exp: SuggestedExperience;
+  added: boolean;
+  actionLabel: string;
+  onAdd: () => void;
+}) {
+  return (
+    <article className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 transition hover:border-white/15 hover:bg-white/8">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-indigo-100/72">
+            {experienceTypeLabel[exp.experienceType]}
+          </p>
+          <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white">
+            {exp.title} <span className="text-white/50">— {exp.companyLabel}</span>
+          </h3>
+          <p className="mt-2 text-sm text-white/45">
+            {exp.startDate} — {exp.endDate ?? "Present"}
+          </p>
+          <p className="mt-4 text-base leading-8 text-white/72">{exp.keyAchievement}</p>
+        </div>
+
+        <button
+          onClick={onAdd}
+          disabled={added}
+          className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
+            added
+              ? "bg-white/12 text-white/55"
+              : "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
+          }`}
+        >
+          {actionLabel}
+        </button>
+      </div>
+
+      {exp.technologies.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {exp.technologies.map((t) => (
+            <span key={t} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/72">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {exp.repoUrl && (
+        <a
+          href={exp.repoUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex text-sm font-medium text-indigo-100 underline underline-offset-2"
+        >
+          View repo on GitHub
+        </a>
+      )}
+    </article>
   );
 }

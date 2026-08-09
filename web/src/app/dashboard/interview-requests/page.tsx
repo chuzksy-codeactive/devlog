@@ -1,14 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApi } from "@/lib/use-api";
 import { MyInterviewRequest } from "@/lib/types";
 
 const STATUS_STYLE: Record<MyInterviewRequest["status"], string> = {
-  Pending: "border-amber-200 bg-amber-50 text-amber-700",
-  Accepted: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  Declined: "border-zinc-200 bg-zinc-50 text-zinc-500",
+  Pending: "border-amber-300/18 bg-amber-500/10 text-amber-100",
+  Accepted: "border-emerald-300/18 bg-emerald-500/10 text-emerald-100",
+  Declined: "border-white/12 bg-white/7 text-white/65",
 };
+
+const inputClass =
+  "mt-1 w-full rounded-xl border border-white/12 bg-white px-3 py-2 text-sm text-zinc-950 outline-none placeholder:text-zinc-500 focus:border-indigo-300 focus:bg-white";
+
+function formatRequestDate(iso: string) {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function summarizeRequests(requests: MyInterviewRequest[]) {
+  return [
+    {
+      label: "Total requests",
+      value: String(requests.length),
+      helper: requests.length > 0 ? "Verified recruiter messages received" : "No verified outreach yet",
+    },
+    {
+      label: "Pending",
+      value: String(requests.filter((request) => request.status === "Pending").length),
+      helper: "Waiting for your response",
+    },
+    {
+      label: "Accepted",
+      value: String(requests.filter((request) => request.status === "Accepted").length),
+      helper: "You shared next-step contact details",
+    },
+  ];
+}
 
 export default function InterviewRequestsPage() {
   const { request } = useApi();
@@ -65,99 +98,141 @@ export default function InterviewRequestsPage() {
     }
   }
 
-  return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Interview Requests</h1>
-      <p className="mt-1 text-sm text-zinc-500">
-        Only email-verified requests appear here — an unconfirmed recruiter email never reaches this inbox.
-      </p>
+  const summary = useMemo(() => summarizeRequests(requests), [requests]);
 
-      {status === "error" && <p className="mt-4 text-sm text-red-600">Couldn&apos;t load requests.</p>}
-      {status === "ready" && requests.length === 0 && (
-        <p className="mt-4 text-sm text-zinc-500">No interview requests yet.</p>
+  return (
+    <div className="flex flex-col gap-8">
+      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/6 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl">
+        <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-100">
+              <span className="h-2 w-2 rounded-full bg-indigo-300" />
+              Recruiter inbox
+            </div>
+            <h1 className="mt-6 text-4xl font-semibold tracking-tight text-white">Review verified interview requests with confidence.</h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-white/68">
+              Only confirmed recruiter emails make it here. Accept to reveal your contact instructions, or decline without exposing your details.
+            </p>
+          </div>
+
+          <div className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-[#101525] p-5">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Inbox snapshot</p>
+            {summary.map((item) => (
+              <div key={item.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-sm text-white/50">{item.label}</p>
+                <p className="mt-1 text-2xl font-semibold tracking-tight text-white">{item.value}</p>
+                <p className="mt-2 text-sm leading-6 text-white/62">{item.helper}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {status === "error" && (
+        <p className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          Couldn&apos;t load requests.
+        </p>
       )}
 
-      <div className="mt-6 flex flex-col gap-4">
+      {status === "ready" && requests.length === 0 && (
+        <section className="rounded-[1.75rem] border border-dashed border-white/12 bg-white/4 p-10 text-center">
+          <div className="mx-auto max-w-2xl">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">Empty inbox</p>
+            <h2 className="mt-3 text-2xl font-semibold text-white">No interview requests yet</h2>
+            <p className="mt-3 text-sm leading-7 text-white/58">
+              When a recruiter verifies their email and requests to interview you, it will appear here for review.
+            </p>
+          </div>
+        </section>
+      )}
+
+      <section className="flex flex-col gap-5">
+        {status === "loading" && <p className="text-sm text-white/60">Loading requests…</p>}
+
         {requests.map((r) => (
-          <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-medium text-zinc-900">
-                  {r.recruiterName ? `${r.recruiterName} · ` : ""}
-                  {r.recruiterEmail}
-                </p>
-                <p className="text-xs text-zinc-400">{new Date(r.createdAt).toLocaleString()}</p>
+          <article key={r.id} className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 transition hover:border-white/15 hover:bg-white/8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-3xl">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`rounded-full border px-3 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>
+                    {r.status}
+                  </span>
+                  <span className="text-sm text-white/45">{formatRequestDate(r.createdAt)}</span>
+                </div>
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-white">
+                  {r.recruiterName ? r.recruiterName : "Verified recruiter"}
+                </h2>
+                <p className="mt-1 text-sm text-white/58">{r.recruiterEmail}</p>
+                <p className="mt-4 text-base leading-8 text-white/72">{r.note}</p>
               </div>
-              <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[r.status]}`}>
-                {r.status}
-              </span>
+
+              {r.status === "Pending" && acceptingId !== r.id && (
+                <div className="flex gap-3 text-sm font-medium">
+                  <button
+                    onClick={() => setAcceptingId(r.id)}
+                    className="rounded-full bg-indigo-500 px-4 py-2 text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleDecline(r.id)}
+                    disabled={busyId === r.id}
+                    className="rounded-full border border-white/12 px-4 py-2 text-white/75 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                </div>
+              )}
             </div>
-            <p className="mt-3 text-sm text-zinc-700">{r.note}</p>
 
             {r.status === "Accepted" && r.contactInstructions && (
-              <p className="mt-3 rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-700">
-                Revealed: {r.contactInstructions}
-              </p>
-            )}
-
-            {r.status === "Pending" && (
-              <div className="mt-4">
-                {acceptingId === r.id ? (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-medium text-zinc-500">
-                      Contact instructions (revealed to the recruiter)
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder="e.g. Grab time here: https://cal.com/your-handle"
-                        value={contactInstructions}
-                        onChange={(e) => setContactInstructions(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-indigo-400"
-                      />
-                    </label>
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setAcceptingId(null);
-                          setContactInstructions("");
-                        }}
-                        className="text-xs font-medium text-zinc-500 underline"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleAccept(r.id)}
-                        disabled={busyId === r.id}
-                        className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                      >
-                        Confirm accept
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setAcceptingId(r.id)}
-                      className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleDecline(r.id)}
-                      disabled={busyId === r.id}
-                      className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-                    >
-                      Decline
-                    </button>
-                  </div>
-                )}
+              <div className="mt-5 rounded-[1.25rem] border border-emerald-300/18 bg-emerald-500/10 p-4">
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-100/75">Shared contact instructions</p>
+                <p className="mt-2 text-sm leading-7 text-white/80">{r.contactInstructions}</p>
               </div>
             )}
 
-            {error && acceptingId === r.id && <p className="mt-2 text-xs text-red-600">{error}</p>}
-          </div>
+            {r.status === "Pending" && acceptingId === r.id && (
+              <div className="mt-5 rounded-[1.25rem] border border-white/10 bg-[#111626] p-5">
+                <label className="text-sm font-medium text-white/78">
+                  Contact instructions
+                  <span className="mt-1 block text-xs font-normal text-white/45">
+                    This is what will be revealed to the recruiter if you accept.
+                  </span>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="e.g. Grab time here: https://cal.com/your-handle"
+                    value={contactInstructions}
+                    onChange={(e) => setContactInstructions(e.target.value)}
+                    className={inputClass}
+                  />
+                </label>
+                <div className="mt-4 flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setAcceptingId(null);
+                      setContactInstructions("");
+                    }}
+                    className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleAccept(r.id)}
+                    disabled={busyId === r.id}
+                    className="rounded-full bg-indigo-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400 disabled:opacity-50"
+                  >
+                    Confirm accept
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {error && acceptingId === r.id && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+          </article>
         ))}
-      </div>
+      </section>
     </div>
   );
 }
