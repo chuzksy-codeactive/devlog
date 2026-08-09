@@ -73,6 +73,7 @@ export default function ExperiencePage() {
   const [experiences, setExperiences] = useState<MyExperience[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MyExperience | null>(null);
 
   function load() {
     request<MyExperience[]>("/api/experiences/me")
@@ -86,8 +87,8 @@ export default function ExperiencePage() {
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this experience? This can't be undone.")) return;
     await request(`/api/experiences/${id}`, { method: "DELETE" });
+    setDeleteTarget(null);
     load();
   }
 
@@ -204,7 +205,7 @@ export default function ExperiencePage() {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(exp.id)}
+                    onClick={() => setDeleteTarget(exp)}
                     className="rounded-full border border-rose-300/15 px-4 py-2 text-rose-200 transition hover:bg-rose-500/12"
                   >
                     Delete
@@ -242,6 +243,46 @@ export default function ExperiencePage() {
           </div>
         )}
       </section>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setDeleteTarget(null)}
+          />
+          {/* Panel */}
+          <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#0f1220] p-6 shadow-2xl shadow-black/50">
+            {/* Icon */}
+            <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-rose-400/20 bg-rose-500/10">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-rose-300">
+                <path d="M10 6v4m0 4h.01M3 10a7 7 0 1 0 14 0A7 7 0 0 0 3 10z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-white">Delete experience?</h2>
+            <p className="mt-1 text-sm leading-relaxed text-white/55">
+              <span className="font-medium text-white/80">{deleteTarget.title}</span>
+              {deleteTarget.companyLabel ? ` at ${deleteTarget.companyLabel}` : ""} will be permanently removed.
+              This can&apos;t be undone.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/8 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteTarget.id)}
+                className="rounded-full bg-rose-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-rose-500/20 transition hover:bg-rose-500"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
