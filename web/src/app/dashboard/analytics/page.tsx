@@ -171,7 +171,11 @@ function BarChart({
   const peak = data.reduce((best, item) => (item.count > best.count ? item : best), data[0] ?? { date: "", count: 0 });
 
   return (
-    <div className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 backdrop-blur">
+<div
+  role="img"
+  aria-label={`${title}. ${subtitle} Total ${total}. Peak ${peak.count} on ${peak.date || "unknown date"}. Range ${data[0]?.date ?? "unknown start"} to ${data[data.length - 1]?.date ?? "unknown end"}.`}
+  className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 backdrop-blur"
+>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/42">{title}</p>
