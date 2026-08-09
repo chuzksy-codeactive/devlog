@@ -9,8 +9,9 @@ export function AskAiWidget({ slug, displayName }: { slug: string; displayName: 
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {isOpen && (
-        <div className="mb-3 w-80 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl">
-          <p className="mb-3 text-sm font-medium text-zinc-900">Ask about {displayName}&apos;s experience</p>
+        <div className="mb-3 w-80 rounded-2xl border border-[#e2ded7] bg-[#faf9f7] p-5 shadow-xl ring-1 ring-black/5">
+          <p className="mb-0.5 text-xs font-semibold uppercase tracking-widest text-indigo-500">AI Assistant</p>
+          <p className="mb-3 text-sm font-semibold text-zinc-900">Ask about {displayName}&apos;s experience</p>
           <AskAiForm slug={slug} displayName={displayName} />
         </div>
       )}

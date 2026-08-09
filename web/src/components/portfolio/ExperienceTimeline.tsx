@@ -3,11 +3,11 @@ import { ExperienceEntry, experienceTypeLabel } from "@/lib/types";
 import { formatDateRange } from "@/lib/portfolio-utils";
 
 const TYPE_BADGE_STYLES: Record<string, string> = {
-  Employer: "bg-blue-50 text-blue-700",
-  PersonalProject: "bg-violet-50 text-violet-700",
-  OpenSource: "bg-green-50 text-green-700",
-  Freelance: "bg-amber-50 text-amber-700",
-  Education: "bg-zinc-100 text-zinc-600",
+  Employer: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  PersonalProject: "bg-violet-50 text-violet-700 border-violet-200",
+  OpenSource: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  Freelance: "bg-amber-50 text-amber-700 border-amber-200",
+  Education: "bg-zinc-100 text-zinc-600 border-zinc-200",
 };
 
 export function ExperienceTimeline({ experiences, slug }: { experiences: ExperienceEntry[]; slug: string }) {
@@ -16,34 +16,37 @@ export function ExperienceTimeline({ experiences, slug }: { experiences: Experie
   );
 
   return (
-    <ol className="flex flex-col">
-      {sorted.map((entry, index) => (
+    <ol className="flex flex-col gap-4">
+      {sorted.map((entry) => (
         <li
           key={entry.id}
-          className={`border-l-2 border-zinc-200 py-7 pl-6 ${index > 0 ? "border-t border-t-zinc-200" : ""}`}
+          className="rounded-2xl border border-[#e2ded7] bg-white p-6 shadow-sm transition hover:border-indigo-200 hover:shadow-md"
         >
+          {/* Type badge + date */}
           <div className="flex flex-wrap items-center gap-2.5">
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                 TYPE_BADGE_STYLES[entry.experienceType] ?? TYPE_BADGE_STYLES.Education
               }`}
             >
               {experienceTypeLabel[entry.experienceType]}
             </span>
-            <span className="text-sm text-zinc-400">
+            <span className="text-xs font-medium text-zinc-400">
               {formatDateRange(entry.startDate, entry.endDate)}
             </span>
           </div>
 
-          <h3 className="mt-3 text-lg font-semibold text-zinc-900">{entry.title}</h3>
-          <p className="text-zinc-500">{entry.companyLabel}</p>
+          {/* Role + company */}
+          <h3 className="mt-3 text-lg font-bold leading-snug text-zinc-900">{entry.title}</h3>
+          <p className="mt-0.5 text-sm text-zinc-500">{entry.companyLabel}</p>
 
+          {/* Tech stack */}
           {entry.technologies.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-1.5">
               {entry.technologies.map((tech) => (
                 <span
                   key={tech}
-                  className="rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-xs text-zinc-600"
+                  className="rounded-full border border-[#dedad4] bg-[#faf9f7] px-2.5 py-0.5 text-xs font-medium text-zinc-600"
                 >
                   {tech}
                 </span>
@@ -51,20 +54,18 @@ export function ExperienceTimeline({ experiences, slug }: { experiences: Experie
             </div>
           )}
 
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-900">{entry.keyAchievement}</p>
+          {/* Key achievement */}
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-700">{entry.keyAchievement}</p>
 
-          {/* Forward link into the Sprint Journal — Product Brief: "the
-              connective tissue between what I did and how I did it survives
-              the split." Links to the journal index, not a period-filtered
-              view — entries and experiences aren't associated with each
-              other in the schema (no shared foreign key), so a real
-              per-period filter is a later refinement, not this link. */}
-          <Link
-            href={`/${slug}/journal`}
-            className="mt-3 inline-block text-sm text-indigo-600 underline underline-offset-2 hover:text-indigo-700"
-          >
-            See sprint entries →
-          </Link>
+          {/* Sprint Journal link */}
+          <div className="mt-4 border-t border-[#ede9e3] pt-4">
+            <Link
+              href={`/${slug}/journal`}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 transition hover:text-indigo-800"
+            >
+              See sprint entries →
+            </Link>
+          </div>
         </li>
       ))}
     </ol>

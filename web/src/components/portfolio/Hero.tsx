@@ -35,7 +35,7 @@ export function Hero({ portfolio }: { portfolio: PortfolioData }) {
         {/* Identity row */}
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
           {/* Avatar */}
-          <div className="relative shrink-0">
+          <div className="relative h-28 w-28 shrink-0">
             <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-2 border-[#d8d3cc] bg-indigo-50 text-3xl font-semibold text-indigo-600 shadow-lg">
               {portfolio.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
