@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ExperienceEntry, experienceTypeLabel } from "@/lib/types";
 import { formatDateRange } from "@/lib/portfolio-utils";
+import { AchievementDescription } from "@/components/portfolio/AchievementDescription";
 
 const TYPE_BADGE_STYLES: Record<string, string> = {
   Employer: "bg-indigo-50 text-indigo-700 border-indigo-200",
@@ -55,7 +56,11 @@ export function ExperienceTimeline({ experiences, slug }: { experiences: Experie
           )}
 
           {/* Key achievement */}
-          <p className="mt-4 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{entry.keyAchievement}</p>
+          <AchievementDescription
+            text={entry.keyAchievement}
+            paragraphClassName="mt-4 max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-zinc-700"
+            listClassName="mt-4 max-w-2xl list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-zinc-700"
+          />
 
           {/* Sprint Journal link */}
           <div className="mt-4 border-t border-[#ede9e3] pt-4">

@@ -10,6 +10,7 @@ import {
   SuggestedExperience,
   experienceTypeLabel,
 } from "@/lib/types";
+import { AchievementDescription } from "@/components/portfolio/AchievementDescription";
 
 const cardTone = "rounded-[1.5rem] border border-white/10 bg-white/6 p-5 backdrop-blur";
 const inputClass =
@@ -392,7 +393,11 @@ function SuggestionCard({
           <p className="mt-2 text-sm text-white/45">
             {exp.startDate} — {exp.endDate ?? "Present"}
           </p>
-          <p className="mt-4 whitespace-pre-wrap text-base leading-8 text-white/72">{exp.keyAchievement}</p>
+          <AchievementDescription
+            text={exp.keyAchievement}
+            paragraphClassName="mt-4 whitespace-pre-wrap text-base leading-8 text-white/72"
+            listClassName="mt-4 list-disc space-y-1.5 pl-6 text-base leading-8 text-white/72"
+          />
         </div>
 
 <button

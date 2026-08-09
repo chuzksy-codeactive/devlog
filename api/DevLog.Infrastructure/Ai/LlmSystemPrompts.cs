@@ -178,7 +178,7 @@ public static class LlmSystemPrompts
                are the valuable, non-identifying content and must not be diluted away.
             3. For "keyAchievement", preserve the ORIGINAL TEXT from the resume in full. Include every
                bullet/responsibility line that belongs to that role, in the same order and detail level.
-               If the role has multiple bullets, keep them all in one string separated by newlines.
+               If the role has multiple bullets, keep them all in one string separated by the JSON escape sequence \n (backslash+n).
                Only fix:
                - Grammar errors (e.g., "helpped" → "helped")
                - Typos and spelling mistakes
