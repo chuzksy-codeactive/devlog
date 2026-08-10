@@ -29,7 +29,14 @@ export function DashboardNav() {
         <div className="flex items-center gap-4">
           <nav className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 lg:flex">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const isActive =
+                pathname === item.href ||
+                (pathname.startsWith(`${item.href}/`) &&
+                  !NAV_ITEMS.some(
+                    (other) =>
+                      other.href.length > item.href.length &&
+                      (pathname === other.href || pathname.startsWith(`${other.href}/`))
+                  ));
               return (
                 <Link
                   key={item.href}
