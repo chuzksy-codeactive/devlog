@@ -230,6 +230,7 @@ export interface AdminUserActivityRow {
   activityLevel: "HighlyActive" | "ModeratelyActive" | "LowActivity";
   activityScore: number;
   possibleAbuse: boolean;
+  lastPortfolioViewAt: string | null;
   lastActivityAt: string | null;
   experienceCount: number;
   rawEntries30d: number;

@@ -121,6 +121,7 @@ function ActivitySection({
                 <th className="px-3 py-2 font-medium">Level</th>
                 <th className="px-3 py-2 font-medium">Entries</th>
                 <th className="px-3 py-2 font-medium">Views</th>
+                <th className="px-3 py-2 font-medium">Last portfolio visit</th>
                 <th className="px-3 py-2 font-medium">AI</th>
                 <th className="px-3 py-2 font-medium">Last activity</th>
               </tr>
@@ -145,6 +146,7 @@ function ActivitySection({
                     <span className="text-white">Published {row.publishedEntries30d}</span>
                   </td>
                   <td className="px-3 py-2">{row.portfolioViews30d}</td>
+                  <td className="px-3 py-2 text-white/65">{formatDate(row.lastPortfolioViewAt)}</td>
                   <td className="px-3 py-2">{row.aiQueries30d}</td>
                   <td className="px-3 py-2 text-white/65">{formatDate(row.lastActivityAt)}</td>
                 </tr>
