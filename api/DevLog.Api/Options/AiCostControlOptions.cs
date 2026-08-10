@@ -1,12 +1,25 @@
 namespace DevLog.Api.Options;
 
+/// <summary>
+/// Central configuration for AI cost and abuse protection limits.
+/// </summary>
 public class AiCostControlOptions
 {
     public const string SectionName = "AiCostControl";
 
+    /// <summary>
+    /// Enables or bypasses request-layer AI cost controls.
+    /// </summary>
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Emergency switch to temporarily disable expensive AI endpoints.
+    /// </summary>
     public bool KillSwitchEnabled { get; set; } = false;
 
+    /// <summary>
+    /// Global cap across all expensive AI requests per minute.
+    /// </summary>
     public int GlobalExpensiveRequestsPerMinute { get; set; } = 120;
 
     public int AskAiPerMinutePerUser { get; set; } = 10;

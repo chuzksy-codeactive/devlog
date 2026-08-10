@@ -4,6 +4,9 @@ using System.Threading.RateLimiting;
 
 namespace DevLog.Api.Middleware;
 
+/// <summary>
+/// Applies kill-switch and global emergency throttling to expensive AI routes.
+/// </summary>
 public class AiCostControlMiddleware : IAsyncDisposable
 {
     private readonly RequestDelegate _next;
@@ -27,6 +30,9 @@ public class AiCostControlMiddleware : IAsyncDisposable
         });
     }
 
+    /// <summary>
+    /// Enforces global AI protection rules before endpoint-specific rate limiter policies run.
+    /// </summary>
     public async Task InvokeAsync(HttpContext context)
     {
         if (!IsExpensiveAiEndpoint(context.Request))
@@ -70,6 +76,9 @@ public class AiCostControlMiddleware : IAsyncDisposable
 
     public ValueTask DisposeAsync() => _globalLimiter.DisposeAsync();
 
+    /// <summary>
+    /// Checks whether the request targets a high-cost AI endpoint.
+    /// </summary>
     private static bool IsExpensiveAiEndpoint(HttpRequest request)
     {
         if (!HttpMethods.IsPost(request.Method))
