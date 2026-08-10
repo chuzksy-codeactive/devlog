@@ -1,4 +1,5 @@
 using DevLog.Infrastructure.Ai;
+using DevLog.Infrastructure.BetaAccess;
 using DevLog.Infrastructure.Email;
 using DevLog.Infrastructure.Identity;
 using DevLog.Infrastructure.Interviews;
@@ -36,6 +37,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentTenantAccessor, CurrentTenantAccessor>();
         services.AddScoped<TenantConnectionInterceptor>();
         services.AddScoped<TenantProvisioningService>();
+        services.AddHttpContextAccessor();
+        services.Configure<PrivateBetaOptions>(configuration.GetSection(PrivateBetaOptions.SectionName));
+        services.AddScoped<IBetaAccessService, BetaAccessService>();
 
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(configuration.GetConnectionString("DevLogDbRuntime"));
         dataSourceBuilder.UseVector();

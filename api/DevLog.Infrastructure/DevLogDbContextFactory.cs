@@ -13,11 +13,13 @@ public class DevLogDbContextFactory : IDesignTimeDbContextFactory<DevLogDbContex
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true)
             .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddEnvironmentVariables()
             .Build();
 
         var connectionString = configuration.GetConnectionString("DevLogDb")
+            ?? configuration.GetConnectionString("DevLogDbRuntime")
             ?? throw new InvalidOperationException(
-                "ConnectionStrings:DevLogDb not found — run dotnet ef commands from DevLog.Api so its appsettings files are picked up.");
+                "ConnectionStrings:DevLogDb or ConnectionStrings:DevLogDbRuntime not found.");
 
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
         dataSourceBuilder.UseVector();
