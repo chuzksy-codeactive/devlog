@@ -4,7 +4,7 @@ namespace DevLog.Api.Observability;
 
 internal static class SecurityTelemetry
 {
-    private static readonly Meter Meter = new("DevLog.Security");
+    private static readonly Meter Meter = new("DevLog.Security", "1.0.0");
 
     private static readonly Counter<long> PrivateBetaDenials =
         Meter.CreateCounter<long>("private_beta_denials_total");
@@ -18,34 +18,40 @@ internal static class SecurityTelemetry
     private static readonly Counter<long> AiGlobalCapBlocks =
         Meter.CreateCounter<long>("ai_global_cap_blocks_total");
 
-    public static void TrackPrivateBetaDeny(string reasonCode, string path)
+    public static void TrackPrivateBetaDeny(string reasonCode)
     {
         PrivateBetaDenials.Add(
             1,
-            new KeyValuePair<string, object?>("reason", reasonCode),
-            new KeyValuePair<string, object?>("path", path));
+            [
+                new KeyValuePair<string, object?>("reason", reasonCode)
+            ]);
     }
 
-    public static void TrackRateLimitRejection(string scope, string path)
+    public static void TrackRateLimitRejection(string scope)
     {
         RateLimitRejections.Add(
             1,
-            new KeyValuePair<string, object?>("scope", scope),
-            new KeyValuePair<string, object?>("path", path));
+            [
+                new KeyValuePair<string, object?>("scope", scope)
+            ]);
     }
 
     public static void TrackAiKillSwitchBlock(string endpoint)
     {
         AiKillSwitchBlocks.Add(
             1,
-            new KeyValuePair<string, object?>("endpoint", endpoint));
+            [
+                new KeyValuePair<string, object?>("endpoint", endpoint)
+            ]);
     }
 
     public static void TrackAiGlobalCapBlock(string endpoint, int maxPerMinute)
     {
         AiGlobalCapBlocks.Add(
             1,
-            new KeyValuePair<string, object?>("endpoint", endpoint),
-            new KeyValuePair<string, object?>("max_per_minute", maxPerMinute));
+            [
+                new KeyValuePair<string, object?>("endpoint", endpoint),
+                new KeyValuePair<string, object?>("max_per_minute", maxPerMinute)
+            ]);
     }
 }
