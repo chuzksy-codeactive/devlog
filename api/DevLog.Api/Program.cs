@@ -196,6 +196,7 @@ if (storageOptions.Provider.Equals("LocalDisk", StringComparison.OrdinalIgnoreCa
 }
 
 app.UseAuthentication();
+app.UseMiddleware<PrivateBetaAccessMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
