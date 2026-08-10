@@ -93,6 +93,68 @@ public class PrivateBetaAccessMiddlewareTests
         Assert.True(nextCalled);
     }
 
+    [Fact]
+    public async Task ProtectedEndpoint_Unauthenticated_ReturnsUnauthorizedWithReason()
+    {
+        var middleware = new PrivateBetaAccessMiddleware(_ => Task.CompletedTask);
+        var context = BuildContext(
+            "/api/entries",
+            new EndpointMetadataCollection(new AuthorizeAttribute()));
+        context.Response.Body = new MemoryStream();
+
+        await middleware.InvokeAsync(
+            context,
+            new StubBetaAccessService(new BetaAccessResult(BetaAccessOutcome.Unauthenticated)));
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+        context.Response.Body.Position = 0;
+        var payload = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        Assert.Contains("authentication_required", payload, StringComparison.Ordinal);
+        Assert.Contains("unauthenticated", payload, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NonApiPath_BypassesBetaGate()
+    {
+        var nextCalled = false;
+        var middleware = new PrivateBetaAccessMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var context = BuildContext(
+            "/health",
+            new EndpointMetadataCollection(new AuthorizeAttribute()));
+
+        await middleware.InvokeAsync(
+            context,
+            new StubBetaAccessService(new BetaAccessResult(BetaAccessOutcome.NotInvited, "user@example.com")));
+
+        Assert.True(nextCalled);
+    }
+
+    [Fact]
+    public async Task ApiEndpointWithoutAuthorizeMetadata_BypassesBetaGate()
+    {
+        var nextCalled = false;
+        var middleware = new PrivateBetaAccessMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var context = BuildContext(
+            "/api/internal-health",
+            new EndpointMetadataCollection());
+
+        await middleware.InvokeAsync(
+            context,
+            new StubBetaAccessService(new BetaAccessResult(BetaAccessOutcome.NotInvited, "user@example.com")));
+
+        Assert.True(nextCalled);
+    }
+
     private static DefaultHttpContext BuildContext(string path, EndpointMetadataCollection metadata)
     {
         var context = new DefaultHttpContext();
