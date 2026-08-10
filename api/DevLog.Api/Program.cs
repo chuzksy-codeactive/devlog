@@ -216,6 +216,15 @@ builder.Services.AddRateLimiter(options =>
             PermitLimit = 10,
             QueueLimit = 0
         }));
+
+    options.AddPolicy("WaitlistSubmission", httpContext => RateLimitPartition.GetFixedWindowLimiter(
+        PartitionKey(httpContext),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            Window = TimeSpan.FromHours(1),
+            PermitLimit = 5,
+            QueueLimit = 0
+        }));
 });
 
 static string PartitionKey(HttpContext httpContext)
