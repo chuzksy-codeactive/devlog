@@ -143,6 +143,9 @@ export function DashboardAccessGate({ children }: { children: ReactNode }) {
               <label className="grid gap-1 text-sm text-white/80">
                 Email
                 <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
                   className="rounded-xl border border-white/12 bg-white px-3 py-2 text-zinc-950 outline-none"
