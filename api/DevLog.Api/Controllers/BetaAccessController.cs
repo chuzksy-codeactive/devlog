@@ -4,6 +4,7 @@ using DevLog.Infrastructure;
 using DevLog.Infrastructure.BetaAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -46,6 +47,7 @@ public class BetaAccessController : ControllerBase
     }
 
     [HttpPost("waitlist")]
+    [EnableRateLimiting("WaitlistSubmission")]
     public async Task<IActionResult> SubmitWaitlist(
         [FromBody] SubmitWaitlistRequest request,
         CancellationToken cancellationToken)
