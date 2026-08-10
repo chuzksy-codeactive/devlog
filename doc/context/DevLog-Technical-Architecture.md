@@ -315,6 +315,16 @@ Key point: `tenant_id` for a creator request is read from the **verified JWT cla
 
 **Portfolio configuration vs. viewing, concretely:** every mutating endpoint (`PUT /portfolio`, `POST /entries`) requires `role = creator` and matches the path's implied tenant against the JWT's `tenant_id` claim. Every viewer-facing endpoint (`GET /portfolios/:slug`, `POST /ai/query`) requires `role = recruiter` (or anonymous read for public browsing, if DevLog allows unauthenticated browsing — recommend allowing anonymous *browsing* of published entries for SEO/discovery, but requiring recruiter auth specifically to use the AI assistant, since that's the metered resource).
 
+### Private beta access gate (invite-only phase)
+
+For pre-billing launch, add a server-side beta gate in front of creator features:
+
+- `invite_allowlist` table: `email`, `normalized_email` (unique), `status` (`active|pending|revoked`), `invited_by`, `expires_at`, `notes`, timestamps.
+- `waitlist_submissions` table: `email`, `normalized_email`, `name`, `reason`, `use_case`, `referrer`, review status/timestamps.
+- `IBetaAccessService`: resolves the current authenticated user's email from trusted JWT claims, enforces verified-email requirement, and returns explicit outcomes (`allowed`, `not_invited`, `invite_expired`, etc.) for policy/middleware decisions.
+
+This keeps access control enforceable at the API layer even if frontend gating is bypassed.
+
 ---
 
 ## 5. System Topology & Tech Stack

@@ -54,3 +54,17 @@ public enum PortfolioDiscipline
     ScrumMaster,
     Other
 }
+
+public enum InviteAllowlistStatus
+{
+    Active,
+    Pending,
+    Revoked
+}
+
+public enum WaitlistSubmissionStatus
+{
+    Pending,
+    Approved,
+    Rejected
+}

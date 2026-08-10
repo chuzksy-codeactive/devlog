@@ -22,6 +22,8 @@ public class DevLogDbContext : DbContext
     public DbSet<PortfolioViewEvent> PortfolioViewEvents => Set<PortfolioViewEvent>();
     public DbSet<SanitizationRunLog> SanitizationRunLogs => Set<SanitizationRunLog>();
     public DbSet<ResumeImportLog> ResumeImportLogs => Set<ResumeImportLog>();
+    public DbSet<InviteAllowlistEntry> InviteAllowlistEntries => Set<InviteAllowlistEntry>();
+    public DbSet<WaitlistSubmission> WaitlistSubmissions => Set<WaitlistSubmission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -204,6 +206,33 @@ public class DevLogDbContext : DbContext
             e.HasOne(x => x.Tenant)
                 .WithMany()
                 .HasForeignKey(x => x.TenantId);
+        });
+
+        modelBuilder.Entity<InviteAllowlistEntry>(e =>
+        {
+            e.ToTable("invite_allowlist");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            e.Property(x => x.NormalizedEmail).HasMaxLength(320).IsRequired();
+            e.Property(x => x.InvitedBy).HasMaxLength(160);
+            e.Property(x => x.Status).HasConversion<string>();
+            e.HasIndex(x => x.NormalizedEmail).IsUnique();
+            e.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<WaitlistSubmission>(e =>
+        {
+            e.ToTable("waitlist_submissions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Email).HasMaxLength(320).IsRequired();
+            e.Property(x => x.NormalizedEmail).HasMaxLength(320).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(160);
+            e.Property(x => x.Reason).HasMaxLength(2000);
+            e.Property(x => x.UseCase).HasMaxLength(1200);
+            e.Property(x => x.Referrer).HasMaxLength(320);
+            e.Property(x => x.Status).HasConversion<string>();
+            e.HasIndex(x => new { x.NormalizedEmail, x.CreatedAt });
+            e.HasIndex(x => new { x.Status, x.CreatedAt });
         });
     }
 }
