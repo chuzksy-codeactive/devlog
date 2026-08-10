@@ -221,3 +221,34 @@ export interface AdminInviteEntry {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface AdminUserActivityRow {
+  tenantId: string;
+  slug: string;
+  displayName: string | null;
+  tenantCreatedAt: string;
+  activityLevel: "HighlyActive" | "ModeratelyActive" | "LowActivity";
+  activityScore: number;
+  possibleAbuse: boolean;
+  lastActivityAt: string | null;
+  experienceCount: number;
+  rawEntries30d: number;
+  publishedEntries30d: number;
+  resumeImports30d: number;
+  sanitizations30d: number;
+  portfolioViews30d: number;
+  aiQueries30d: number;
+  interviewRequestsVerified30d: number;
+}
+
+export interface AdminUserActivityAnalyticsResponse {
+  windowDays: number;
+  generatedAt: string;
+  tenantCount: number;
+  highlyActiveCount: number;
+  moderatelyActiveCount: number;
+  lowActivityCount: number;
+  possibleAbuseCount: number;
+  mostActive: AdminUserActivityRow[];
+  leastActive: AdminUserActivityRow[];
+}

@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/import", label: "Import" },
   { href: "/dashboard/analytics", label: "Analytics" },
   { href: "/dashboard/beta-access", label: "Beta Access" },
+  { href: "/dashboard/beta-access/analytics", label: "Admin Analytics" },
 ];
 
 export function DashboardNav() {
@@ -28,7 +29,7 @@ export function DashboardNav() {
         <div className="flex items-center gap-4">
           <nav className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 lg:flex">
             {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}
@@ -52,7 +53,7 @@ export function DashboardNav() {
       <div className="border-t border-white/10 px-4 py-3 lg:hidden sm:px-6">
         <nav className="flex gap-2 overflow-x-auto pb-1">
           {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}

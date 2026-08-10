@@ -207,6 +207,173 @@ public class BetaAccessAdminController : ControllerBase
         return Ok(new { inviteId = invite.Id, inviteStatus = invite.Status.ToString() });
     }
 
+    [HttpGet("analytics/users")]
+    public async Task<IActionResult> GetUserActivityAnalytics(
+        [FromQuery] int days = 30,
+        [FromQuery] int take = 25,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetCurrentAdminEmail(out _))
+        {
+            return Forbid();
+        }
+
+        var windowDays = Math.Clamp(days, 7, 180);
+        var size = Math.Clamp(take, 5, 100);
+        var now = DateTime.UtcNow;
+        var since = now.AddDays(-windowDays);
+
+        var tenants = await _db.Tenants
+            .AsNoTracking()
+            .Select(t => new
+            {
+                t.Id,
+                t.Slug,
+                t.CreatedAt,
+                DisplayName = t.Portfolio != null ? t.Portfolio.DisplayName : null
+            })
+            .ToListAsync(cancellationToken);
+
+        var viewsByTenant = await _db.PortfolioViewEvents
+            .AsNoTracking()
+            .Where(x => x.ViewedAt >= since)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.ViewedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var aiQueriesByTenant = await _db.AiQueryLogs
+            .AsNoTracking()
+            .Where(x => x.CreatedAt >= since)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var rawEntriesByTenant = await _db.RawEntries
+            .AsNoTracking()
+            .Where(x => x.CreatedAt >= since)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var publishedByTenant = await _db.PublishedEntries
+            .AsNoTracking()
+            .Where(x => x.PublishedAt >= since)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.PublishedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var resumeImportsByTenant = await _db.ResumeImportLogs
+            .AsNoTracking()
+            .Where(x => x.CreatedAt >= since)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var sanitizationsByTenant = await _db.SanitizationRunLogs
+            .AsNoTracking()
+            .Where(x => x.CreatedAt >= since)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var interviewVerifiedByTenant = await _db.InterviewRequests
+            .AsNoTracking()
+            .Where(x => x.CreatedAt >= since && x.EmailVerified)
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(x => x.CreatedAt) })
+            .ToDictionaryAsync(x => x.Key, x => new ActivityStat(x.Count, x.LastAt), cancellationToken);
+
+        var experiencesByTenant = await _db.Experiences
+            .AsNoTracking()
+            .GroupBy(x => x.TenantId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+
+        var rows = tenants.Select(tenant =>
+        {
+            var views = viewsByTenant.TryGetValue(tenant.Id, out var viewStat) ? viewStat : ActivityStat.Empty;
+            var aiQueries = aiQueriesByTenant.TryGetValue(tenant.Id, out var aiStat) ? aiStat : ActivityStat.Empty;
+            var rawEntries = rawEntriesByTenant.TryGetValue(tenant.Id, out var rawStat) ? rawStat : ActivityStat.Empty;
+            var published = publishedByTenant.TryGetValue(tenant.Id, out var publishedStat) ? publishedStat : ActivityStat.Empty;
+            var resumeImports = resumeImportsByTenant.TryGetValue(tenant.Id, out var importStat) ? importStat : ActivityStat.Empty;
+            var sanitizations = sanitizationsByTenant.TryGetValue(tenant.Id, out var sanitizeStat) ? sanitizeStat : ActivityStat.Empty;
+            var interviewVerified = interviewVerifiedByTenant.TryGetValue(tenant.Id, out var interviewStat) ? interviewStat : ActivityStat.Empty;
+            var experienceCount = experiencesByTenant.TryGetValue(tenant.Id, out var count) ? count : 0;
+
+            var score =
+                (published.Count * 6) +
+                (rawEntries.Count * 3) +
+                (resumeImports.Count * 3) +
+                (sanitizations.Count * 2) +
+                (aiQueries.Count * 2) +
+                views.Count +
+                (interviewVerified.Count * 2) +
+                experienceCount;
+
+            var possibleAbuse = aiQueries.Count >= 20 && rawEntries.Count == 0 && published.Count == 0;
+            var level = score >= 35
+                ? "HighlyActive"
+                : score >= 12
+                    ? "ModeratelyActive"
+                    : "LowActivity";
+
+            var lastActivityAt = MaxTimestamp(
+                views.LastAt,
+                aiQueries.LastAt,
+                rawEntries.LastAt,
+                published.LastAt,
+                resumeImports.LastAt,
+                sanitizations.LastAt,
+                interviewVerified.LastAt);
+
+            return new UserActivityRow(
+                tenant.Id,
+                tenant.Slug,
+                string.IsNullOrWhiteSpace(tenant.DisplayName) ? null : tenant.DisplayName,
+                tenant.CreatedAt,
+                level,
+                score,
+                possibleAbuse,
+                lastActivityAt,
+                experienceCount,
+                rawEntries.Count,
+                published.Count,
+                resumeImports.Count,
+                sanitizations.Count,
+                views.Count,
+                aiQueries.Count,
+                interviewVerified.Count);
+        }).ToList();
+
+        var mostActive = rows
+            .OrderByDescending(x => x.ActivityScore)
+            .ThenByDescending(x => x.PublishedEntries30d)
+            .ThenByDescending(x => x.RawEntries30d)
+            .ThenByDescending(x => x.LastActivityAt)
+            .Take(size)
+            .ToList();
+
+        var leastActive = rows
+            .OrderBy(x => x.ActivityScore)
+            .ThenBy(x => x.LastActivityAt.HasValue ? 0 : 1)
+            .ThenBy(x => x.LastActivityAt)
+            .Take(size)
+            .ToList();
+
+        return Ok(new
+        {
+            windowDays,
+            generatedAt = now,
+            tenantCount = rows.Count,
+            highlyActiveCount = rows.Count(x => x.ActivityLevel == "HighlyActive"),
+            moderatelyActiveCount = rows.Count(x => x.ActivityLevel == "ModeratelyActive"),
+            lowActivityCount = rows.Count(x => x.ActivityLevel == "LowActivity"),
+            possibleAbuseCount = rows.Count(x => x.PossibleAbuse),
+            mostActive,
+            leastActive
+        });
+    }
+
     private bool TryGetCurrentAdminEmail(out string email)
     {
         var options = _privateBetaOptions.Value;
@@ -305,6 +472,36 @@ public class BetaAccessAdminController : ControllerBase
             _ => DateTime.SpecifyKind(timestamp, DateTimeKind.Utc)
         };
     }
+
+    private static DateTime? MaxTimestamp(params DateTime?[] values) =>
+        values.Where(x => x.HasValue).Select(x => x!.Value).DefaultIfEmpty().Max() switch
+        {
+            var value when value == default => null,
+            var value => value
+        };
+
+    private readonly record struct ActivityStat(int Count, DateTime? LastAt)
+    {
+        public static readonly ActivityStat Empty = new(0, null);
+    }
+
+    private readonly record struct UserActivityRow(
+        Guid TenantId,
+        string Slug,
+        string? DisplayName,
+        DateTime TenantCreatedAt,
+        string ActivityLevel,
+        int ActivityScore,
+        bool PossibleAbuse,
+        DateTime? LastActivityAt,
+        int ExperienceCount,
+        int RawEntries30d,
+        int PublishedEntries30d,
+        int ResumeImports30d,
+        int Sanitizations30d,
+        int PortfolioViews30d,
+        int AiQueries30d,
+        int InterviewRequestsVerified30d);
 
     public record ReviewWaitlistRequest(
         [param: Required, MaxLength(24)] string Action,
