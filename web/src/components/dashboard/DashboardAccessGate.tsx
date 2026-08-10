@@ -20,7 +20,7 @@ const EMPTY_FORM: WaitlistFormState = {
   referrer: "",
 };
 
-const blockedLabel: Record<string, string> = {
+const blockedLabel: Partial<Record<BetaAccessStatusResponse["outcome"], string>> = {
   Unauthenticated: "Sign in required",
   MissingEmailClaim: "Email claim missing",
   EmailNotVerified: "Verify your email",
