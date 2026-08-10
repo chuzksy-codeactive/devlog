@@ -1,3 +1,4 @@
+using DevLog.Api.CostControl;
 using DevLog.Api.Middleware;
 using DevLog.Api.Options;
 using Microsoft.AspNetCore.Http;
@@ -17,7 +18,8 @@ public class AiCostControlMiddlewareTests
             {
                 Enabled = true,
                 KillSwitchEnabled = true
-            }));
+            }),
+            new StubGlobalCapService(_ => true));
 
         var context = BuildContext("POST", "/api/onboarding/resume-import");
         context.Response.Body = new MemoryStream();
@@ -31,6 +33,7 @@ public class AiCostControlMiddlewareTests
     public async Task GlobalCapReached_ReturnsTooManyRequests()
     {
         var nextCalled = 0;
+        var acquireCalls = 0;
         var middleware = new AiCostControlMiddleware(
             _ =>
             {
@@ -41,6 +44,12 @@ public class AiCostControlMiddlewareTests
             {
                 Enabled = true,
                 GlobalExpensiveRequestsPerMinute = 1
+            }),
+            new StubGlobalCapService(limit =>
+            {
+                Assert.Equal(1, limit);
+                acquireCalls++;
+                return acquireCalls == 1;
             }));
 
         var first = BuildContext("POST", "/api/onboarding/resume-import");
@@ -65,12 +74,47 @@ public class AiCostControlMiddlewareTests
                 nextCalled = true;
                 return Task.CompletedTask;
             },
-            new StaticOptionsMonitor(new AiCostControlOptions { Enabled = true }));
+            new StaticOptionsMonitor(new AiCostControlOptions { Enabled = true }),
+            new StubGlobalCapService(_ => true));
 
         var context = BuildContext("GET", "/api/portfolio/demo");
         await middleware.InvokeAsync(context);
 
         Assert.True(nextCalled);
+    }
+
+    [Fact]
+    public async Task GlobalLimit_UsesLatestOptionsValuePerRequest()
+    {
+        var options = new MutableOptionsMonitor(new AiCostControlOptions
+        {
+            Enabled = true,
+            GlobalExpensiveRequestsPerMinute = 5
+        });
+
+        var seenLimits = new List<int>();
+        var middleware = new AiCostControlMiddleware(
+            _ => Task.CompletedTask,
+            options,
+            new StubGlobalCapService(limit =>
+            {
+                seenLimits.Add(limit);
+                return true;
+            }));
+
+        var first = BuildContext("POST", "/api/onboarding/resume-import");
+        await middleware.InvokeAsync(first);
+
+        options.Set(new AiCostControlOptions
+        {
+            Enabled = true,
+            GlobalExpensiveRequestsPerMinute = 9
+        });
+
+        var second = BuildContext("POST", "/api/onboarding/resume-import");
+        await middleware.InvokeAsync(second);
+
+        Assert.Equal([5, 9], seenLimits);
     }
 
     private static DefaultHttpContext BuildContext(string method, string path)
@@ -95,10 +139,40 @@ public class AiCostControlMiddlewareTests
         public IDisposable OnChange(Action<AiCostControlOptions, string?> listener) => new NoOpDisposable();
     }
 
+    private sealed class MutableOptionsMonitor : IOptionsMonitor<AiCostControlOptions>
+    {
+        private AiCostControlOptions _value;
+
+        public MutableOptionsMonitor(AiCostControlOptions value)
+        {
+            _value = value;
+        }
+
+        public AiCostControlOptions CurrentValue => _value;
+        public AiCostControlOptions Get(string? name) => _value;
+        public IDisposable OnChange(Action<AiCostControlOptions, string?> listener) => new NoOpDisposable();
+        public void Set(AiCostControlOptions value) => _value = value;
+    }
+
     private sealed class NoOpDisposable : IDisposable
     {
         public void Dispose()
         {
+        }
+    }
+
+    private sealed class StubGlobalCapService : IGlobalAiRequestCapService
+    {
+        private readonly Func<int, bool> _resultFactory;
+
+        public StubGlobalCapService(Func<int, bool> resultFactory)
+        {
+            _resultFactory = resultFactory;
+        }
+
+        public Task<bool> TryAcquireAsync(string scope, int maxPerMinute, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_resultFactory(maxPerMinute));
         }
     }
 }

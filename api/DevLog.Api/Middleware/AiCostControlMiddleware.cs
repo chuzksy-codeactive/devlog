@@ -1,33 +1,26 @@
+using DevLog.Api.CostControl;
 using DevLog.Api.Options;
 using Microsoft.Extensions.Options;
-using System.Threading.RateLimiting;
 
 namespace DevLog.Api.Middleware;
 
 /// <summary>
 /// Applies kill-switch and global emergency throttling to expensive AI routes.
 /// </summary>
-public class AiCostControlMiddleware : IAsyncDisposable
+public class AiCostControlMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly IOptionsMonitor<AiCostControlOptions> _options;
-    private readonly FixedWindowRateLimiter _globalLimiter;
+    private readonly IGlobalAiRequestCapService _globalCapService;
 
     public AiCostControlMiddleware(
         RequestDelegate next,
-        IOptionsMonitor<AiCostControlOptions> options)
+        IOptionsMonitor<AiCostControlOptions> options,
+        IGlobalAiRequestCapService globalCapService)
     {
         _next = next;
         _options = options;
-
-        var permitLimit = Math.Max(1, options.CurrentValue.GlobalExpensiveRequestsPerMinute);
-        _globalLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = permitLimit,
-            Window = TimeSpan.FromMinutes(1),
-            QueueLimit = 0,
-            AutoReplenishment = true
-        });
+        _globalCapService = globalCapService;
     }
 
     /// <summary>
@@ -59,8 +52,11 @@ public class AiCostControlMiddleware : IAsyncDisposable
             return;
         }
 
-        using var lease = await _globalLimiter.AcquireAsync(1, context.RequestAborted);
-        if (!lease.IsAcquired)
+        var acquired = await _globalCapService.TryAcquireAsync(
+            scope: "expensive",
+            maxPerMinute: options.GlobalExpensiveRequestsPerMinute,
+            cancellationToken: context.RequestAborted);
+        if (!acquired)
         {
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             await context.Response.WriteAsJsonAsync(new
@@ -73,8 +69,6 @@ public class AiCostControlMiddleware : IAsyncDisposable
 
         await _next(context);
     }
-
-    public ValueTask DisposeAsync() => _globalLimiter.DisposeAsync();
 
     /// <summary>
     /// Checks whether the request targets a high-cost AI endpoint.

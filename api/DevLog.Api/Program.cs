@@ -1,3 +1,4 @@
+using DevLog.Api.CostControl;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using DevLog.Api.Middleware;
@@ -92,6 +93,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.Configure<AiCostControlOptions>(builder.Configuration.GetSection(AiCostControlOptions.SectionName));
+
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddSingleton(StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString));
+    builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+        sp.GetRequiredService<StackExchange.Redis.ConnectionMultiplexer>());
+    builder.Services.AddSingleton<IGlobalAiRequestCapService, RedisGlobalAiRequestCapService>();
+}
+else
+{
+    builder.Services.AddSingleton<IGlobalAiRequestCapService, InMemoryGlobalAiRequestCapService>();
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
