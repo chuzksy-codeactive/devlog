@@ -125,7 +125,7 @@ export function DashboardAccessGate({ children }: { children: ReactNode }) {
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-indigo-100/70">Private beta</p>
         <h1 className="mt-3 text-3xl font-semibold text-white">{statusLabel}</h1>
         <p className="mt-4 text-sm leading-7 text-indigo-50/90">
-          This creator workspace is currently invite-only while billing and scale protections are being finalized.
+          This creator workspace is currently invite-only while we roll out access in phases.
         </p>
         {beta.resolvedEmail && (
           <p className="mt-3 text-sm text-indigo-100/80">
