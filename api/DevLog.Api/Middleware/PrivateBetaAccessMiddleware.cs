@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace DevLog.Api.Middleware;
 
+/// <summary>
+/// Blocks protected API endpoints for users who are not allowed into the private beta.
+/// </summary>
 public class PrivateBetaAccessMiddleware
 {
     private readonly RequestDelegate _next;
@@ -12,6 +15,9 @@ public class PrivateBetaAccessMiddleware
         _next = next;
     }
 
+    /// <summary>
+    /// Evaluates beta eligibility for authorized API endpoints and returns explicit deny reasons.
+    /// </summary>
     public async Task InvokeAsync(HttpContext context, IBetaAccessService betaAccessService)
     {
         if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))

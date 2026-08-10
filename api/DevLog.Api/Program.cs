@@ -1,9 +1,12 @@
+using DevLog.Api.CostControl;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using DevLog.Api.Middleware;
+using DevLog.Api.Options;
 using DevLog.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -89,6 +92,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.Configure<AiCostControlOptions>(builder.Configuration.GetSection(AiCostControlOptions.SectionName));
+
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddSingleton(StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString));
+    builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+        sp.GetRequiredService<StackExchange.Redis.ConnectionMultiplexer>());
+    builder.Services.AddSingleton<IGlobalAiRequestCapService, RedisGlobalAiRequestCapService>();
+}
+else
+{
+    builder.Services.AddSingleton<IGlobalAiRequestCapService, InMemoryGlobalAiRequestCapService>();
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -113,16 +130,65 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddRateLimiter(options =>
 {
+    var aiCostOptions = builder.Configuration.GetSection(AiCostControlOptions.SectionName).Get<AiCostControlOptions>()
+        ?? new AiCostControlOptions();
+
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    options.AddPolicy("AskAi", httpContext => RateLimitPartition.GetFixedWindowLimiter(
-        PartitionKey(httpContext),
-        _ => new FixedWindowRateLimiterOptions
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new
         {
-            Window = TimeSpan.FromMinutes(1),
-            PermitLimit = 10,
-            QueueLimit = 0
-        }));
+            error = "rate_limited",
+            reason = "per_user_or_ip_limit_reached"
+        }, cancellationToken: cancellationToken);
+    };
+
+    options.AddPolicy("AskAi", httpContext =>
+    {
+        var (partition, hasUserIdentity) = AiPartition(httpContext, "ask_ai");
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partition,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = hasUserIdentity
+                    ? Math.Max(1, aiCostOptions.AskAiPerMinutePerUser)
+                    : Math.Max(1, aiCostOptions.AskAiPerMinutePerIp),
+                QueueLimit = 0
+            });
+    });
+
+    options.AddPolicy("ResumeImport", httpContext =>
+    {
+        var (partition, hasUserIdentity) = AiPartition(httpContext, "resume_import");
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partition,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromHours(1),
+                PermitLimit = hasUserIdentity
+                    ? Math.Max(1, aiCostOptions.ResumeImportPerHourPerUser)
+                    : Math.Max(1, aiCostOptions.ResumeImportPerHourPerIp),
+                QueueLimit = 0
+            });
+    });
+
+    options.AddPolicy("SanitizeEntry", httpContext =>
+    {
+        var (partition, hasUserIdentity) = AiPartition(httpContext, "sanitize");
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partition,
+            _ => new FixedWindowRateLimiterOptions
+            {
+                Window = TimeSpan.FromHours(1),
+                PermitLimit = hasUserIdentity
+                    ? Math.Max(1, aiCostOptions.SanitizePerHourPerUser)
+                    : Math.Max(1, aiCostOptions.SanitizePerHourPerIp),
+                QueueLimit = 0
+            });
+    });
 
     options.AddPolicy("InterviewRequestCreate", httpContext => RateLimitPartition.GetFixedWindowLimiter(
         PartitionKey(httpContext),
@@ -161,6 +227,18 @@ static string PartitionKey(HttpContext httpContext)
     return $"{ip}:{slug ?? "no-slug"}";
 }
 
+static (string Partition, bool HasUserIdentity) AiPartition(HttpContext httpContext, string operation)
+{
+    var userId = httpContext.User?.FindFirst("sub")?.Value;
+    if (!string.IsNullOrWhiteSpace(userId))
+    {
+        return ($"{operation}:user:{userId}", true);
+    }
+
+    var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    return ($"{operation}:ip:{ip}", false);
+}
+
 var app = builder.Build();
 
 app.UseForwardedHeaders();
@@ -196,6 +274,7 @@ if (storageOptions.Provider.Equals("LocalDisk", StringComparison.OrdinalIgnoreCa
 }
 
 app.UseAuthentication();
+app.UseMiddleware<AiCostControlMiddleware>();
 app.UseMiddleware<PrivateBetaAccessMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();

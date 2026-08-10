@@ -6,6 +6,9 @@ using Microsoft.Extensions.Options;
 
 namespace DevLog.Infrastructure.BetaAccess;
 
+/// <summary>
+/// Checks private-beta access from trusted auth claims and invite allowlist state.
+/// </summary>
 public class BetaAccessService : IBetaAccessService
 {
     private readonly DevLogDbContext _db;
@@ -22,6 +25,9 @@ public class BetaAccessService : IBetaAccessService
         _options = options;
     }
 
+    /// <summary>
+    /// Returns allow/deny status for the current request user.
+    /// </summary>
     public async Task<BetaAccessResult> EvaluateCurrentUserAsync(CancellationToken cancellationToken = default)
     {
         var options = _options.Value;

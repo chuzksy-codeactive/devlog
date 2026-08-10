@@ -2,6 +2,7 @@ using DevLog.Infrastructure.MultiTenancy;
 using DevLog.Infrastructure.Onboarding;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace DevLog.Api.Controllers;
 
@@ -55,6 +56,7 @@ public class OnboardingController : ControllerBase
     private static readonly byte[] PdfMagicBytes = "%PDF-"u8.ToArray();
 
     [HttpPost("resume-import")]
+    [EnableRateLimiting("ResumeImport")]
     [RequestSizeLimit(MaxResumeFileSizeBytes)]
     public async Task<IActionResult> ResumeImport(IFormFile? file, CancellationToken cancellationToken)
     {

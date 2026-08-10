@@ -5,6 +5,7 @@ using DevLog.Infrastructure.MultiTenancy;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevLog.Api.Controllers;
@@ -81,6 +82,7 @@ public class EntriesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/sanitize")]
+    [EnableRateLimiting("SanitizeEntry")]
     public async Task<IActionResult> SanitizeEntry(Guid id, CancellationToken cancellationToken)
     {
         try
