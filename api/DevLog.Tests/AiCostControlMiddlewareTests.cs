@@ -117,6 +117,39 @@ public class AiCostControlMiddlewareTests
         Assert.Equal([5, 9], seenLimits);
     }
 
+    [Theory]
+    [InlineData("POST", "/api/portfolio/demo/ask", true)]
+    [InlineData("POST", "/api/entries/00000000-0000-0000-0000-000000000001/sanitize", true)]
+    [InlineData("GET", "/api/onboarding/resume-import", false)]
+    [InlineData("POST", "/api/portfolio/demo", false)]
+    public async Task ExpensiveEndpointMatcher_HonorsExpectedPaths(string method, string path, bool shouldHitGlobalCap)
+    {
+        var nextCalled = false;
+        var acquireCalls = 0;
+        var middleware = new AiCostControlMiddleware(
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            },
+            new StaticOptionsMonitor(new AiCostControlOptions
+            {
+                Enabled = true,
+                GlobalExpensiveRequestsPerMinute = 99
+            }),
+            new StubGlobalCapService(_ =>
+            {
+                acquireCalls++;
+                return true;
+            }));
+
+        var context = BuildContext(method, path);
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(shouldHitGlobalCap ? 1 : 0, acquireCalls);
+        Assert.True(nextCalled);
+    }
+
     private static DefaultHttpContext BuildContext(string method, string path)
     {
         var context = new DefaultHttpContext();
