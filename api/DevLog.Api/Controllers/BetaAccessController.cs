@@ -55,6 +55,8 @@ public class BetaAccessController : ControllerBase
             ? status.ResolvedEmail
             : request.Email;
 
+        email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+
         if (string.IsNullOrWhiteSpace(email))
         {
             return BadRequest("Email is required.");
