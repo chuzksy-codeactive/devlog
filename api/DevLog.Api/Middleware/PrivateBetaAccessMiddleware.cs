@@ -1,5 +1,7 @@
 using DevLog.Infrastructure.BetaAccess;
+using DevLog.Api.Observability;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace DevLog.Api.Middleware;
 
@@ -18,7 +20,10 @@ public class PrivateBetaAccessMiddleware
     /// <summary>
     /// Evaluates beta eligibility for authorized API endpoints and returns explicit deny reasons.
     /// </summary>
-    public async Task InvokeAsync(HttpContext context, IBetaAccessService betaAccessService)
+    public async Task InvokeAsync(
+        HttpContext context,
+        IBetaAccessService betaAccessService,
+        ILogger<PrivateBetaAccessMiddleware>? logger = null)
     {
         if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
         {
@@ -60,6 +65,14 @@ public class PrivateBetaAccessMiddleware
 
         if (result.Outcome == BetaAccessOutcome.Unauthenticated)
         {
+            SecurityTelemetry.TrackPrivateBetaDeny(
+                reasonCode: "unauthenticated",
+                path: context.Request.Path.Value ?? "unknown");
+            logger?.LogWarning(
+                "Private beta denied due to unauthenticated request. Path: {Path}, Method: {Method}",
+                context.Request.Path.Value,
+                context.Request.Method);
+
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsJsonAsync(new
             {
@@ -69,11 +82,21 @@ public class PrivateBetaAccessMiddleware
             return;
         }
 
+        var reasonCode = ToReasonCode(result.Outcome);
+        SecurityTelemetry.TrackPrivateBetaDeny(
+            reasonCode: reasonCode,
+            path: context.Request.Path.Value ?? "unknown");
+        logger?.LogWarning(
+            "Private beta denied. Reason: {Reason}, Path: {Path}, Method: {Method}",
+            reasonCode,
+            context.Request.Path.Value,
+            context.Request.Method);
+
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(new
         {
             error = "private_beta_access_denied",
-            reason = ToReasonCode(result.Outcome)
+            reason = reasonCode
         }, cancellationToken: context.RequestAborted);
     }
 

@@ -325,6 +325,7 @@ For pre-billing launch, add a server-side beta gate in front of creator features
 - Admin operations are handled by protected endpoints (`/api/beta-access/admin/*`) that list waitlist entries, approve/reject submissions, promote approvals into `invite_allowlist`, and revoke active invites.
 - Admin authorization is config-driven via `PrivateBeta:AdminEmails` so only explicit operators can process waitlist decisions.
 - Admin analytics endpoint (`/api/beta-access/admin/analytics/users`) aggregates per-tenant activity (entries, publishes, imports, sanitization runs, recruiter views, AI queries, verified interview requests) over a time window and returns ranked "most active" and "least active" cohorts plus low-signal misuse indicators.
+- Audit + monitoring signals are emitted via `DevLog.Security` metrics and structured warnings: `private_beta_denials_total`, `rate_limit_rejections_total`, `ai_killswitch_blocks_total`, and `ai_global_cap_blocks_total` with reason/scope tags for dashboarding and alert thresholds.
 
 This keeps access control enforceable at the API layer even if frontend gating is bypassed.
 

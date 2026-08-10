@@ -2,6 +2,7 @@ using DevLog.Api.CostControl;
 using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using DevLog.Api.Middleware;
+using DevLog.Api.Observability;
 using DevLog.Api.Options;
 using DevLog.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -137,6 +138,20 @@ builder.Services.AddRateLimiter(options =>
 
     options.OnRejected = async (context, cancellationToken) =>
     {
+        var scope = ResolveRateLimitScope(context.HttpContext);
+        SecurityTelemetry.TrackRateLimitRejection(
+            scope: scope,
+            path: context.HttpContext.Request.Path.Value ?? "unknown");
+
+        var loggerFactory = context.HttpContext.RequestServices.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger("DevLog.Api.RateLimiting");
+        logger?.LogWarning(
+            "Rate limit rejected request. Scope: {Scope}, Path: {Path}, Method: {Method}, RemoteIp: {RemoteIp}",
+            scope,
+            context.HttpContext.Request.Path.Value,
+            context.HttpContext.Request.Method,
+            context.HttpContext.Connection.RemoteIpAddress?.ToString());
+
         context.HttpContext.Response.ContentType = "application/json";
         await context.HttpContext.Response.WriteAsJsonAsync(new
         {
@@ -246,6 +261,57 @@ static (string Partition, bool HasUserIdentity) AiPartition(HttpContext httpCont
 
     var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
     return ($"{operation}:ip:{ip}", false);
+}
+
+static string ResolveRateLimitScope(HttpContext httpContext)
+{
+    var path = httpContext.Request.Path.Value;
+    if (string.IsNullOrWhiteSpace(path))
+    {
+        return "unknown";
+    }
+
+    if (path.StartsWith("/api/portfolio/", StringComparison.OrdinalIgnoreCase)
+        && path.EndsWith("/ask", StringComparison.OrdinalIgnoreCase))
+    {
+        return "ask_ai";
+    }
+
+    if (path.Equals("/api/onboarding/resume-import", StringComparison.OrdinalIgnoreCase))
+    {
+        return "resume_import";
+    }
+
+    if (path.StartsWith("/api/entries/", StringComparison.OrdinalIgnoreCase)
+        && path.EndsWith("/sanitize", StringComparison.OrdinalIgnoreCase))
+    {
+        return "sanitize_entry";
+    }
+
+    if (path.Equals("/api/beta-access/waitlist", StringComparison.OrdinalIgnoreCase))
+    {
+        return "waitlist_submission";
+    }
+
+    if (path.Contains("/interview-requests/", StringComparison.OrdinalIgnoreCase)
+        && path.EndsWith("/verify", StringComparison.OrdinalIgnoreCase))
+    {
+        return "interview_verify";
+    }
+
+    if (path.Contains("/interview-requests", StringComparison.OrdinalIgnoreCase)
+        && HttpMethods.IsPost(httpContext.Request.Method))
+    {
+        return "interview_request_create";
+    }
+
+    if (path.StartsWith("/api/portfolio/", StringComparison.OrdinalIgnoreCase)
+        && HttpMethods.IsGet(httpContext.Request.Method))
+    {
+        return "public_cv_access";
+    }
+
+    return "other";
 }
 
 var app = builder.Build();
