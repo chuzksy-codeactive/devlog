@@ -66,8 +66,7 @@ public class PrivateBetaAccessMiddleware
         if (result.Outcome == BetaAccessOutcome.Unauthenticated)
         {
             SecurityTelemetry.TrackPrivateBetaDeny(
-                reasonCode: "unauthenticated",
-                path: context.Request.Path.Value ?? "unknown");
+                reasonCode: "unauthenticated");
             logger?.LogWarning(
                 "Private beta denied due to unauthenticated request. Path: {Path}, Method: {Method}",
                 context.Request.Path.Value,
@@ -84,8 +83,7 @@ public class PrivateBetaAccessMiddleware
 
         var reasonCode = ToReasonCode(result.Outcome);
         SecurityTelemetry.TrackPrivateBetaDeny(
-            reasonCode: reasonCode,
-            path: context.Request.Path.Value ?? "unknown");
+            reasonCode: reasonCode);
         logger?.LogWarning(
             "Private beta denied. Reason: {Reason}, Path: {Path}, Method: {Method}",
             reasonCode,

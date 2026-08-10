@@ -140,8 +140,7 @@ builder.Services.AddRateLimiter(options =>
     {
         var scope = ResolveRateLimitScope(context.HttpContext);
         SecurityTelemetry.TrackRateLimitRejection(
-            scope: scope,
-            path: context.HttpContext.Request.Path.Value ?? "unknown");
+            scope: scope);
 
         var loggerFactory = context.HttpContext.RequestServices.GetService<ILoggerFactory>();
         var logger = loggerFactory?.CreateLogger("DevLog.Api.RateLimiting");
