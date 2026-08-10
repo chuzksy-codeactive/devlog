@@ -177,3 +177,24 @@ export interface LearningLabReminderStatus {
   daysSinceLastEntry: number | null;
   nudgeActive: boolean;
 }
+
+export type BetaAccessOutcome =
+  | "Allowed"
+  | "BetaDisabled"
+  | "Unauthenticated"
+  | "MissingEmailClaim"
+  | "EmailNotVerified"
+  | "NotInvited"
+  | "InvitePending"
+  | "InviteExpired"
+  | "InviteRevoked";
+
+export type WaitlistSubmissionStatus = "Pending" | "Approved" | "Rejected";
+
+export interface BetaAccessStatusResponse {
+  privateBetaEnabled: boolean;
+  outcome: BetaAccessOutcome;
+  canAccessCreatorFeatures: boolean;
+  resolvedEmail: string | null;
+  waitlistSubmissionStatus: WaitlistSubmissionStatus | null;
+}
