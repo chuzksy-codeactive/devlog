@@ -322,6 +322,8 @@ For pre-billing launch, add a server-side beta gate in front of creator features
 - `invite_allowlist` table: `email`, `normalized_email` (unique), `status` (`active|pending|revoked`), `invited_by`, `expires_at`, `notes`, timestamps.
 - `waitlist_submissions` table: `email`, `normalized_email`, `name`, `reason`, `use_case`, `referrer`, review status/timestamps.
 - `IBetaAccessService`: resolves the current authenticated user's email from trusted JWT claims, enforces verified-email requirement, and returns explicit outcomes (`allowed`, `not_invited`, `invite_expired`, etc.) for policy/middleware decisions.
+- Admin operations are handled by protected endpoints (`/api/beta-access/admin/*`) that list waitlist entries, approve/reject submissions, promote approvals into `invite_allowlist`, and revoke active invites.
+- Admin authorization is config-driven via `PrivateBeta:AdminEmails` so only explicit operators can process waitlist decisions.
 
 This keeps access control enforceable at the API layer even if frontend gating is bypassed.
 

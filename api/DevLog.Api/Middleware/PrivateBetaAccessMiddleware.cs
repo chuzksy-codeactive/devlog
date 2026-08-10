@@ -26,6 +26,12 @@ public class PrivateBetaAccessMiddleware
             return;
         }
 
+        if (context.Request.Path.StartsWithSegments("/api/beta-access/admin", StringComparison.OrdinalIgnoreCase))
+        {
+            await _next(context);
+            return;
+        }
+
         var endpoint = context.GetEndpoint();
         if (endpoint is null)
         {

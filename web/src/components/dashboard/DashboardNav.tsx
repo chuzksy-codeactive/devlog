@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/interview-requests", label: "Interview Requests" },
   { href: "/dashboard/import", label: "Import" },
   { href: "/dashboard/analytics", label: "Analytics" },
+  { href: "/dashboard/beta-access", label: "Beta Access" },
 ];
 
 export function DashboardNav() {

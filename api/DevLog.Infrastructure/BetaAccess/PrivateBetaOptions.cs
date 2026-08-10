@@ -10,6 +10,8 @@ public class PrivateBetaOptions
 
     public bool RequireVerifiedEmail { get; set; } = true;
 
+    public string[] AdminEmails { get; set; } = [];
+
     public string[] EmailClaimTypes { get; set; } =
     [
         "email",
