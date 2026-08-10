@@ -72,6 +72,27 @@ public class PrivateBetaAccessMiddlewareTests
         Assert.True(nextCalled);
     }
 
+    [Fact]
+    public async Task AdminEndpoint_BypassesBetaGate()
+    {
+        var nextCalled = false;
+        var middleware = new PrivateBetaAccessMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var context = BuildContext(
+            "/api/beta-access/admin/waitlist",
+            new EndpointMetadataCollection(new AuthorizeAttribute()));
+
+        await middleware.InvokeAsync(
+            context,
+            new StubBetaAccessService(new BetaAccessResult(BetaAccessOutcome.NotInvited, "user@example.com")));
+
+        Assert.True(nextCalled);
+    }
+
     private static DefaultHttpContext BuildContext(string path, EndpointMetadataCollection metadata)
     {
         var context = new DefaultHttpContext();

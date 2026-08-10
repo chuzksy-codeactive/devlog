@@ -198,3 +198,58 @@ export interface BetaAccessStatusResponse {
   resolvedEmail: string | null;
   waitlistSubmissionStatus: WaitlistSubmissionStatus | null;
 }
+
+export interface AdminWaitlistSubmission {
+  id: string;
+  email: string;
+  name: string | null;
+  reason: string | null;
+  useCase: string | null;
+  referrer: string | null;
+  status: WaitlistSubmissionStatus;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export interface AdminInviteEntry {
+  id: string;
+  email: string;
+  status: "Active" | "Pending" | "Revoked";
+  invitedBy: string | null;
+  expiresAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminUserActivityRow {
+  tenantId: string;
+  slug: string;
+  displayName: string | null;
+  tenantCreatedAt: string;
+  activityLevel: "HighlyActive" | "ModeratelyActive" | "LowActivity";
+  activityScore: number;
+  possibleAbuse: boolean;
+  lastPortfolioViewAt: string | null;
+  lastActivityAt: string | null;
+  experienceCount: number;
+  rawEntries30d: number;
+  publishedEntries30d: number;
+  resumeImports30d: number;
+  sanitizations30d: number;
+  portfolioViews30d: number;
+  aiQueries30d: number;
+  interviewRequestsVerified30d: number;
+}
+
+export interface AdminUserActivityAnalyticsResponse {
+  windowDays: number;
+  generatedAt: string;
+  tenantCount: number;
+  highlyActiveCount: number;
+  moderatelyActiveCount: number;
+  lowActivityCount: number;
+  possibleAbuseCount: number;
+  mostActive: AdminUserActivityRow[];
+  leastActive: AdminUserActivityRow[];
+}
