@@ -22,28 +22,36 @@ internal static class SecurityTelemetry
     {
         PrivateBetaDenials.Add(
             1,
-            new KeyValuePair<string, object?>("reason", reasonCode));
+            [
+                new KeyValuePair<string, object?>("reason", reasonCode)
+            ]);
     }
 
     public static void TrackRateLimitRejection(string scope)
     {
         RateLimitRejections.Add(
             1,
-            new KeyValuePair<string, object?>("scope", scope));
+            [
+                new KeyValuePair<string, object?>("scope", scope)
+            ]);
     }
 
     public static void TrackAiKillSwitchBlock(string endpoint)
     {
         AiKillSwitchBlocks.Add(
             1,
-            new KeyValuePair<string, object?>("endpoint", endpoint));
+            [
+                new KeyValuePair<string, object?>("endpoint", endpoint)
+            ]);
     }
 
     public static void TrackAiGlobalCapBlock(string endpoint, int maxPerMinute)
     {
         AiGlobalCapBlocks.Add(
             1,
-            new KeyValuePair<string, object?>("endpoint", endpoint),
-            new KeyValuePair<string, object?>("max_per_minute", maxPerMinute));
+            [
+                new KeyValuePair<string, object?>("endpoint", endpoint),
+                new KeyValuePair<string, object?>("max_per_minute", maxPerMinute)
+            ]);
     }
 }
