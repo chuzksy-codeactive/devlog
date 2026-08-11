@@ -22,19 +22,23 @@ public class TenantProvisioningService
 
     public async Task<Tenant> GetOrCreateTenantAsync(string clerkUserId, string? primaryEmail = null, CancellationToken cancellationToken = default)
     {
-        var resolvedPrimaryEmail = await ResolvePrimaryEmailAsync(clerkUserId, primaryEmail, cancellationToken);
         var existing = await _db.Tenants.FirstOrDefaultAsync(t => t.UserId == clerkUserId, cancellationToken);
         if (existing is not null)
         {
-            if (string.IsNullOrWhiteSpace(existing.PrimaryEmail) && !string.IsNullOrWhiteSpace(resolvedPrimaryEmail))
+            if (string.IsNullOrWhiteSpace(existing.PrimaryEmail))
             {
-                existing.PrimaryEmail = resolvedPrimaryEmail.Trim();
-                existing.NormalizedPrimaryEmail = NormalizeEmail(resolvedPrimaryEmail);
-                await _db.SaveChangesAsync(cancellationToken);
+                var backfillPrimaryEmail = await ResolvePrimaryEmailAsync(clerkUserId, primaryEmail, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(backfillPrimaryEmail))
+                {
+                    existing.PrimaryEmail = backfillPrimaryEmail.Trim();
+                    existing.NormalizedPrimaryEmail = NormalizeEmail(backfillPrimaryEmail);
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
             }
             return existing;
         }
 
+        var resolvedPrimaryEmail = await ResolvePrimaryEmailAsync(clerkUserId, primaryEmail, cancellationToken);
         var tenantId = Guid.NewGuid();
 
         var placeholderSlug = $"dev-{tenantId:N}"[..12];
