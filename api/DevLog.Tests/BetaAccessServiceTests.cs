@@ -61,7 +61,7 @@ public class BetaAccessServiceTests
               "email_addresses": [
                 {
                   "id": "idn_primary",
-                  "email_address": "chuzksy@gmail.com",
+                  "email_address": "admin@example.com",
                   "verification": { "status": "verified" }
                 }
               ]
@@ -75,15 +75,14 @@ public class BetaAccessServiceTests
         {
             Enabled = true,
             RequireVerifiedEmail = true,
-            AdminEmails = ["chuzksy@gmail.com"]
+            AdminEmails = ["admin@example.com"]
         });
 
         var service = new BetaAccessService(db, clerk, accessor, options);
         var result = await service.EvaluateCurrentUserAsync();
 
         Assert.Equal(BetaAccessOutcome.Allowed, result.Outcome);
-        Assert.Equal("chuzksy@gmail.com", result.ResolvedEmail);
-    }
+        Assert.Equal("admin@example.com", result.ResolvedEmail);
 
     [Fact]
     public async Task MissingVerifiedClaim_FallsBackToClerkVerification()
