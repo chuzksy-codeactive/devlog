@@ -162,7 +162,7 @@ public static class LlmSystemPrompts
                   "companyLabel": "{{(anonymizeCompanyNames ? "a role-accurate GENERIC descriptor, never the real company name" : "the company name exactly as written on the resume")}}", 
                   "title": "the job/role title as given, e.g. 'Backend Engineer'",
                   "technologies": ["list", "of", "technologies", "mentioned", "for", "this", "role"],
-                  "keyAchievement": "ALL original achievement/responsibility bullet points for this role, preserved in full with only grammar fixes",
+                  "keyAchievement": "4-5 concise bullet statements summarizing this role's most important technical responsibilities and outcomes",
                   "startDate": "yyyy-MM, best guess from the resume text",
                   "endDate": "yyyy-MM, or null if the resume shows this as current/present"
                 }
@@ -176,15 +176,13 @@ public static class LlmSystemPrompts
                the order they appear.
             2. Preserve technology names, technical scope, and outcomes accurately — these
                are the valuable, non-identifying content and must not be diluted away.
-            3. For "keyAchievement", preserve the ORIGINAL TEXT from the resume in full. Include every
-               bullet/responsibility line that belongs to that role, in the same order and detail level.
-               If the role has multiple bullets, keep them all in one string separated by the JSON escape sequence \n (backslash+n).
-               Only fix:
-               - Grammar errors (e.g., "helpped" → "helped")
-               - Typos and spelling mistakes
-               - Professional tone (awkward phrasing → clearer phrasing)
-               Do NOT expand, summarize, condense, or rewrite the content. Do not drop any
-               technical detail from the original role text.
+            3. For "keyAchievement", produce exactly 4 or 5 bullet lines for each role.
+               - Keep each bullet concise (ideally one line).
+               - Preserve the strongest technical responsibilities, scale, and measurable outcomes.
+               - Preserve important technologies and domain context from the original role text.
+               - Use a direct, recruiter-friendly tone and correct grammar/typos.
+               - Do not copy every original bullet verbatim if there are too many; synthesize into the best 4-5 points.
+               Return the bullets as a single string separated by the JSON escape sequence \n (backslash+n).
             4. If a date is genuinely unclear from the text, make a reasonable estimate
                rather than omitting the entry — the developer reviews and can correct dates
                before saving.

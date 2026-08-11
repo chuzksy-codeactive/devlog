@@ -55,6 +55,7 @@ export default async function HomePage({
                     text={exp.keyAchievement}
                     paragraphClassName="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-zinc-700"
                     listClassName="mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-zinc-700"
+                    maxItems={5}
                   />
                   {exp.technologies.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
@@ -100,6 +101,7 @@ export default async function HomePage({
               text={mostRecent.keyAchievement}
               paragraphClassName="mt-3 max-w-2xl whitespace-pre-wrap text-base leading-relaxed text-zinc-600"
               listClassName="mt-3 max-w-2xl list-disc space-y-1.5 pl-5 text-base leading-relaxed text-zinc-600"
+              maxItems={5}
             />
           </div>
         </section>
