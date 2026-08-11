@@ -69,3 +69,41 @@ If you’d like access for hiring evaluation workflows, request beta and briefly
 🔗 **Request access / test:** [https://your-production-link.com](https://your-production-link.com)
 
 #TechRecruiting #Recruitment #Hiring #TalentAcquisition #EngineeringLeadership #DeveloperHiring #SkillsAssessment #AIRecruiting #TechnicalInterview #DataDrivenHiring #DeveloperPortfolio #CloudEngineering #Azure #SQL #SoftwareEngineering #FutureOfWork #HRTech #SaaS #DevLog #DevOps #BusinessAnalysis #ProductManagement
+
+---
+
+## LinkedIn "Add project" Entry (Copy/Paste)
+
+### Project name
+`DevLog - AI-Powered Career Portfolio for Engineers`
+
+### Description
+`DevLog is a developer career operating system that transforms real sprint work into recruiter-ready, privacy-safe case studies. I built it from my own sprint reflection process (challenges, decisions, outcomes, lessons learned) to replace static CV bullets with evidence-based project narratives.
+
+The platform has two sides:
+- Creator side: CV upload, GitHub import, sprint journals, and learning logs
+- Viewer side: recruiter-facing timeline and AI assistant for candidate-specific questions (e.g., Azure, SQL, delivery impact)
+
+It is useful beyond developers too, including Business Analysts, DevOps engineers, and Product Managers who also need a structured way to showcase outcomes, decisions, and growth.
+
+Key technical implementation:
+- Frontend: Next.js 16 + React 19 + TypeScript
+- Backend API: ASP.NET Core Web API (.NET 10)
+- Data: PostgreSQL + EF Core 10 + pgvector
+- Embeddings: OpenAI embeddings
+- AuthN/AuthZ: Clerk
+- Email: Postmark
+- Telemetry: Azure Application Insights
+- Deployment: Azure App Service (API) + Azure Static Web Apps (web)
+- CI/CD: GitHub Actions
+
+I’m running DevLog in a controlled beta to maintain quality and manage cloud/AI resource costs while validating real hiring and portfolio workflows.
+
+Request beta access: https://your-production-link.com`
+
+### Top 5 skills
+1. ASP.NET Core
+2. Next.js
+3. Microsoft Azure
+4. PostgreSQL
+5. GitHub Actions
