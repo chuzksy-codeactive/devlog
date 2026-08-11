@@ -218,11 +218,10 @@ public class BetaAccessAdminController : ControllerBase
         [FromQuery] int take = 25,
         CancellationToken cancellationToken = default)
     {
-        var adminEmail = await ResolveCurrentAdminEmailAsync(cancellationToken);
-        if (adminEmail is null)
-        {
-            return Forbid();
-        }
+if (await ResolveCurrentAdminEmailAsync(cancellationToken) is null)
+{
+    return Forbid();
+}
 
         var windowDays = Math.Clamp(days, 7, 180);
         var size = Math.Clamp(take, 5, 100);
