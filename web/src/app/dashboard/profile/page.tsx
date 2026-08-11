@@ -307,7 +307,7 @@ export default function ProfilePage() {
           </div>
         </Field>
 
-        <Field label="Photo URL" hint="A link to a hosted image — no file upload yet.">
+        <Field label="Photo URL" hint="Use a direct image URL (for example .jpg/.png or a direct CDN file URL). Google Photos share links don't expose raw image files here.">
           <input
             type="url"
             value={form.photoUrl}
