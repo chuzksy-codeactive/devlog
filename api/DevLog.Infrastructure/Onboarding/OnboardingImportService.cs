@@ -50,7 +50,7 @@ public record ResumeImportResult(ResumeImportOutcome Outcome, string? CvFileUrl,
 public class OnboardingImportService
 {
     private const int MaxResumeImportsPerTenantPerHour = 5;
-    private const int MaxResumeAchievementBullets = 5;
+    private const int MaxImportedAchievementBullets = 5;
     private const string ResumeFileName = "resume.pdf";
 
     private readonly GitHubClient _gitHubClient;
@@ -233,7 +233,7 @@ public class OnboardingImportService
                     string.IsNullOrWhiteSpace(suggestion.CompanyLabel) ? repo.Name : suggestion.CompanyLabel,
                     suggestion.Title ?? string.Empty,
                     suggestion.Technologies ?? new List<string>(),
-                    suggestion.KeyAchievement ?? string.Empty,
+                    NormalizeImportedKeyAchievement(suggestion.KeyAchievement),
                     DateOnly.FromDateTime(repo.CreatedAt),
                     DateOnly.FromDateTime(repo.PushedAt),
                     repo.HtmlUrl));
@@ -281,7 +281,7 @@ public class OnboardingImportService
                     string.IsNullOrWhiteSpace(suggestion.CompanyLabel) ? "A previous role" : suggestion.CompanyLabel,
                     suggestion.Title ?? string.Empty,
                     suggestion.Technologies ?? new List<string>(),
-                    NormalizeResumeKeyAchievement(suggestion.KeyAchievement),
+                    NormalizeImportedKeyAchievement(suggestion.KeyAchievement),
                     startDate,
                     endDate,
                     RepoUrl: null));
@@ -327,7 +327,7 @@ public class OnboardingImportService
         return trimmed.Trim();
     }
 
-    private static string NormalizeResumeKeyAchievement(string? rawText)
+    private static string NormalizeImportedKeyAchievement(string? rawText)
     {
         if (string.IsNullOrWhiteSpace(rawText))
         {
@@ -343,9 +343,9 @@ public class OnboardingImportService
             return string.Empty;
         }
 
-        if (bullets.Count > MaxResumeAchievementBullets)
+        if (bullets.Count > MaxImportedAchievementBullets)
         {
-            bullets = bullets.GetRange(0, MaxResumeAchievementBullets);
+            bullets = bullets.GetRange(0, MaxImportedAchievementBullets);
         }
 
         return string.Join("\n", bullets);
