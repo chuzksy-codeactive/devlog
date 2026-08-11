@@ -42,33 +42,34 @@ public class BetaAccessService : IBetaAccessService
             return new BetaAccessResult(BetaAccessOutcome.Unauthenticated);
         }
 
-        var email = ResolveEmail(user, options.EmailClaimTypes);
-        var hasVerifiedEmail = HasVerifiedEmailClaim(user, options.EmailVerifiedClaimTypes);
+var email = ResolveEmail(user, options.EmailClaimTypes);
 
-        if (string.IsNullOrWhiteSpace(email) || (options.RequireVerifiedEmail && !hasVerifiedEmail))
+if (!options.Enabled)
+{
+    return new BetaAccessResult(
+        BetaAccessOutcome.BetaDisabled,
+        string.IsNullOrWhiteSpace(email) ? null : NormalizeEmail(email));
+}
+
+var hasVerifiedEmail = HasVerifiedEmailClaim(user, options.EmailVerifiedClaimTypes);
+
+if (string.IsNullOrWhiteSpace(email) || (options.RequireVerifiedEmail && !hasVerifiedEmail))
+{
+    var clerkUserId = user.FindFirst("sub")?.Value;
+    if (!string.IsNullOrWhiteSpace(clerkUserId))
+    {
+        var primaryEmail = await _clerkUserService.GetPrimaryEmailAddressAsync(clerkUserId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(email))
         {
-            var clerkUserId = user.FindFirst("sub")?.Value;
-            if (!string.IsNullOrWhiteSpace(clerkUserId))
-            {
-                var primaryEmail = await _clerkUserService.GetPrimaryEmailAddressAsync(clerkUserId, cancellationToken);
-                if (string.IsNullOrWhiteSpace(email))
-                {
-                    email = primaryEmail?.EmailAddress;
-                }
-
-                if (options.RequireVerifiedEmail && !hasVerifiedEmail)
-                {
-                    hasVerifiedEmail = primaryEmail?.IsVerified == true;
-                }
-            }
+            email = primaryEmail?.EmailAddress;
         }
 
-        if (!options.Enabled)
+        if (options.RequireVerifiedEmail && !hasVerifiedEmail)
         {
-            return new BetaAccessResult(
-                BetaAccessOutcome.BetaDisabled,
-                string.IsNullOrWhiteSpace(email) ? null : NormalizeEmail(email));
+            hasVerifiedEmail = primaryEmail?.IsVerified == true;
         }
+    }
+}
 
         if (string.IsNullOrWhiteSpace(email))
         {
