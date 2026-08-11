@@ -47,6 +47,11 @@ public class DevLogDbContext : DbContext
             e.HasIndex(x => x.Slug).IsUnique();
             e.Property(x => x.UserId).IsRequired();
             e.HasIndex(x => x.UserId).IsUnique();
+            e.Property(x => x.PrimaryEmail).HasMaxLength(320);
+            e.Property(x => x.NormalizedPrimaryEmail).HasMaxLength(320);
+            e.HasIndex(x => x.NormalizedPrimaryEmail)
+                .IsUnique()
+                .HasFilter("normalized_primary_email IS NOT NULL");
 
             e.HasOne(x => x.Portfolio)
                 .WithOne(p => p!.Tenant)

@@ -46,13 +46,16 @@ export default function RootPage() {
             <p className="text-sm font-semibold tracking-[0.24em] text-indigo-200 uppercase">Workfolio</p>
             <p className="text-xs text-white/55">Showcase real work for recruiters</p>
           </div>
-          <div className="flex items-center gap-3 text-sm font-medium">
-            <a href="#how-it-works" className="rounded-full px-3 py-2 text-white/70 transition hover:bg-white/8 hover:text-white">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <a
+              href="#how-it-works"
+              className="whitespace-nowrap rounded-full px-3 py-2 text-white/70 transition hover:bg-white/8 hover:text-white"
+            >
               How it works
             </a>
             {!isSignedIn && (
               <SignInButton mode="modal">
-                <button className="rounded-full border border-white/15 px-4 py-2 text-white transition hover:bg-white/10">
+                <button className="whitespace-nowrap rounded-full border border-white/15 px-4 py-2 text-white transition hover:bg-white/10">
                   Sign in
                 </button>
               </SignInButton>
@@ -60,12 +63,16 @@ export default function RootPage() {
             {isSignedIn && (
               <Link
                 href="/dashboard"
-                className="rounded-full bg-indigo-500 px-4 py-2 text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
+                className="whitespace-nowrap rounded-full bg-indigo-500 px-4 py-2 text-white shadow-lg shadow-indigo-500/25 transition hover:bg-indigo-400"
               >
                 Go to dashboard
               </Link>
             )}
-            {isSignedIn && <UserButton />}
+            {isSignedIn && (
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5">
+                <UserButton appearance={{ elements: { userButtonAvatarBox: "h-7 w-7" } }} />
+              </div>
+            )}
           </div>
         </header>
 

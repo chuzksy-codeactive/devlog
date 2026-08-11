@@ -32,15 +32,19 @@ public class BetaAccessController : ControllerBase
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus(CancellationToken cancellationToken)
     {
+        var options = _privateBetaOptions.Value;
         var result = await _betaAccessService.EvaluateCurrentUserAsync(cancellationToken);
         var waitlistStatus = await GetLatestWaitlistStatusAsync(result.ResolvedEmail, cancellationToken);
+        var isBetaAdmin = !string.IsNullOrWhiteSpace(result.ResolvedEmail)
+            && options.AdminEmails.Any(admin => NormalizeEmail(admin) == NormalizeEmail(result.ResolvedEmail));
 
         var canAccessCreatorFeatures = result.Outcome is BetaAccessOutcome.Allowed or BetaAccessOutcome.BetaDisabled;
         return Ok(new
         {
-            privateBetaEnabled = _privateBetaOptions.Value.Enabled,
+            privateBetaEnabled = options.Enabled,
             outcome = result.Outcome.ToString(),
             canAccessCreatorFeatures,
+            isBetaAdmin,
             resolvedEmail = result.ResolvedEmail,
             waitlistSubmissionStatus = waitlistStatus?.ToString()
         });

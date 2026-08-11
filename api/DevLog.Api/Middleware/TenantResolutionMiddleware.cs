@@ -1,4 +1,5 @@
 using DevLog.Infrastructure.MultiTenancy;
+using System.Security.Claims;
 
 namespace DevLog.Api.Middleware;
 
@@ -20,7 +21,10 @@ public class TenantResolutionMiddleware
 
         if (!string.IsNullOrEmpty(clerkUserId) && tenantAccessor is CurrentTenantAccessor accessor)
         {
-            var tenant = await tenantProvisioningService.GetOrCreateTenantAsync(clerkUserId, context.RequestAborted);
+            var tenant = await tenantProvisioningService.GetOrCreateTenantAsync(
+                clerkUserId,
+                primaryEmail: null,
+                context.RequestAborted);
             accessor.TenantId = tenant.Id;
         }
 

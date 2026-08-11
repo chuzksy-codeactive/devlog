@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DevLog.Domain.Entities;
+using DevLog.Infrastructure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -12,15 +13,18 @@ namespace DevLog.Infrastructure.BetaAccess;
 public class BetaAccessService : IBetaAccessService
 {
     private readonly DevLogDbContext _db;
+    private readonly ClerkUserService _clerkUserService;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IOptions<PrivateBetaOptions> _options;
 
     public BetaAccessService(
         DevLogDbContext db,
+        ClerkUserService clerkUserService,
         IHttpContextAccessor httpContextAccessor,
         IOptions<PrivateBetaOptions> options)
     {
         _db = db;
+        _clerkUserService = clerkUserService;
         _httpContextAccessor = httpContextAccessor;
         _options = options;
     }
@@ -39,6 +43,33 @@ public class BetaAccessService : IBetaAccessService
         }
 
         var email = ResolveEmail(user, options.EmailClaimTypes);
+        var hasVerifiedEmail = HasVerifiedEmailClaim(user, options.EmailVerifiedClaimTypes);
+
+        if (string.IsNullOrWhiteSpace(email) || (options.RequireVerifiedEmail && !hasVerifiedEmail))
+        {
+            var clerkUserId = user.FindFirst("sub")?.Value;
+            if (!string.IsNullOrWhiteSpace(clerkUserId))
+            {
+                var primaryEmail = await _clerkUserService.GetPrimaryEmailAddressAsync(clerkUserId, cancellationToken);
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    email = primaryEmail?.EmailAddress;
+                }
+
+                if (options.RequireVerifiedEmail && !hasVerifiedEmail)
+                {
+                    hasVerifiedEmail = primaryEmail?.IsVerified == true;
+                }
+            }
+        }
+
+        if (!options.Enabled)
+        {
+            return new BetaAccessResult(
+                BetaAccessOutcome.BetaDisabled,
+                string.IsNullOrWhiteSpace(email) ? null : NormalizeEmail(email));
+        }
+
         if (string.IsNullOrWhiteSpace(email))
         {
             return new BetaAccessResult(BetaAccessOutcome.MissingEmailClaim);
@@ -46,12 +77,12 @@ public class BetaAccessService : IBetaAccessService
 
         var normalizedEmail = NormalizeEmail(email);
 
-        if (!options.Enabled)
+        if (IsAdminEmail(options.AdminEmails, normalizedEmail))
         {
-            return new BetaAccessResult(BetaAccessOutcome.BetaDisabled, normalizedEmail);
+            return new BetaAccessResult(BetaAccessOutcome.Allowed, normalizedEmail);
         }
 
-        if (options.RequireVerifiedEmail && !HasVerifiedEmailClaim(user, options.EmailVerifiedClaimTypes))
+        if (options.RequireVerifiedEmail && !hasVerifiedEmail)
         {
             return new BetaAccessResult(BetaAccessOutcome.EmailNotVerified, normalizedEmail);
         }
@@ -114,4 +145,7 @@ public class BetaAccessService : IBetaAccessService
 
     private static string NormalizeEmail(string email) =>
         email.Trim().ToLowerInvariant();
+
+    private static bool IsAdminEmail(IEnumerable<string> adminEmails, string normalizedEmail) =>
+        adminEmails.Any(admin => NormalizeEmail(admin) == normalizedEmail);
 }

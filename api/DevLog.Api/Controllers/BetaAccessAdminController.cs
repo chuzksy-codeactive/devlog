@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.BetaAccess;
+using DevLog.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,13 +16,16 @@ namespace DevLog.Api.Controllers;
 public class BetaAccessAdminController : ControllerBase
 {
     private readonly DevLogDbContext _db;
+    private readonly ClerkUserService _clerkUserService;
     private readonly IOptions<PrivateBetaOptions> _privateBetaOptions;
 
     public BetaAccessAdminController(
         DevLogDbContext db,
+        ClerkUserService clerkUserService,
         IOptions<PrivateBetaOptions> privateBetaOptions)
     {
         _db = db;
+        _clerkUserService = clerkUserService;
         _privateBetaOptions = privateBetaOptions;
     }
 
@@ -31,7 +35,7 @@ public class BetaAccessAdminController : ControllerBase
         [FromQuery] int take = 50,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentAdminEmail(out _))
+        if (await ResolveCurrentAdminEmailAsync(cancellationToken) is null)
         {
             return Forbid();
         }
@@ -75,7 +79,7 @@ public class BetaAccessAdminController : ControllerBase
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentAdminEmail(out _))
+        if (await ResolveCurrentAdminEmailAsync(cancellationToken) is null)
         {
             return Forbid();
         }
@@ -117,7 +121,8 @@ public class BetaAccessAdminController : ControllerBase
         [FromBody] ReviewWaitlistRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentAdminEmail(out var adminEmail))
+        var adminEmail = await ResolveCurrentAdminEmailAsync(cancellationToken);
+        if (adminEmail is null)
         {
             return Forbid();
         }
@@ -188,7 +193,7 @@ public class BetaAccessAdminController : ControllerBase
         [FromBody] RevokeInviteRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentAdminEmail(out _))
+        if (await ResolveCurrentAdminEmailAsync(cancellationToken) is null)
         {
             return Forbid();
         }
@@ -213,7 +218,8 @@ public class BetaAccessAdminController : ControllerBase
         [FromQuery] int take = 25,
         CancellationToken cancellationToken = default)
     {
-        if (!TryGetCurrentAdminEmail(out _))
+        var adminEmail = await ResolveCurrentAdminEmailAsync(cancellationToken);
+        if (adminEmail is null)
         {
             return Forbid();
         }
@@ -228,9 +234,10 @@ public class BetaAccessAdminController : ControllerBase
             .Select(t => new
             {
                 t.Id,
-                t.Slug,
+                t.UserId,
                 t.CreatedAt,
-                DisplayName = t.Portfolio != null ? t.Portfolio.DisplayName : null
+                DisplayName = t.Portfolio != null ? t.Portfolio.DisplayName : null,
+                t.PrimaryEmail
             })
             .ToListAsync(cancellationToken);
 
@@ -326,13 +333,23 @@ public class BetaAccessAdminController : ControllerBase
                 sanitizations.LastAt,
                 interviewVerified.LastAt);
 
+            var hasActivity =
+                rawEntries.Count > 0 ||
+                published.Count > 0 ||
+                resumeImports.Count > 0 ||
+                sanitizations.Count > 0 ||
+                views.Count > 0 ||
+                aiQueries.Count > 0 ||
+                interviewVerified.Count > 0;
+
             return new UserActivityRow(
-                tenant.Id,
-                tenant.Slug,
+                tenant.UserId,
+                NormalizeOptionalEmail(tenant.PrimaryEmail),
                 string.IsNullOrWhiteSpace(tenant.DisplayName) ? null : tenant.DisplayName,
                 tenant.CreatedAt,
                 level,
                 score,
+                hasActivity,
                 possibleAbuse,
                 views.LastAt,
                 lastActivityAt,
@@ -347,6 +364,7 @@ public class BetaAccessAdminController : ControllerBase
         }).ToList();
 
         var mostActive = rows
+            .Where(x => x.HasActivity)
             .OrderByDescending(x => x.ActivityScore)
             .ThenByDescending(x => x.PublishedEntries30d)
             .ThenByDescending(x => x.RawEntries30d)
@@ -354,10 +372,21 @@ public class BetaAccessAdminController : ControllerBase
             .Take(size)
             .ToList();
 
+        var allUsers = rows
+            .OrderByDescending(x => x.ActivityScore)
+            .ThenByDescending(x => x.PublishedEntries30d)
+            .ThenByDescending(x => x.RawEntries30d)
+            .ThenByDescending(x => x.LastActivityAt)
+            .ThenByDescending(x => x.TenantCreatedAt)
+            .ToList();
+
+        var mostActiveUserIds = mostActive.Select(x => x.UserId).ToHashSet(StringComparer.Ordinal);
         var leastActive = rows
+            .Where(x => !mostActiveUserIds.Contains(x.UserId))
             .OrderBy(x => x.ActivityScore)
-            .ThenBy(x => x.LastActivityAt.HasValue ? 0 : 1)
+            .ThenBy(x => x.HasActivity ? 1 : 0)
             .ThenBy(x => x.LastActivityAt)
+            .ThenByDescending(x => x.TenantCreatedAt)
             .Take(size)
             .ToList();
 
@@ -365,27 +394,41 @@ public class BetaAccessAdminController : ControllerBase
         {
             windowDays,
             generatedAt = now,
-            tenantCount = rows.Count,
+            userCount = rows.Count,
+            activeUserCount = rows.Count(x => x.HasActivity),
             highlyActiveCount = rows.Count(x => x.ActivityLevel == "HighlyActive"),
             moderatelyActiveCount = rows.Count(x => x.ActivityLevel == "ModeratelyActive"),
             lowActivityCount = rows.Count(x => x.ActivityLevel == "LowActivity"),
             possibleAbuseCount = rows.Count(x => x.PossibleAbuse),
+            allUsers,
             mostActive,
             leastActive
         });
     }
 
-    private bool TryGetCurrentAdminEmail(out string email)
+    private async Task<string?> ResolveCurrentAdminEmailAsync(CancellationToken cancellationToken)
     {
         var options = _privateBetaOptions.Value;
-        email = ResolveCurrentUserEmail(options.EmailClaimTypes) ?? string.Empty;
+        var email = ResolveCurrentUserEmail(options.EmailClaimTypes);
         if (string.IsNullOrWhiteSpace(email))
         {
-            return false;
+            var clerkUserId = User.FindFirst("sub")?.Value;
+            if (!string.IsNullOrWhiteSpace(clerkUserId))
+            {
+                var primaryEmail = await _clerkUserService.GetPrimaryEmailAddressAsync(clerkUserId, cancellationToken);
+                email = primaryEmail?.EmailAddress;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return null;
         }
 
         var normalized = NormalizeEmail(email);
-        return options.AdminEmails.Any(admin => NormalizeEmail(admin) == normalized);
+        return options.AdminEmails.Any(admin => NormalizeEmail(admin) == normalized)
+            ? email.Trim()
+            : null;
     }
 
     private string? ResolveCurrentUserEmail(IEnumerable<string> claimTypes)
@@ -456,6 +499,9 @@ public class BetaAccessAdminController : ControllerBase
     private static string NormalizeEmail(string email) =>
         email.Trim().ToLowerInvariant();
 
+    private static string? NormalizeOptionalEmail(string? email) =>
+        string.IsNullOrWhiteSpace(email) ? null : NormalizeEmail(email);
+
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -487,12 +533,13 @@ public class BetaAccessAdminController : ControllerBase
     }
 
     private readonly record struct UserActivityRow(
-        Guid TenantId,
-        string Slug,
+        string UserId,
+        string? Email,
         string? DisplayName,
         DateTime TenantCreatedAt,
         string ActivityLevel,
         int ActivityScore,
+        bool HasActivity,
         bool PossibleAbuse,
         DateTime? LastPortfolioViewAt,
         DateTime? LastActivityAt,

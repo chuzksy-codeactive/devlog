@@ -618,10 +618,20 @@ namespace DevLog.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("NormalizedPrimaryEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("normalized_primary_email");
+
                     b.Property<string>("PlanTier")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("plan_tier");
+
+                    b.Property<string>("PrimaryEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("primary_email");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -635,6 +645,11 @@ namespace DevLog.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_tenants");
+
+                    b.HasIndex("NormalizedPrimaryEmail")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tenants_normalized_primary_email")
+                        .HasFilter("normalized_primary_email IS NOT NULL");
 
                     b.HasIndex("Slug")
                         .IsUnique()

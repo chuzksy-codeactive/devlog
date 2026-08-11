@@ -1,4 +1,5 @@
 using DevLog.Domain.Entities;
+using DevLog.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevLog.Infrastructure.MultiTenancy;
@@ -6,19 +7,31 @@ namespace DevLog.Infrastructure.MultiTenancy;
 public class TenantProvisioningService
 {
     private readonly DevLogDbContext _db;
+    private readonly ClerkUserService _clerkUserService;
     private readonly ICurrentTenantAccessor _tenantAccessor;
 
-    public TenantProvisioningService(DevLogDbContext db, ICurrentTenantAccessor tenantAccessor)
+    public TenantProvisioningService(
+        DevLogDbContext db,
+        ClerkUserService clerkUserService,
+        ICurrentTenantAccessor tenantAccessor)
     {
         _db = db;
+        _clerkUserService = clerkUserService;
         _tenantAccessor = tenantAccessor;
     }
 
-    public async Task<Tenant> GetOrCreateTenantAsync(string clerkUserId, CancellationToken cancellationToken = default)
+    public async Task<Tenant> GetOrCreateTenantAsync(string clerkUserId, string? primaryEmail = null, CancellationToken cancellationToken = default)
     {
+        var resolvedPrimaryEmail = await ResolvePrimaryEmailAsync(clerkUserId, primaryEmail, cancellationToken);
         var existing = await _db.Tenants.FirstOrDefaultAsync(t => t.UserId == clerkUserId, cancellationToken);
         if (existing is not null)
         {
+            if (string.IsNullOrWhiteSpace(existing.PrimaryEmail) && !string.IsNullOrWhiteSpace(resolvedPrimaryEmail))
+            {
+                existing.PrimaryEmail = resolvedPrimaryEmail.Trim();
+                existing.NormalizedPrimaryEmail = NormalizeEmail(resolvedPrimaryEmail);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
             return existing;
         }
 
@@ -30,6 +43,8 @@ public class TenantProvisioningService
         {
             Id = tenantId,
             UserId = clerkUserId,
+            PrimaryEmail = string.IsNullOrWhiteSpace(resolvedPrimaryEmail) ? null : resolvedPrimaryEmail.Trim(),
+            NormalizedPrimaryEmail = string.IsNullOrWhiteSpace(resolvedPrimaryEmail) ? null : NormalizeEmail(resolvedPrimaryEmail),
             Slug = placeholderSlug,
             PlanTier = "free",
             CreatedAt = DateTime.UtcNow
@@ -71,5 +86,24 @@ public class TenantProvisioningService
         }
 
         return tenant;
+    }
+
+    private static string NormalizeEmail(string email) =>
+        email.Trim().ToLowerInvariant();
+
+    private async Task<string?> ResolvePrimaryEmailAsync(
+        string clerkUserId,
+        string? primaryEmail,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(primaryEmail))
+        {
+            return primaryEmail.Trim();
+        }
+
+        var clerkPrimaryEmail = await _clerkUserService.GetPrimaryEmailAddressAsync(clerkUserId, cancellationToken);
+        return string.IsNullOrWhiteSpace(clerkPrimaryEmail?.EmailAddress)
+            ? null
+            : clerkPrimaryEmail.EmailAddress.Trim();
     }
 }
