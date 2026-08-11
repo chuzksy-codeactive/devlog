@@ -43,7 +43,7 @@ export function ProfileAvatar({
           <img
             src={normalizedPhotoUrl}
             alt={displayName}
-            className="h-full w-full object-cover object-center"
+            className="h-full w-full object-cover object-top"
             onError={() => setImageFailed(true)}
           />
         ) : (
