@@ -44,6 +44,11 @@ public class InterviewRequestsController : ControllerBase
         {
             RequestInterviewOutcome.Created => Created(string.Empty, new { id = result.Id }),
             RequestInterviewOutcome.PortfolioNotFound => NotFound("No public portfolio found at this slug."),
+            RequestInterviewOutcome.EmailProviderPendingReview => UnprocessableEntity(
+                "Email delivery is temporarily unavailable because the Postmark account is still under review. Please try again later."),
+            RequestInterviewOutcome.EmailDeliveryFailed => StatusCode(
+                StatusCodes.Status502BadGateway,
+                "Unable to send verification email. Confirm your Postmark Server API token and verified sender signature."),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }
@@ -61,7 +66,7 @@ public class InterviewRequestsController : ControllerBase
             return BadRequest("token is required.");
         }
 
-        var outcome = await _interviewRequestService.VerifyEmailAsync(id, body.Token, cancellationToken);
+        var outcome = await _interviewRequestService.VerifyEmailAsync(slug, id, body.Token, cancellationToken);
 
         return outcome switch
         {

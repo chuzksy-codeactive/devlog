@@ -63,6 +63,14 @@ public class AskAiService
             tenantId: portfolio.TenantId,
             slug: slug);
 
+        if (AskAiAnswerSafetyNet.IsLikelyExfiltrationQuestion(question))
+        {
+            _logger.LogWarning(
+                "Blocked likely data-exfiltration Ask AI question for tenant {TenantId}",
+                portfolio.TenantId);
+            return new AskAiResult(AskAiOutcome.Answered, AskAiAnswerSafetyNet.ToSafeResponse());
+        }
+
         var tenantId = portfolio.TenantId;
 
         var recentQueryCount = await _db.AiQueryLogs
@@ -90,6 +98,20 @@ public class AskAiService
             slug: slug);
 
         var answer = await _llmProvider.AnswerQuestionAsync(question, topChunks, cancellationToken);
+        _promptInjectionTelemetry.Scan(
+            flow: "ask_ai",
+            inputType: "model_output",
+            content: answer,
+            tenantId: tenantId,
+            slug: slug);
+
+        if (AskAiAnswerSafetyNet.IsUnsafeModelOutput(answer))
+        {
+            _logger.LogWarning(
+                "Blocked unsafe Ask AI model output for tenant {TenantId}",
+                tenantId);
+            answer = AskAiAnswerSafetyNet.ToSafeResponse();
+        }
 
         try
         {

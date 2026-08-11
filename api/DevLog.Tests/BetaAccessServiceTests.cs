@@ -93,43 +93,51 @@ public class BetaAccessServiceTests
             return;
         }
 
-        var db = CreateDbContext();
-        db.InviteAllowlistEntries.Add(new DevLog.Domain.Entities.InviteAllowlistEntry
-        {
-            Id = Guid.NewGuid(),
-            Email = "candidate@example.com",
-            NormalizedEmail = "candidate@example.com",
-            Status = DevLog.Domain.Entities.InviteAllowlistStatus.Active
-        });
-        await db.SaveChangesAsync();
+        await using var db = CreateDbContext();
+        var candidateEmail = $"candidate-{Guid.NewGuid():N}@example.com";
+        var normalizedCandidateEmail = candidateEmail.ToLowerInvariant();
 
-        var clerk = CreateClerkUserService("""
+        try
+        {
+            db.InviteAllowlistEntries.Add(new DevLog.Domain.Entities.InviteAllowlistEntry
             {
-              "primary_email_address_id": "idn_primary",
-              "email_addresses": [
-                {
-                  "id": "idn_primary",
-                  "email_address": "candidate@example.com",
-                  "verification": { "status": "verified" }
-                }
+                Id = Guid.NewGuid(),
+                Email = candidateEmail,
+                NormalizedEmail = normalizedCandidateEmail,
+                Status = DevLog.Domain.Entities.InviteAllowlistStatus.Active
+            });
+            await db.SaveChangesAsync();
+
+            var clerk = CreateClerkUserService($@"{{
+              ""primary_email_address_id"": ""idn_primary"",
+              ""email_addresses"": [
+                {{
+                  ""id"": ""idn_primary"",
+                  ""email_address"": ""{candidateEmail}"",
+                  ""verification"": {{ ""status"": ""verified"" }}
+                }}
               ]
-            }
-            """);
-        var accessor = BuildHttpContextAccessor(new[]
-        {
-            new Claim("sub", "user_456")
-        });
-        var options = Options.Create(new PrivateBetaOptions
-        {
-            Enabled = true,
-            RequireVerifiedEmail = true
-        });
+            }}");
+            var accessor = BuildHttpContextAccessor(new[]
+            {
+                new Claim("sub", "user_456")
+            });
+            var options = Options.Create(new PrivateBetaOptions
+            {
+                Enabled = true,
+                RequireVerifiedEmail = true
+            });
 
-        var service = new BetaAccessService(db, clerk, accessor, options);
-        var result = await service.EvaluateCurrentUserAsync();
+            var service = new BetaAccessService(db, clerk, accessor, options);
+            var result = await service.EvaluateCurrentUserAsync();
 
-        Assert.Equal(BetaAccessOutcome.Allowed, result.Outcome);
-        Assert.Equal("candidate@example.com", result.ResolvedEmail);
+            Assert.Equal(BetaAccessOutcome.Allowed, result.Outcome);
+            Assert.Equal(candidateEmail, result.ResolvedEmail);
+        }
+        finally
+        {
+            await CleanupInviteAllowlistEntryAsync(db, normalizedCandidateEmail);
+        }
     }
 
     private static DevLogDbContext CreateDbContext()
@@ -186,6 +194,20 @@ public class BetaAccessServiceTests
                 User = new ClaimsPrincipal(identity)
             }
         };
+    }
+
+    private static async Task CleanupInviteAllowlistEntryAsync(DevLogDbContext db, string normalizedEmail)
+    {
+        var entries = await db.InviteAllowlistEntries
+            .Where(entry => entry.NormalizedEmail == normalizedEmail)
+            .ToListAsync();
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        db.InviteAllowlistEntries.RemoveRange(entries);
+        await db.SaveChangesAsync();
     }
 
     private sealed class StaticResponseHandler(string responseBody) : HttpMessageHandler

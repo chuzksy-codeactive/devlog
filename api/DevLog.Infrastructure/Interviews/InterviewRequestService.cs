@@ -1,6 +1,8 @@
+using System.Net;
 using System.Security.Cryptography;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure.Email;
+using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,7 +12,9 @@ namespace DevLog.Infrastructure.Interviews;
 public enum RequestInterviewOutcome
 {
     Created,
-    PortfolioNotFound
+    PortfolioNotFound,
+    EmailProviderPendingReview,
+    EmailDeliveryFailed
 }
 
 public record RequestInterviewResult(RequestInterviewOutcome Outcome, Guid? Id = null);
@@ -29,17 +33,20 @@ public class InterviewRequestService
 
     private readonly DevLogDbContext _db;
     private readonly IEmailProvider _emailProvider;
+    private readonly ICurrentTenantAccessor _tenantAccessor;
     private readonly FrontendOptions _frontendOptions;
     private readonly ILogger<InterviewRequestService> _logger;
 
     public InterviewRequestService(
         DevLogDbContext db,
         IEmailProvider emailProvider,
+        ICurrentTenantAccessor tenantAccessor,
         IOptions<FrontendOptions> frontendOptions,
         ILogger<InterviewRequestService> logger)
     {
         _db = db;
         _emailProvider = emailProvider;
+        _tenantAccessor = tenantAccessor;
         _frontendOptions = frontendOptions.Value;
         _logger = logger;
     }
@@ -79,9 +86,47 @@ public class InterviewRequestService
         _db.InterviewRequests.Add(request);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await SendVerificationEmailAsync(slug, request, verificationToken, cancellationToken);
+        try
+        {
+            await SendVerificationEmailAsync(slug, request, verificationToken, cancellationToken);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.UnprocessableEntity)
+        {
+            _logger.LogWarning(
+                ex,
+                "Postmark returned 422 for interview request {RequestId}; removing unsent request",
+                request.Id);
+            await RemoveInterviewRequestSafelyAsync(request, cancellationToken);
+            return new RequestInterviewResult(RequestInterviewOutcome.EmailProviderPendingReview);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to send verification email for interview request {RequestId}; removing unsent request",
+                request.Id);
+            await RemoveInterviewRequestSafelyAsync(request, cancellationToken);
+            return new RequestInterviewResult(RequestInterviewOutcome.EmailDeliveryFailed);
+        }
 
         return new RequestInterviewResult(RequestInterviewOutcome.Created, request.Id);
+    }
+
+    private async Task RemoveInterviewRequestSafelyAsync(InterviewRequest request, CancellationToken cancellationToken)
+    {
+        _db.InterviewRequests.Remove(request);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogInformation(
+                ex,
+                "Interview request {RequestId} was already removed during cleanup",
+                request.Id);
+        }
     }
 
     private async Task SendVerificationEmailAsync(
@@ -90,30 +135,26 @@ public class InterviewRequestService
         string verificationToken,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var verifyUrl =
-                $"{_frontendOptions.BaseUrl.TrimEnd('/')}/verify-interview-request?slug={Uri.EscapeDataString(slug)}&requestId={request.Id}&token={request.VerificationToken}";
+        var verifyUrl =
+            $"{_frontendOptions.BaseUrl.TrimEnd('/')}/verify-interview-request?slug={Uri.EscapeDataString(slug)}&requestId={request.Id}&token={verificationToken}";
 
-            await _emailProvider.SendAsync(
-                request.RecruiterEmail,
-                "Confirm your DevLog interview request",
-                "Click the link below to confirm this is your email address and send your interview request:\n\n" +
-                $"{verifyUrl}\n\n" +
-                "This link expires in 24 hours. If you didn't request this, you can ignore this email.",
-                cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Failed to send verification email for interview request {RequestId}",
-                request.Id);
-        }
+        await _emailProvider.SendAsync(
+            request.RecruiterEmail,
+            "Confirm your DevLog interview request",
+            "Click the link below to confirm this is your email address and send your interview request:\n\n" +
+            $"{verifyUrl}\n\n" +
+            "This link expires in 24 hours. If you didn't request this, you can ignore this email.",
+            cancellationToken);
     }
 
-    public async Task<VerifyEmailOutcome> VerifyEmailAsync(Guid requestId, string token, CancellationToken cancellationToken = default)
+    public async Task<VerifyEmailOutcome> VerifyEmailAsync(
+        string slug,
+        Guid requestId,
+        string token,
+        CancellationToken cancellationToken = default)
     {
+        await SetTenantContextFromSlugAsync(slug, cancellationToken);
+
         var request = await _db.InterviewRequests.FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken);
         if (request is null)
         {
@@ -193,6 +234,25 @@ public class InterviewRequestService
         await _db.SaveChangesAsync(cancellationToken);
 
         return request;
+    }
+
+    private async Task SetTenantContextFromSlugAsync(string slug, CancellationToken cancellationToken)
+    {
+        if (_tenantAccessor is not CurrentTenantAccessor accessor || accessor.TenantId is not null)
+        {
+            return;
+        }
+
+        var tenantId = await _db.Tenants
+            .AsNoTracking()
+            .Where(t => t.Slug == slug)
+            .Select(t => (Guid?)t.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (tenantId is Guid resolvedTenantId)
+        {
+            accessor.TenantId = resolvedTenantId;
+        }
     }
 
     public async Task<InterviewRequest?> DeclineAsync(Guid id, CancellationToken cancellationToken = default)
