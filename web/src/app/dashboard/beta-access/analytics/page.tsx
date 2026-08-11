@@ -63,7 +63,8 @@ export default function BetaAccessAdminAnalyticsPage() {
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-white/45">Admin analytics</p>
         <h1 className="mt-3 text-3xl font-semibold text-white">Creator activity health</h1>
         <p className="mt-3 text-sm text-white/65">
-          Tenants: <span className="font-medium text-white">{data.tenantCount}</span> · Highly active:{" "}
+          Users: <span className="font-medium text-white">{data.userCount}</span> · Active users:{" "}
+          <span className="font-medium text-white">{data.activeUserCount}</span> · Highly active:{" "}
           <span className="font-medium text-white">{data.highlyActiveCount}</span> · Low activity:{" "}
           <span className="font-medium text-white">{data.lowActivityCount}</span> · Possible misuse:{" "}
           <span className="font-medium text-white">{data.possibleAbuseCount}</span>
@@ -90,8 +91,7 @@ export default function BetaAccessAdminAnalyticsPage() {
         </div>
       </section>
 
-      <ActivitySection title="Most active users" subtitle="Top users by creator activity score." rows={data.mostActive} />
-      <ActivitySection title="Least active users" subtitle="Users needing activation or onboarding support." rows={data.leastActive} />
+      <ActivitySection title="User activity overview" subtitle="All users ranked by recent creator activity." rows={data.allUsers} />
     </div>
   );
 }
@@ -128,10 +128,10 @@ function ActivitySection({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={`${title}-${row.tenantId}`} className="border-b border-white/8 text-white/80">
+                <tr key={`${title}-${row.userId}`} className="border-b border-white/8 text-white/80">
                   <td className="px-3 py-2">
-                    <p className="font-medium text-white">{row.displayName || row.slug}</p>
-                    <p className="text-xs text-white/50">/{row.slug}</p>
+                    <p className="font-medium text-white">{row.email ?? "No email on profile"}</p>
+                    {row.displayName && <p className="text-xs text-white/50">{row.displayName}</p>}
                     {row.possibleAbuse && (
                       <span className="mt-1 inline-block rounded-full border border-amber-300/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-100">
                         Possible misuse pattern

@@ -59,40 +59,47 @@ public class TenantIsolationTests
 
         var tenantAId = Guid.NewGuid();
         var tenantBId = Guid.NewGuid();
-
-        await using (var seedA = CreateContext(tenantAId))
+        try
         {
-            seedA.Tenants.Add(new Tenant { Id = tenantAId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-a-{tenantAId}" });
-            seedA.RawEntries.Add(new RawEntry
+            await using (var seedA = CreateContext(tenantAId))
             {
-                Id = Guid.NewGuid(),
-                TenantId = tenantAId,
-                EntryType = RawEntryType.SprintEntry,
-                RawContent = "Tenant A's private draft"
-            });
-            await seedA.SaveChangesAsync();
-        }
+                seedA.Tenants.Add(new Tenant { Id = tenantAId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-a-{tenantAId}" });
+                seedA.RawEntries.Add(new RawEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantAId,
+                    EntryType = RawEntryType.SprintEntry,
+                    RawContent = "Tenant A's private draft"
+                });
+                await seedA.SaveChangesAsync();
+            }
 
-        await using (var seedB = CreateContext(tenantBId))
+            await using (var seedB = CreateContext(tenantBId))
+            {
+                seedB.Tenants.Add(new Tenant { Id = tenantBId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-b-{tenantBId}" });
+                seedB.RawEntries.Add(new RawEntry
+                {
+                    Id = Guid.NewGuid(),
+                    TenantId = tenantBId,
+                    EntryType = RawEntryType.SprintEntry,
+                    RawContent = "Tenant B's private draft"
+                });
+                await seedB.SaveChangesAsync();
+            }
+
+            await using var queryAsTenantA = CreateContext(tenantAId);
+
+            var visibleToTenantA = await queryAsTenantA.RawEntries.ToListAsync();
+
+            Assert.Single(visibleToTenantA);
+            Assert.Equal(tenantAId, visibleToTenantA[0].TenantId);
+            Assert.DoesNotContain(visibleToTenantA, e => e.TenantId == tenantBId);
+        }
+        finally
         {
-            seedB.Tenants.Add(new Tenant { Id = tenantBId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-b-{tenantBId}" });
-            seedB.RawEntries.Add(new RawEntry
-            {
-                Id = Guid.NewGuid(),
-                TenantId = tenantBId,
-                EntryType = RawEntryType.SprintEntry,
-                RawContent = "Tenant B's private draft"
-            });
-            await seedB.SaveChangesAsync();
+            await DeleteTenantDataAsync(tenantAId);
+            await DeleteTenantDataAsync(tenantBId);
         }
-
-        await using var queryAsTenantA = CreateContext(tenantAId);
-
-        var visibleToTenantA = await queryAsTenantA.RawEntries.ToListAsync();
-
-        Assert.Single(visibleToTenantA);
-        Assert.Equal(tenantAId, visibleToTenantA[0].TenantId);
-        Assert.DoesNotContain(visibleToTenantA, e => e.TenantId == tenantBId);
     }
 
     [Fact]
@@ -104,20 +111,45 @@ public class TenantIsolationTests
         }
 
         var tenantId = Guid.NewGuid();
-        await using var seed = CreateContext(tenantId);
-        seed.Tenants.Add(new Tenant { Id = tenantId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-{tenantId}" });
-        seed.RawEntries.Add(new RawEntry
+        try
         {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId,
-            EntryType = RawEntryType.SprintEntry,
-            RawContent = "Some draft"
-        });
-        await seed.SaveChangesAsync();
+            await using var seed = CreateContext(tenantId);
+            seed.Tenants.Add(new Tenant { Id = tenantId, UserId = $"user_{Guid.NewGuid()}", Slug = $"tenant-{tenantId}" });
+            seed.RawEntries.Add(new RawEntry
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                EntryType = RawEntryType.SprintEntry,
+                RawContent = "Some draft"
+            });
+            await seed.SaveChangesAsync();
 
-        await using var queryWithNoTenant = CreateContext(tenantId: null);
-        var visible = await queryWithNoTenant.RawEntries.ToListAsync();
+            await using var queryWithNoTenant = CreateContext(tenantId: null);
+            var visible = await queryWithNoTenant.RawEntries.ToListAsync();
 
-        Assert.Empty(visible);
+            Assert.Empty(visible);
+        }
+        finally
+        {
+            await DeleteTenantDataAsync(tenantId);
+        }
+    }
+
+    private static async Task DeleteTenantDataAsync(Guid tenantId)
+    {
+        await using var cleanup = CreateContext(tenantId);
+        var rawEntries = await cleanup.RawEntries.Where(x => x.TenantId == tenantId).ToListAsync();
+        if (rawEntries.Count > 0)
+        {
+            cleanup.RawEntries.RemoveRange(rawEntries);
+        }
+
+        var tenant = await cleanup.Tenants.FirstOrDefaultAsync(x => x.Id == tenantId);
+        if (tenant is not null)
+        {
+            cleanup.Tenants.Remove(tenant);
+        }
+
+        await cleanup.SaveChangesAsync();
     }
 }

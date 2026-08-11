@@ -195,6 +195,7 @@ export interface BetaAccessStatusResponse {
   privateBetaEnabled: boolean;
   outcome: BetaAccessOutcome;
   canAccessCreatorFeatures: boolean;
+  isBetaAdmin: boolean;
   resolvedEmail: string | null;
   waitlistSubmissionStatus: WaitlistSubmissionStatus | null;
 }
@@ -223,12 +224,13 @@ export interface AdminInviteEntry {
 }
 
 export interface AdminUserActivityRow {
-  tenantId: string;
-  slug: string;
+  userId: string;
+  email: string | null;
   displayName: string | null;
   tenantCreatedAt: string;
   activityLevel: "HighlyActive" | "ModeratelyActive" | "LowActivity";
   activityScore: number;
+  hasActivity: boolean;
   possibleAbuse: boolean;
   lastPortfolioViewAt: string | null;
   lastActivityAt: string | null;
@@ -245,11 +247,13 @@ export interface AdminUserActivityRow {
 export interface AdminUserActivityAnalyticsResponse {
   windowDays: number;
   generatedAt: string;
-  tenantCount: number;
+  userCount: number;
+  activeUserCount: number;
   highlyActiveCount: number;
   moderatelyActiveCount: number;
   lowActivityCount: number;
   possibleAbuseCount: number;
+  allUsers: AdminUserActivityRow[];
   mostActive: AdminUserActivityRow[];
   leastActive: AdminUserActivityRow[];
 }

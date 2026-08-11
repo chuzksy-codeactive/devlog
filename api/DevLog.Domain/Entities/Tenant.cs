@@ -5,6 +5,8 @@ public class Tenant
     public Guid Id { get; set; }
 
     public string UserId { get; set; } = string.Empty;
+    public string? PrimaryEmail { get; set; }
+    public string? NormalizedPrimaryEmail { get; set; }
 
     public string Slug { get; set; } = string.Empty;
     public string PlanTier { get; set; } = "free";
