@@ -12,7 +12,7 @@
 | Ticket | Title | Description | Acceptance Criteria |
 |---|---|---|---|
 | DEVLOG-001 | Define ICP in-product | Lock ICP in copy, onboarding text, and analytics properties. | ICP segment is selectable and trackable in analytics events. |
-| DEVLOG-002 | AuthN/AuthZ role matrix | Implement Creator vs Viewer route-level permission map. | Unauthorized access returns 403 on protected endpoints. |
+| DEVLOG-002 | AuthN/AuthZ role matrix | Implement Creator vs Viewer route-level permission map. | Unauthenticated requests return 401; authenticated-but-unauthorized requests return 403 on protected endpoints. |
 | DEVLOG-003 | Tenant isolation guardrails | Enforce tenant_id checks in all portfolio/log queries. | Cross-tenant data access is blocked in API and tests. |
 | DEVLOG-004 | Event instrumentation baseline | Add events: signup, first-log-start, first-log-save, first-publish, profile-share, recruiter-query. | Events appear in analytics dashboard with user/session IDs. |
 | DEVLOG-005 | Error tracking and audit logging | Add centralized error logging and audit trail for publish/redaction actions. | Action logs are visible per entry with actor and timestamp. |
