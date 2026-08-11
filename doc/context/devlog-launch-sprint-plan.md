@@ -45,7 +45,7 @@
 | Ticket | Title | Description | Acceptance Criteria |
 |---|---|---|---|
 | DEVLOG-016 | Metadata normalization | Enforce tags: cloud, db, language, scope, scale, role, outcomes, timeframe. | All published entries are indexed with normalized schema. |
-| DEVLOG-017 | Vector indexing pipeline | Chunk and embed sanitized entries with tenant/user scope. | New publish updates vector index within defined SLA. |
+| DEVLOG-017 | Vector indexing pipeline | Chunk and embed sanitized entries with tenant/user scope. | New publish updates vector index within SLA targets (publish->index p95 <= 120s, p99 <= 300s). |
 | DEVLOG-018 | Candidate-scoped retrieval | Retrieve only selected candidate corpus for recruiter queries. | No cross-candidate leakage in retrieval tests. |
 | DEVLOG-019 | Citation-first AI responses | Every answer includes source snippets/entry links. | Responses show citations with jump-to-entry behavior. |
 | DEVLOG-020 | Recruiter filters and saved queries | Build fast filters and saved search presets. | Filter interactions return under target latency. |
@@ -55,7 +55,7 @@
 
 | Ticket | Title | Description | Acceptance Criteria |
 |---|---|---|---|
-| DEVLOG-021 | Performance optimization pass | Optimize timeline, filtering, and AI query latency. | Meets launch SLOs with explicit p95 targets. |
+| DEVLOG-021 | Performance optimization pass | Optimize timeline, filtering, and AI query latency. | Meets launch SLOs: timeline/filter p95 <= 300ms (p99 <= 800ms), recruiter AI answer p95 <= 4s (p99 <= 8s). |
 | DEVLOG-022 | AI quality feedback loop | Add "report bad answer" workflow and triage path. | Flagged answers are stored and reviewable in admin queue. |
 | DEVLOG-023 | Redaction QA workflow | Add "report bad redaction" path and internal review queue. | Security triage dashboard is operational. |
 | DEVLOG-024 | Pricing and plan gating | Define free vs pro limits (entries, queries, exports, branding). | Feature gates are enforced server-side and in UI. |
