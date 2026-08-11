@@ -3,6 +3,7 @@ using DevLog.Domain.Entities;
 using DevLog.Infrastructure;
 using DevLog.Infrastructure.Email;
 using DevLog.Infrastructure.Interviews;
+using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -34,6 +35,7 @@ public class InterviewRequestServiceTests
             var service = new InterviewRequestService(
                 db,
                 new ThrowingEmailProvider(),
+                new CurrentTenantAccessor(),
                 Options.Create(new FrontendOptions { BaseUrl = "http://localhost:3000" }),
                 NullLogger<InterviewRequestService>.Instance);
 
@@ -66,6 +68,7 @@ public class InterviewRequestServiceTests
             var service = new InterviewRequestService(
                 db,
                 emailProvider,
+                new CurrentTenantAccessor(),
                 Options.Create(new FrontendOptions { BaseUrl = "http://localhost:3000" }),
                 NullLogger<InterviewRequestService>.Instance);
 
@@ -80,7 +83,7 @@ public class InterviewRequestServiceTests
 
             Assert.NotEqual(request.VerificationToken, token);
 
-            var verifyOutcome = await service.VerifyEmailAsync(result.Id!.Value, token);
+            var verifyOutcome = await service.VerifyEmailAsync(slug, result.Id!.Value, token);
             Assert.Equal(VerifyEmailOutcome.Verified, verifyOutcome);
         }
         finally
@@ -106,6 +109,7 @@ public class InterviewRequestServiceTests
             var service = new InterviewRequestService(
                 db,
                 new Throwing422EmailProvider(),
+                new CurrentTenantAccessor(),
                 Options.Create(new FrontendOptions { BaseUrl = "http://localhost:3000" }),
                 NullLogger<InterviewRequestService>.Instance);
 

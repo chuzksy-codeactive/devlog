@@ -66,7 +66,7 @@ public class InterviewRequestsController : ControllerBase
             return BadRequest("token is required.");
         }
 
-        var outcome = await _interviewRequestService.VerifyEmailAsync(id, body.Token, cancellationToken);
+        var outcome = await _interviewRequestService.VerifyEmailAsync(slug, id, body.Token, cancellationToken);
 
         return outcome switch
         {

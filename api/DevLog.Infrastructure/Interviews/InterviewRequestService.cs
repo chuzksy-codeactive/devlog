@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure.Email;
+using DevLog.Infrastructure.MultiTenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -32,17 +33,20 @@ public class InterviewRequestService
 
     private readonly DevLogDbContext _db;
     private readonly IEmailProvider _emailProvider;
+    private readonly ICurrentTenantAccessor _tenantAccessor;
     private readonly FrontendOptions _frontendOptions;
     private readonly ILogger<InterviewRequestService> _logger;
 
     public InterviewRequestService(
         DevLogDbContext db,
         IEmailProvider emailProvider,
+        ICurrentTenantAccessor tenantAccessor,
         IOptions<FrontendOptions> frontendOptions,
         ILogger<InterviewRequestService> logger)
     {
         _db = db;
         _emailProvider = emailProvider;
+        _tenantAccessor = tenantAccessor;
         _frontendOptions = frontendOptions.Value;
         _logger = logger;
     }
@@ -143,8 +147,14 @@ public class InterviewRequestService
             cancellationToken);
     }
 
-    public async Task<VerifyEmailOutcome> VerifyEmailAsync(Guid requestId, string token, CancellationToken cancellationToken = default)
+    public async Task<VerifyEmailOutcome> VerifyEmailAsync(
+        string slug,
+        Guid requestId,
+        string token,
+        CancellationToken cancellationToken = default)
     {
+        await SetTenantContextFromSlugAsync(slug, cancellationToken);
+
         var request = await _db.InterviewRequests.FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken);
         if (request is null)
         {
@@ -224,6 +234,25 @@ public class InterviewRequestService
         await _db.SaveChangesAsync(cancellationToken);
 
         return request;
+    }
+
+    private async Task SetTenantContextFromSlugAsync(string slug, CancellationToken cancellationToken)
+    {
+        if (_tenantAccessor is not CurrentTenantAccessor accessor || accessor.TenantId is not null)
+        {
+            return;
+        }
+
+        var tenantId = await _db.Tenants
+            .AsNoTracking()
+            .Where(t => t.Slug == slug)
+            .Select(t => (Guid?)t.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (tenantId is Guid resolvedTenantId)
+        {
+            accessor.TenantId = resolvedTenantId;
+        }
     }
 
     public async Task<InterviewRequest?> DeclineAsync(Guid id, CancellationToken cancellationToken = default)

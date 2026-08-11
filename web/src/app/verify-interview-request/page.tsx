@@ -9,6 +9,7 @@ type VerifyState =
   | "verified"
   | "alreadyVerified"
   | "expired"
+  | "notFound"
   | "missingParams"
   | "error";
 
@@ -55,6 +56,11 @@ function VerifyInterviewRequestContent() {
           return;
         }
 
+        if (response.status === 404) {
+          setState("notFound");
+          return;
+        }
+
         if (!response.ok) {
           setState("error");
           return;
@@ -83,19 +89,19 @@ function StatusShell({ state, slug }: { state: VerifyState; slug?: string | null
     <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center px-6 py-16 text-center">
       {state === "loading" && (
         <>
-          <p className="text-sm text-zinc-500">Confirming your request…</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">Confirming your request…</p>
         </>
       )}
 
       {(state === "verified" || state === "alreadyVerified") && (
         <>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Request confirmed</h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Request confirmed</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
             {state === "alreadyVerified"
               ? "This link was already confirmed — your interview request has already been sent."
               : "Your interview request has been sent. The creator will reach out if they accept."}
           </p>
-          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline">
+          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline dark:text-indigo-400">
             Back to portfolio
           </Link>
         </>
@@ -103,12 +109,24 @@ function StatusShell({ state, slug }: { state: VerifyState; slug?: string | null
 
       {state === "expired" && (
         <>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Link expired</h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Link expired</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
             This confirmation link is invalid or has expired. Confirmation links are valid for 24 hours — head
             back to the portfolio and submit a new interview request.
           </p>
-          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline">
+          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline dark:text-indigo-400">
+            Back to portfolio
+          </Link>
+        </>
+      )}
+
+      {state === "notFound" && (
+        <>
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Request not found</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+            This interview request no longer exists. Please return to the portfolio and submit a new request.
+          </p>
+          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline dark:text-indigo-400">
             Back to portfolio
           </Link>
         </>
@@ -116,8 +134,8 @@ function StatusShell({ state, slug }: { state: VerifyState; slug?: string | null
 
       {state === "missingParams" && (
         <>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Invalid confirmation link</h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Invalid confirmation link</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
             This link is missing some information and can&apos;t be confirmed. Try clicking the link directly
             from the email rather than a copy of it.
           </p>
@@ -126,11 +144,11 @@ function StatusShell({ state, slug }: { state: VerifyState; slug?: string | null
 
       {state === "error" && (
         <>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">Something went wrong</h1>
-          <p className="mt-2 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Something went wrong</h1>
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
             We couldn&apos;t reach the API to confirm this request. Try again in a moment.
           </p>
-          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline">
+          <Link href={portfolioHref} className="mt-6 text-sm font-medium text-indigo-600 underline dark:text-indigo-400">
             Back to portfolio
           </Link>
         </>
