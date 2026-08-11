@@ -28,7 +28,7 @@ public class PostmarkEmailProvider : IEmailProvider
         }
 
         var request = new PostmarkSendRequest(_options.FromAddress, toEmail, subject, textBody);
-        var response = await _httpClient.PostAsJsonAsync("email", request, cancellationToken);
+        using var response = await _httpClient.PostAsJsonAsync("email", request, cancellationToken);
         if (response.IsSuccessStatusCode)
         {
             return;
