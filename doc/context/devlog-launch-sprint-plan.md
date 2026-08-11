@@ -24,7 +24,7 @@
 |---|---|---|---|
 | DEVLOG-006 | Guided onboarding wizard | Build a 4-6 step wizard to create the first sprint case study. | New user reaches a draft case study in one guided flow. |
 | DEVLOG-007 | Structured sprint template | Add fields: Problem, Constraints, Actions, Stack, Impact, Lessons. | Required fields are validated before publish. |
-| DEVLOG-008 | Draft autosave and resume | Autosave every X seconds and restore interrupted drafts. | Reload restores latest draft state reliably. |
+| DEVLOG-008 | Draft autosave and resume | Autosave every 10 seconds (configurable) and restore interrupted drafts. | Reload restores latest draft state reliably. |
 | DEVLOG-009 | Import helper (notes/commit summary) | Paste raw notes and generate the first structured draft. | Generated draft fills template sections for user edit. |
 | DEVLOG-010 | Publish readiness checklist | Quality checks for metrics, tags, and redaction completion. | Publish is disabled until mandatory checks pass. |
 
