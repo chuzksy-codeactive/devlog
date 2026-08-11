@@ -17,9 +17,28 @@ public class PostmarkEmailProvider : IEmailProvider
 
     public async Task SendAsync(string toEmail, string subject, string textBody, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+        {
+            throw new InvalidOperationException("Postmark:ApiKey is missing. Configure a Postmark Server API token.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_options.FromAddress))
+        {
+            throw new InvalidOperationException("Postmark:FromAddress is missing. Configure a verified sender signature.");
+        }
+
         var request = new PostmarkSendRequest(_options.FromAddress, toEmail, subject, textBody);
         var response = await _httpClient.PostAsJsonAsync("email", request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new HttpRequestException(
+            $"Postmark send failed with status code {(int)response.StatusCode}: {responseBody}",
+            null,
+            response.StatusCode);
     }
 
     private record PostmarkSendRequest(

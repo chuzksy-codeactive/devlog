@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Cryptography;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure.Email;
@@ -10,7 +11,9 @@ namespace DevLog.Infrastructure.Interviews;
 public enum RequestInterviewOutcome
 {
     Created,
-    PortfolioNotFound
+    PortfolioNotFound,
+    EmailProviderPendingReview,
+    EmailDeliveryFailed
 }
 
 public record RequestInterviewResult(RequestInterviewOutcome Outcome, Guid? Id = null);
@@ -79,9 +82,47 @@ public class InterviewRequestService
         _db.InterviewRequests.Add(request);
         await _db.SaveChangesAsync(cancellationToken);
 
-        await SendVerificationEmailAsync(slug, request, verificationToken, cancellationToken);
+        try
+        {
+            await SendVerificationEmailAsync(slug, request, verificationToken, cancellationToken);
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.UnprocessableEntity)
+        {
+            _logger.LogWarning(
+                ex,
+                "Postmark returned 422 for interview request {RequestId}; removing unsent request",
+                request.Id);
+            await RemoveInterviewRequestSafelyAsync(request, cancellationToken);
+            return new RequestInterviewResult(RequestInterviewOutcome.EmailProviderPendingReview);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to send verification email for interview request {RequestId}; removing unsent request",
+                request.Id);
+            await RemoveInterviewRequestSafelyAsync(request, cancellationToken);
+            return new RequestInterviewResult(RequestInterviewOutcome.EmailDeliveryFailed);
+        }
 
         return new RequestInterviewResult(RequestInterviewOutcome.Created, request.Id);
+    }
+
+    private async Task RemoveInterviewRequestSafelyAsync(InterviewRequest request, CancellationToken cancellationToken)
+    {
+        _db.InterviewRequests.Remove(request);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            _logger.LogInformation(
+                ex,
+                "Interview request {RequestId} was already removed during cleanup",
+                request.Id);
+        }
     }
 
     private async Task SendVerificationEmailAsync(
@@ -90,26 +131,16 @@ public class InterviewRequestService
         string verificationToken,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var verifyUrl =
-                $"{_frontendOptions.BaseUrl.TrimEnd('/')}/verify-interview-request?slug={Uri.EscapeDataString(slug)}&requestId={request.Id}&token={request.VerificationToken}";
+        var verifyUrl =
+            $"{_frontendOptions.BaseUrl.TrimEnd('/')}/verify-interview-request?slug={Uri.EscapeDataString(slug)}&requestId={request.Id}&token={verificationToken}";
 
-            await _emailProvider.SendAsync(
-                request.RecruiterEmail,
-                "Confirm your DevLog interview request",
-                "Click the link below to confirm this is your email address and send your interview request:\n\n" +
-                $"{verifyUrl}\n\n" +
-                "This link expires in 24 hours. If you didn't request this, you can ignore this email.",
-                cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Failed to send verification email for interview request {RequestId}",
-                request.Id);
-        }
+        await _emailProvider.SendAsync(
+            request.RecruiterEmail,
+            "Confirm your DevLog interview request",
+            "Click the link below to confirm this is your email address and send your interview request:\n\n" +
+            $"{verifyUrl}\n\n" +
+            "This link expires in 24 hours. If you didn't request this, you can ignore this email.",
+            cancellationToken);
     }
 
     public async Task<VerifyEmailOutcome> VerifyEmailAsync(Guid requestId, string token, CancellationToken cancellationToken = default)
