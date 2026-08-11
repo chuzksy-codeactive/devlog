@@ -83,6 +83,7 @@ public class BetaAccessServiceTests
 
         Assert.Equal(BetaAccessOutcome.Allowed, result.Outcome);
         Assert.Equal("admin@example.com", result.ResolvedEmail);
+    }
 
     [Fact]
     public async Task MissingVerifiedClaim_FallsBackToClerkVerification()

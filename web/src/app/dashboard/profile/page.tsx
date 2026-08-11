@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useReverification, useUser } from "@clerk/nextjs";
 import { isReverificationCancelledError } from "@clerk/nextjs/errors";
 import Link from "next/link";
-import { useApi } from "@/lib/use-api";
+import { ApiError, useApi } from "@/lib/use-api";
 import { Discipline, MyPortfolio, PortfolioVisibility, ProofLink } from "@/lib/types";
 import { disciplineDisplayName, disciplineLabels } from "@/lib/discipline-labels";
 
@@ -178,8 +178,12 @@ export default function ProfilePage() {
         }),
       });
       setStatus("saved");
-    } catch {
-      setErrorMessage("Couldn't save — check that the API is running.");
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message.replace(/^"|"$/g, ""));
+      } else {
+        setErrorMessage("Couldn't save — check that the API is running.");
+      }
       setStatus("error");
     }
   }
@@ -307,7 +311,7 @@ export default function ProfilePage() {
           </div>
         </Field>
 
-        <Field label="Photo URL" hint="A link to a hosted image — no file upload yet.">
+        <Field label="Photo URL" hint="Use a direct image URL (for example .jpg/.png or a direct CDN file URL). Google Photos share links don't expose raw image files here.">
           <input
             type="url"
             value={form.photoUrl}

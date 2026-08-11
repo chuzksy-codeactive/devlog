@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using DevLog.Domain.Entities;
 using DevLog.Infrastructure.Ai;
 using DevLog.Infrastructure.Storage;
@@ -49,6 +50,7 @@ public record ResumeImportResult(ResumeImportOutcome Outcome, string? CvFileUrl,
 public class OnboardingImportService
 {
     private const int MaxResumeImportsPerTenantPerHour = 5;
+    private const int MaxImportedAchievementBullets = 5;
     private const string ResumeFileName = "resume.pdf";
 
     private readonly GitHubClient _gitHubClient;
@@ -231,7 +233,7 @@ public class OnboardingImportService
                     string.IsNullOrWhiteSpace(suggestion.CompanyLabel) ? repo.Name : suggestion.CompanyLabel,
                     suggestion.Title ?? string.Empty,
                     suggestion.Technologies ?? new List<string>(),
-                    suggestion.KeyAchievement ?? string.Empty,
+                    NormalizeImportedKeyAchievement(suggestion.KeyAchievement),
                     DateOnly.FromDateTime(repo.CreatedAt),
                     DateOnly.FromDateTime(repo.PushedAt),
                     repo.HtmlUrl));
@@ -279,7 +281,7 @@ public class OnboardingImportService
                     string.IsNullOrWhiteSpace(suggestion.CompanyLabel) ? "A previous role" : suggestion.CompanyLabel,
                     suggestion.Title ?? string.Empty,
                     suggestion.Technologies ?? new List<string>(),
-                    suggestion.KeyAchievement ?? string.Empty,
+                    NormalizeImportedKeyAchievement(suggestion.KeyAchievement),
                     startDate,
                     endDate,
                     RepoUrl: null));
@@ -323,6 +325,73 @@ public class OnboardingImportService
             trimmed = trimmed[..^3];
         }
         return trimmed.Trim();
+    }
+
+    private static string NormalizeImportedKeyAchievement(string? rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText))
+        {
+            return string.Empty;
+        }
+
+        var normalized = rawText.Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n');
+
+        var bullets = ExtractAchievementLines(normalized);
+        if (bullets.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        if (bullets.Count > MaxImportedAchievementBullets)
+        {
+            bullets = bullets.GetRange(0, MaxImportedAchievementBullets);
+        }
+
+        return string.Join("\n", bullets);
+    }
+
+    private static List<string> ExtractAchievementLines(string text)
+    {
+        var bullets = new List<string>();
+
+        foreach (var line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var normalized = NormalizeAchievementLine(line);
+            if (normalized.Length > 0)
+            {
+                bullets.Add(normalized);
+            }
+        }
+
+        if (bullets.Count > 0)
+        {
+            return bullets;
+        }
+
+        foreach (var sentence in Regex.Split(text, @"(?<=[.!?])\s+"))
+        {
+            var normalized = NormalizeAchievementLine(sentence);
+            if (normalized.Length > 0)
+            {
+                bullets.Add(normalized);
+            }
+        }
+
+        return bullets;
+    }
+
+    private static string NormalizeAchievementLine(string line)
+    {
+        var trimmed = line.Trim();
+        if (trimmed.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        trimmed = Regex.Replace(trimmed, @"^\d+[.)]\s*", string.Empty);
+        trimmed = trimmed.TrimStart('-', '*', '•').Trim();
+        return trimmed;
     }
 
     private record LlmSuggestionDto(List<LlmExperienceDto>? Experiences, LlmDraftEntryDto? DraftEntry);

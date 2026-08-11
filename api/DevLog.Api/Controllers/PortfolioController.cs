@@ -6,6 +6,7 @@ using DevLog.Infrastructure.MultiTenancy;
 using DevLog.Infrastructure.Security;
 using DevLog.Infrastructure.Storage;
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -26,6 +27,11 @@ public class PortfolioController : ControllerBase
     private readonly IIpHashingService _ipHashingService;
     private readonly IFileStorageProvider _fileStorageProvider;
     private readonly StorageOptions _storageOptions;
+    private readonly IHttpClientFactory _httpClientFactory;
+
+    private static readonly Regex OgImageMetaRegex = new(
+        "<meta\\s+[^>]*(?:property|name)=[\"']og:image(?::secure_url)?[\"'][^>]*content=[\"'](?<url>[^\"']+)[\"'][^>]*>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public PortfolioController(
         DevLogDbContext db,
@@ -34,7 +40,8 @@ public class PortfolioController : ControllerBase
         ILogger<PortfolioController> logger,
         IIpHashingService ipHashingService,
         IFileStorageProvider fileStorageProvider,
-        IOptions<StorageOptions> storageOptions)
+        IOptions<StorageOptions> storageOptions,
+        IHttpClientFactory httpClientFactory)
     {
         _db = db;
         _tenantAccessor = tenantAccessor;
@@ -43,6 +50,7 @@ public class PortfolioController : ControllerBase
         _ipHashingService = ipHashingService;
         _fileStorageProvider = fileStorageProvider;
         _storageOptions = storageOptions.Value;
+        _httpClientFactory = httpClientFactory;
     }
 
     [HttpGet("me")]
@@ -131,7 +139,7 @@ public class PortfolioController : ControllerBase
     }
 
     [HttpPut("me")]
-    public async Task<IActionResult> UpdateMyPortfolio([FromBody] UpdatePortfolioRequest request)
+    public async Task<IActionResult> UpdateMyPortfolio([FromBody] UpdatePortfolioRequest request, CancellationToken cancellationToken)
     {
         if (_tenantAccessor.TenantId is not Guid tenantId)
         {
@@ -150,6 +158,16 @@ public class PortfolioController : ControllerBase
         if (request.PhotoUrl is not null && !UrlAllowlist.TryNormalizeHttpUrl(request.PhotoUrl, out photoUrl))
         {
             return BadRequest("photoUrl must be an absolute http/https URL.");
+        }
+        if (!string.IsNullOrWhiteSpace(photoUrl) && IsGooglePhotosShareUrl(photoUrl))
+        {
+            var resolvedPhotoUrl = await ResolveGooglePhotosImageUrlAsync(photoUrl, cancellationToken);
+            if (resolvedPhotoUrl is null)
+            {
+                return BadRequest("photoUrl must be a direct image URL. Google Photos share links could not be resolved to a direct image.");
+            }
+
+            photoUrl = resolvedPhotoUrl;
         }
 
         string? linkedInUrl = null;
@@ -346,4 +364,49 @@ public class PortfolioController : ControllerBase
         PortfolioVisibility? Visibility,
         bool? Discoverable,
         [param: EmailAddress, MaxLength(320)] string? NotificationEmail);
+
+    private static bool IsGooglePhotosShareUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        var host = uri.Host.ToLowerInvariant();
+        return host == "photos.app.goo.gl" || host == "photos.google.com";
+    }
+
+    private async Task<string?> ResolveGooglePhotosImageUrlAsync(string shareUrl, CancellationToken cancellationToken)
+    {
+        var client = _httpClientFactory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, shareUrl);
+        request.Headers.TryAddWithoutValidation("User-Agent", "DevLog/1.0 (+https://devlog.local)");
+
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (mediaType is not null && mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return shareUrl;
+        }
+
+        var html = await response.Content.ReadAsStringAsync(cancellationToken);
+        var match = OgImageMetaRegex.Match(html);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var candidate = System.Net.WebUtility.HtmlDecode(match.Groups["url"].Value).Trim();
+        if (!UrlAllowlist.TryNormalizeHttpUrl(candidate, out var normalized))
+        {
+            return null;
+        }
+
+        return normalized;
+    }
 }
