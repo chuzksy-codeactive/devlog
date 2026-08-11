@@ -389,8 +389,9 @@ public class OnboardingImportService
             return string.Empty;
         }
 
+        trimmed = Regex.Replace(trimmed, @"^\d+[.)]\s*", string.Empty);
         trimmed = trimmed.TrimStart('-', '*', '•').Trim();
-        return Regex.Replace(trimmed, @"^\d+[.)]\s*", string.Empty);
+        return trimmed;
     }
 
     private record LlmSuggestionDto(List<LlmExperienceDto>? Experiences, LlmDraftEntryDto? DraftEntry);
