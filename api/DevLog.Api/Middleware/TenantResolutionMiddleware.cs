@@ -1,5 +1,4 @@
 using DevLog.Infrastructure.MultiTenancy;
-using System.Security.Claims;
 
 namespace DevLog.Api.Middleware;
 
