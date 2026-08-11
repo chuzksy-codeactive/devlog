@@ -3,7 +3,7 @@
 ## Planning assumptions
 - Sprint length: 2 weeks
 - Timeline: 5 sprints
-- Primary launch segment (ICP): 2-8 YOE backend/cloud developers actively job-seeking
+- Primary launch segment (Ideal Customer Profile, ICP): backend/cloud developers with 2–8 years of experience (YOE) actively job-seeking
 - Goal: production-ready v1 with secure creator workflows and credible recruiter discovery
 
 ## Sprint 1 — Foundation, Security, and Measurement
