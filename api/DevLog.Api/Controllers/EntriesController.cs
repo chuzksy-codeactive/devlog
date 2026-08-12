@@ -17,15 +17,18 @@ public class EntriesController : ControllerBase
 {
     private readonly DevLogDbContext _db;
     private readonly SanitizationPipelineService _sanitizationPipeline;
+    private readonly EmbeddingPipelineService _embeddingPipeline;
     private readonly ICurrentTenantAccessor _tenantAccessor;
 
     public EntriesController(
         DevLogDbContext db,
         SanitizationPipelineService sanitizationPipeline,
+        EmbeddingPipelineService embeddingPipeline,
         ICurrentTenantAccessor tenantAccessor)
     {
         _db = db;
         _sanitizationPipeline = sanitizationPipeline;
+        _embeddingPipeline = embeddingPipeline;
         _tenantAccessor = tenantAccessor;
     }
 
@@ -120,6 +123,34 @@ public class EntriesController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteEntry(Guid id, CancellationToken cancellationToken)
+    {
+        if (_tenantAccessor.TenantId is not Guid tenantId)
+        {
+            return Unauthorized("No tenant context resolved from the current token.");
+        }
+
+        var entry = await _db.RawEntries
+            .Include(e => e.PublishedEntry)
+            .FirstOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, cancellationToken);
+
+        if (entry is null)
+        {
+            return NotFound();
+        }
+
+        if (entry.PublishedEntry is { } publishedEntry)
+        {
+            await _embeddingPipeline.RemovePublishedEntryEmbeddingsAsync(publishedEntry.Id, cancellationToken);
+        }
+
+        _db.RawEntries.Remove(entry);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
     }
 
     private static object ToDto(RawEntry entry) => new

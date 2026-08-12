@@ -182,6 +182,10 @@ export default function JournalDashboardPage() {
               entry={selected}
               slug={slug}
               onChanged={() => load()}
+              onDeleted={() => {
+                load();
+                setSelectedId(null);
+              }}
             />
           )}
           {!selectedId && (
@@ -281,10 +285,12 @@ function EntryDetail({
   entry,
   slug,
   onChanged,
+  onDeleted,
 }: {
   entry: MyEntry;
   slug: string | null;
   onChanged: () => void;
+  onDeleted: () => void;
 }) {
   const { request } = useApi();
   const [busy, setBusy] = useState(false);
@@ -311,6 +317,29 @@ function EntryDetail({
       onChanged();
     } catch {
       setError("Approval failed — check that the entry is sanitized first.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    const isPublished = entry.status === "Approved";
+    const confirmed = window.confirm(
+      isPublished
+        ? "Delete this published entry? This will also remove its recruiter-search embeddings."
+        : "Delete this draft entry?"
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await request(`/api/entries/${entry.id}`, { method: "DELETE" });
+      onDeleted();
+    } catch {
+      setError("Delete failed — please try again.");
     } finally {
       setBusy(false);
     }
@@ -360,6 +389,13 @@ function EntryDetail({
               View Learning Lab
             </Link>
           )}
+          <button
+            onClick={handleDelete}
+            disabled={busy}
+            className="rounded-full border border-rose-300/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-500/20 hover:text-rose-100 disabled:opacity-50"
+          >
+            Delete entry
+          </button>
         </div>
       </div>
 
