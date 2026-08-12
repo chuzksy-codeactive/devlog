@@ -50,18 +50,6 @@ public class EmbeddingPipelineService
         }
     }
 
-    public async Task RemovePublishedEntryEmbeddingsAsync(Guid publishedEntryId, CancellationToken cancellationToken = default)
-    {
-        var existing = await _db.Embeddings
-            .Where(e => e.SourceType == EmbeddingSourceType.PublishedEntry && e.SourceId == publishedEntryId)
-            .ToListAsync(cancellationToken);
-        if (existing.Count > 0)
-        {
-            _db.Embeddings.RemoveRange(existing);
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-    }
-
     private static string BuildExperienceText(Experience experience)
     {
         var period = experience.EndDate is { } end

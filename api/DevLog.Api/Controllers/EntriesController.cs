@@ -17,18 +17,15 @@ public class EntriesController : ControllerBase
 {
     private readonly DevLogDbContext _db;
     private readonly SanitizationPipelineService _sanitizationPipeline;
-    private readonly EmbeddingPipelineService _embeddingPipeline;
     private readonly ICurrentTenantAccessor _tenantAccessor;
 
     public EntriesController(
         DevLogDbContext db,
         SanitizationPipelineService sanitizationPipeline,
-        EmbeddingPipelineService embeddingPipeline,
         ICurrentTenantAccessor tenantAccessor)
     {
         _db = db;
         _sanitizationPipeline = sanitizationPipeline;
-        _embeddingPipeline = embeddingPipeline;
         _tenantAccessor = tenantAccessor;
     }
 
@@ -144,7 +141,16 @@ public class EntriesController : ControllerBase
 
         if (entry.PublishedEntry is { } publishedEntry)
         {
-            await _embeddingPipeline.RemovePublishedEntryEmbeddingsAsync(publishedEntry.Id, cancellationToken);
+            var existingEmbeddings = await _db.Embeddings
+                .Where(e =>
+                    e.TenantId == tenantId
+                    && e.SourceType == EmbeddingSourceType.PublishedEntry
+                    && e.SourceId == publishedEntry.Id)
+                .ToListAsync(cancellationToken);
+            if (existingEmbeddings.Count > 0)
+            {
+                _db.Embeddings.RemoveRange(existingEmbeddings);
+            }
         }
 
         _db.RawEntries.Remove(entry);
