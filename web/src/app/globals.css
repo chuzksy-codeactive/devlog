@@ -75,3 +75,12 @@ body {
   min-width: 100%;
   height: auto;
 }
+
+.mermaid-block svg text {
+  fill: #1f2937;
+}
+
+.mermaid-block .nodeLabel,
+.mermaid-block .edgeLabel {
+  color: #1f2937;
+}
