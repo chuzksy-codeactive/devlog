@@ -6,12 +6,25 @@ import DOMPurify from "dompurify";
 
 let mermaidInitialized = false;
 
+function decodeHtmlEntities(value: string): string {
+  if (typeof window === "undefined") {
+    return value;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = value;
+  return textarea.value;
+}
+
 function initializeMermaid() {
   if (!mermaidInitialized) {
     mermaid.initialize({
       startOnLoad: false,
       securityLevel: "strict",
       theme: "neutral",
+      flowchart: {
+        htmlLabels: false,
+      },
     });
     mermaidInitialized = true;
   }
@@ -27,20 +40,22 @@ export function MermaidBlock({ chart }: { chart: string }) {
     initializeMermaid();
 
     mermaid
-      .render(`mermaid-${diagramId}`, chart)
+      .render(`mermaid-${diagramId}`, decodeHtmlEntities(chart))
       .then(({ svg: renderedSvg }) => {
         if (!disposed) {
           const sanitizedSvg = DOMPurify.sanitize(renderedSvg, {
-            USE_PROFILES: { svg: true },
+            USE_PROFILES: { svg: true, html: true },
+            FORBID_TAGS: ["script"],
           });
           setRenderError("");
           setSvg(sanitizedSvg);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!disposed) {
           setSvg("");
-          setRenderError("Unable to render Mermaid diagram.");
+          const detail = error instanceof Error ? error.message : "Unable to render Mermaid diagram.";
+          setRenderError(detail);
         }
       });
 

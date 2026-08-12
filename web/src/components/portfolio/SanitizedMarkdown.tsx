@@ -68,6 +68,23 @@ function normalizeMarkdownContent(content: string): string {
   return normalized.join("\n");
 }
 
+function flattenText(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(flattenText).join("");
+  }
+
+  if (value && typeof value === "object" && "props" in value) {
+    const children = (value as { props?: { children?: unknown } }).props?.children;
+    return flattenText(children);
+  }
+
+  return "";
+}
+
 const markdownSchema = {
   ...defaultSchema,
   attributes: {
@@ -107,7 +124,7 @@ const markdownComponents: Components = {
   code: ({ children, className }) => {
     const language = className?.replace("language-", "").toLowerCase();
     const isBlock = Boolean(className);
-    const codeValue = String(children).replace(/\n$/, "");
+    const codeValue = flattenText(children).replace(/\n$/, "");
 
     if (isBlock && language === "mermaid") {
       return <MermaidBlock chart={codeValue} />;
