@@ -122,6 +122,43 @@ public class EntriesController : ControllerBase
         }
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> DeleteEntry(Guid id, CancellationToken cancellationToken)
+    {
+        if (_tenantAccessor.TenantId is not Guid tenantId)
+        {
+            return Unauthorized("No tenant context resolved from the current token.");
+        }
+
+        var entry = await _db.RawEntries
+            .Include(e => e.PublishedEntry)
+            .FirstOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId, cancellationToken);
+
+        if (entry is null)
+        {
+            return NotFound();
+        }
+
+        if (entry.PublishedEntry is { } publishedEntry)
+        {
+            var existingEmbeddings = await _db.Embeddings
+                .Where(e =>
+                    e.TenantId == tenantId
+                    && e.SourceType == EmbeddingSourceType.PublishedEntry
+                    && e.SourceId == publishedEntry.Id)
+                .ToListAsync(cancellationToken);
+            if (existingEmbeddings.Count > 0)
+            {
+                _db.Embeddings.RemoveRange(existingEmbeddings);
+            }
+        }
+
+        _db.RawEntries.Remove(entry);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
     private static object ToDto(RawEntry entry) => new
     {
         entry.Id,

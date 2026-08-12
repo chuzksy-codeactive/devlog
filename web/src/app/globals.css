@@ -24,3 +24,54 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+.hljs {
+  color: #e4e4e7;
+  background: transparent;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #a1a1aa;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-type {
+  color: #c4b5fd;
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+  color: #86efac;
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: #fca5a5;
+}
+
+.hljs-title,
+.hljs-section {
+  color: #93c5fd;
+}
+
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable {
+  color: #fcd34d;
+}
+
+.hljs-built_in,
+.hljs-function {
+  color: #67e8f9;
+}
+
+.mermaid-block svg {
+  min-width: 100%;
+  height: auto;
+}
