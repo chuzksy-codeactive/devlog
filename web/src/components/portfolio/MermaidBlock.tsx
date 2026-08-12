@@ -6,6 +6,16 @@ import DOMPurify from "dompurify";
 
 let mermaidInitialized = false;
 
+function decodeHtmlEntities(value: string): string {
+  if (typeof window === "undefined") {
+    return value;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.innerHTML = value;
+  return textarea.value;
+}
+
 function initializeMermaid() {
   if (!mermaidInitialized) {
     mermaid.initialize({
@@ -30,7 +40,7 @@ export function MermaidBlock({ chart }: { chart: string }) {
     initializeMermaid();
 
     mermaid
-      .render(`mermaid-${diagramId}`, chart)
+      .render(`mermaid-${diagramId}`, decodeHtmlEntities(chart))
       .then(({ svg: renderedSvg }) => {
         if (!disposed) {
           const sanitizedSvg = DOMPurify.sanitize(renderedSvg, {
