@@ -44,7 +44,8 @@ export function MermaidBlock({ chart }: { chart: string }) {
       .then(({ svg: renderedSvg }) => {
         if (!disposed) {
           const sanitizedSvg = DOMPurify.sanitize(renderedSvg, {
-            USE_PROFILES: { svg: true },
+            USE_PROFILES: { svg: true, html: true },
+            FORBID_TAGS: ["script"],
           });
           setRenderError("");
           setSvg(sanitizedSvg);
