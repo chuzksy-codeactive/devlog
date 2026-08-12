@@ -12,6 +12,9 @@ function initializeMermaid() {
       startOnLoad: false,
       securityLevel: "strict",
       theme: "neutral",
+      flowchart: {
+        htmlLabels: false,
+      },
     });
     mermaidInitialized = true;
   }
@@ -37,10 +40,11 @@ export function MermaidBlock({ chart }: { chart: string }) {
           setSvg(sanitizedSvg);
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!disposed) {
           setSvg("");
-          setRenderError("Unable to render Mermaid diagram.");
+          const detail = error instanceof Error ? error.message : "Unable to render Mermaid diagram.";
+          setRenderError(detail);
         }
       });
 
