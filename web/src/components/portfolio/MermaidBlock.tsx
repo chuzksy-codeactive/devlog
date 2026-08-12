@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import mermaid from "mermaid";
+import DOMPurify from "dompurify";
 
 let mermaidInitialized = false;
 
@@ -29,8 +30,11 @@ export function MermaidBlock({ chart }: { chart: string }) {
       .render(`mermaid-${diagramId}`, chart)
       .then(({ svg: renderedSvg }) => {
         if (!disposed) {
+          const sanitizedSvg = DOMPurify.sanitize(renderedSvg, {
+            USE_PROFILES: { svg: true },
+          });
           setRenderError("");
-          setSvg(renderedSvg);
+          setSvg(sanitizedSvg);
         }
       })
       .catch(() => {
