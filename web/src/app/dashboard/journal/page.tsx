@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useApi } from "@/lib/use-api";
+import { ApiError, useApi } from "@/lib/use-api";
 import { MyEntry, MyPortfolio, RawEntryType } from "@/lib/types";
 
 const ENTRY_TYPE_LABEL: Record<RawEntryType, string> = {
@@ -302,8 +302,10 @@ function EntryDetail({
     try {
       await request(`/api/entries/${entry.id}/sanitize`, { method: "POST" });
       onChanged();
-    } catch {
-      setError("Sanitization failed — check the API logs (likely a missing/invalid LLM API key).");
+    } catch (error) {
+      setError(error instanceof ApiError && error.aiQuotaMessage
+        ? error.aiQuotaMessage
+        : "Sanitization failed — check the API logs (likely a missing/invalid LLM API key).");
     } finally {
       setBusy(false);
     }
@@ -315,8 +317,10 @@ function EntryDetail({
     try {
       await request(`/api/entries/${entry.id}/approve`, { method: "POST" });
       onChanged();
-    } catch {
-      setError("Approval failed — check that the entry is sanitized first.");
+    } catch (error) {
+      setError(error instanceof ApiError && error.aiQuotaMessage
+        ? error.aiQuotaMessage
+        : "Approval failed — check that the entry is sanitized first.");
     } finally {
       setBusy(false);
     }

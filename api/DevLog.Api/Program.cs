@@ -5,6 +5,7 @@ using DevLog.Api.Middleware;
 using DevLog.Api.Observability;
 using DevLog.Api.Options;
 using DevLog.Infrastructure;
+using DevLog.Infrastructure.Ai.CostControl;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
@@ -96,7 +97,11 @@ builder.Services.AddAuthorization();
 builder.Services.Configure<AiCostControlOptions>(builder.Configuration.GetSection(AiCostControlOptions.SectionName));
 
 var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
-if (!string.IsNullOrWhiteSpace(redisConnectionString))
+if (builder.Configuration.GetValue<bool>($"{AiQuotaOptions.SectionName}:Enabled"))
+{
+    builder.Services.AddSingleton<IGlobalAiRequestCapService, PostgresGlobalAiRequestCapService>();
+}
+else if (!string.IsNullOrWhiteSpace(redisConnectionString))
 {
     builder.Services.AddSingleton(StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString));
     builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
@@ -348,6 +353,7 @@ if (storageOptions.Provider.Equals("LocalDisk", StringComparison.OrdinalIgnoreCa
 }
 
 app.UseAuthentication();
+app.UseMiddleware<AiQuotaExceptionMiddleware>();
 app.UseMiddleware<AiCostControlMiddleware>();
 app.UseMiddleware<PrivateBetaAccessMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();

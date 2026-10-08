@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getAiQuotaErrorMessage } from "@/lib/ai-quota-errors";
 
 export function AskAiForm({
   slug,
@@ -32,12 +33,11 @@ export function AskAiForm({
         body: JSON.stringify({ question }),
       });
 
-      if (response.status === 429) {
-        setError("This candidate has hit the hourly question limit — try again later.");
-        return;
-      }
       if (!response.ok) {
-        setError("Something went wrong answering that question. Please try again.");
+        const quotaMessage = getAiQuotaErrorMessage(response.status, await response.text());
+        setError(quotaMessage ?? (response.status === 429
+          ? "This candidate has hit the hourly question limit — try again later."
+          : "Something went wrong answering that question. Please try again."));
         return;
       }
 

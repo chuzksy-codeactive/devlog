@@ -1,4 +1,5 @@
 using DevLog.Infrastructure.Ai;
+using DevLog.Infrastructure.Ai.CostControl;
 using DevLog.Infrastructure.BetaAccess;
 using DevLog.Infrastructure.Email;
 using DevLog.Infrastructure.Identity;
@@ -44,6 +45,17 @@ public static class ServiceCollectionExtensions
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(configuration.GetConnectionString("DevLogDbRuntime"));
         dataSourceBuilder.UseVector();
         services.AddSingleton(dataSourceBuilder.Build());
+        services.AddSingleton<IAiQuotaStore, PostgresAiQuotaStore>();
+        services.AddTransient<AiQuotaHttpHandler>();
+        services.AddOptions<AiQuotaOptions>()
+            .Bind(configuration.GetSection(AiQuotaOptions.SectionName))
+            .Validate(
+                options => !options.Enabled || (
+                    options.MaxProviderCallsPerMinute > 0
+                    && options.MaxProviderCallsPerDay > 0
+                    && options.MaxProviderCallsPerMonth > 0),
+                "Enabled AiQuotas require positive minute, daily, and monthly provider-call allowances.")
+            .ValidateOnStart();
 
         services.AddDbContext<DevLogDbContext>((serviceProvider, options) =>
         {
@@ -63,7 +75,7 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri("https://api.anthropic.com");
             client.DefaultRequestHeaders.Add("x-api-key", options.ApiKey);
             client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-        });
+        }).AddHttpMessageHandler<AiQuotaHttpHandler>();
 
         var openAiApiKey = configuration[$"{OpenAiOptions.SectionName}:ApiKey"];
 
@@ -76,7 +88,7 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri("https://api.openai.com");
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", options.ApiKey.Trim());
-        });
+        }).AddHttpMessageHandler<AiQuotaHttpHandler>();
 
         var generationProvider = configuration["Ai:GenerationProvider"] ?? "OpenAI";
         services.AddScoped<ILlmProvider>(serviceProvider =>
@@ -92,7 +104,7 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri("https://api.openai.com");
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Bearer", options.ApiKey.Trim());
-        });
+        }).AddHttpMessageHandler<AiQuotaHttpHandler>();
 
         services.Configure<PostmarkOptions>(configuration.GetSection(PostmarkOptions.SectionName));
         services.AddHttpClient<IEmailProvider, PostmarkEmailProvider>((serviceProvider, client) =>

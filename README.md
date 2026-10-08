@@ -26,6 +26,8 @@ web/    — Next.js frontend
 
 See `GETTING-STARTED.md` for the full setup walkthrough (local Postgres, first migration, RLS policies, Clerk configuration, running the tests).
 
+For the opt-in container and PostgreSQL AI-allowance migration, see [Budget deployment preparation and migration runbook](doc/context/DevLog-Budget-Migration.md). This preparation does not change the existing production deployment.
+
 ## Planning docs
 
 - `DevLog-Product-Brief-v2.md` — positioning, information architecture, feature rationale

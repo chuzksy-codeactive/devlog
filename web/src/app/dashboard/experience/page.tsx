@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useApi } from "@/lib/use-api";
+import { ApiError, useApi } from "@/lib/use-api";
 import { formatDateRange } from "@/lib/portfolio-utils";
 import { ExperienceType, MyExperience, experienceTypeLabel } from "@/lib/types";
 import { AchievementDescription } from "@/components/portfolio/AchievementDescription";
@@ -337,8 +337,10 @@ function ExperienceForm({
     setError(null);
     try {
       await onSubmit(form);
-    } catch {
-      setError("Couldn't save — check that the API is running.");
+    } catch (error) {
+      setError(error instanceof ApiError && error.aiQuotaMessage
+        ? error.aiQuotaMessage
+        : "Couldn't save — check that the API is running.");
       setSaving(false);
     }
   }

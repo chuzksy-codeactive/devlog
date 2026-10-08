@@ -1,14 +1,18 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { getAiQuotaErrorMessage } from "./ai-quota-errors";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
 
 export class ApiError extends Error {
   status: number;
+  readonly aiQuotaMessage: string | null;
   constructor(status: number, message: string) {
-    super(message);
+    const aiQuotaMessage = getAiQuotaErrorMessage(status, message);
+    super(aiQuotaMessage ?? message);
     this.status = status;
+    this.aiQuotaMessage = aiQuotaMessage;
   }
 }
 

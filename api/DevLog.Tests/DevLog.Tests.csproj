@@ -20,4 +20,8 @@
     <ProjectReference Include="..\DevLog.Infrastructure\DevLog.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\sql\010_ai_cost_control.sql" Link="sql\010_ai_cost_control.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

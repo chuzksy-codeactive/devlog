@@ -1,0 +1,154 @@
+name: Container validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api-container:
+    name: API container and PostgreSQL quotas
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      IMAGE_NAME: devlog-api:validation-${{ github.run_id }}-${{ github.run_attempt }}
+      CONTAINER_NAME: devlog-api-validation-${{ github.run_id }}-${{ github.run_attempt }}
+      POSTGRES_CONTAINER_NAME: devlog-postgres-validation-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "24"
+
+      - name: Test quota error messages
+        timeout-minutes: 1
+        run: |
+          node --version
+          node --experimental-strip-types --test web/tests/ai-quota-errors.test.mjs
+
+      - name: Build API image
+        run: docker build --pull --tag "$IMAGE_NAME" --file api/Dockerfile api
+
+      - name: Test PostgreSQL AI quotas
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+
+          postgres_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$postgres_password"
+          docker run --detach --pull always \
+            --name "$POSTGRES_CONTAINER_NAME" \
+            --publish 127.0.0.1::5432 \
+            --env POSTGRES_USER=devlog_quota_test \
+            --env POSTGRES_DB=devlog_quota_test \
+            --env "POSTGRES_PASSWORD=$postgres_password" \
+            postgres:18
+
+          postgres_ready=false
+          for attempt in {1..30}; do
+            if [[ "$(docker inspect --format '{{.State.Running}}' "$POSTGRES_CONTAINER_NAME")" != true ]]; then
+              echo "::error::The disposable PostgreSQL container exited before becoming ready."
+              exit 1
+            fi
+            if docker exec "$POSTGRES_CONTAINER_NAME" pg_isready \
+              --quiet --host 127.0.0.1 --username devlog_quota_test \
+              --dbname devlog_quota_test --timeout 2; then
+              postgres_ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$postgres_ready" != true ]]; then
+            echo "::error::The disposable PostgreSQL server did not become ready within the retry window."
+            exit 1
+          fi
+
+          postgres_port="$(docker inspect --format '{{ (index (index .NetworkSettings.Ports "5432/tcp") 0).HostPort }}' "$POSTGRES_CONTAINER_NAME")"
+          DEVLOG_QUOTA_TEST_CONNECTION="Host=127.0.0.1;Port=$postgres_port;Database=devlog_quota_test;Username=devlog_quota_test;Password=$postgres_password;Timeout=5;Command Timeout=30" \
+          dotnet test api/DevLog.Tests/DevLog.Tests.csproj \
+            --configuration Release \
+            --filter "FullyQualifiedName~AiQuota|FullyQualifiedName~AiCostControlMiddlewareTests" \
+            --logger "console;verbosity=normal"
+
+      - name: Validate runtime and health
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+
+          image_user="$(docker image inspect --format '{{.Config.User}}' "$IMAGE_NAME")"
+          case "$image_user" in
+            ""|0|0:*|root|root:*)
+              echo "::error::The runtime image must declare a non-root user."
+              exit 1
+              ;;
+          esac
+
+          # These settings exercise Production startup without external services.
+          docker run --detach \
+            --name "$CONTAINER_NAME" \
+            --publish 127.0.0.1::8080 \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --env ASPNETCORE_ENVIRONMENT=Production \
+            --env 'ConnectionStrings__DevLogDbRuntime=Host=127.0.0.1;Port=1;Database=devlog_container_smoke;Username=smoke;Password=smoke-only-not-a-real-password;Timeout=1;Command Timeout=1' \
+            --env "IpHashing__Secret=$(openssl rand -hex 32)" \
+            --env Storage__Provider=AzureBlob \
+            --env MalwareScanning__Provider=AzureDefenderStorage \
+            --env KeyVault__Enabled=false \
+            --env AiQuotas__Enabled=false \
+            "$IMAGE_NAME"
+
+          runtime_uid="$(docker exec "$CONTAINER_NAME" id -u)"
+          if [[ "$runtime_uid" == 0 ]]; then
+            echo "::error::The API container is running as root."
+            exit 1
+          fi
+          sdk_list="$(docker exec "$CONTAINER_NAME" dotnet --list-sdks)"
+          if [[ -n "$sdk_list" ]]; then
+            echo "::error::The runtime image must not contain a .NET SDK."
+            exit 1
+          fi
+
+          host_port="$(docker inspect --format '{{ (index (index .NetworkSettings.Ports "8080/tcp") 0).HostPort }}' "$CONTAINER_NAME")"
+          for attempt in {1..30}; do
+            if [[ "$(docker inspect --format '{{.State.Running}}' "$CONTAINER_NAME")" != true ]]; then
+              echo "::error::The API container exited before becoming healthy."
+              exit 1
+            fi
+            if response="$(curl --fail --silent --show-error --connect-timeout 2 --max-time 3 "http://127.0.0.1:${host_port}/health")"; then
+              printf '%s' "$response" | python3 -c 'import json, sys; sys.exit(0 if json.load(sys.stdin).get("status") == "healthy" else 1)'
+              echo "Health check passed as UID $runtime_uid on port $host_port."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::The API did not become healthy within the retry window."
+          exit 1
+
+      - name: Container diagnostics and cleanup
+        if: always()
+        timeout-minutes: 2
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          cleanup_failed=0
+          for container_name in "$CONTAINER_NAME" "$POSTGRES_CONTAINER_NAME"; do
+            if docker container inspect "$container_name" > /dev/null 2>&1; then
+              if [[ "$JOB_STATUS" != success ]]; then
+                docker logs --tail 200 "$container_name" || true
+              fi
+              docker rm --force --volumes "$container_name" || cleanup_failed=1
+            fi
+          done
+          exit "$cleanup_failed"

@@ -75,9 +75,6 @@ public class SanitizationPipelineService
             }
         }
 
-        entry.Status = RawEntryStatus.Sanitizing;
-        await _db.SaveChangesAsync(cancellationToken);
-
         var blocklist = await _db.Experiences
             .Where(e => e.TenantId == entry.TenantId && e.CompanyLabel != string.Empty)
             .Select(e => e.CompanyLabel)
@@ -150,9 +147,8 @@ public class SanitizationPipelineService
 
         entry.Status = RawEntryStatus.Approved;
 
-        await _db.SaveChangesAsync(cancellationToken);
-
         await _embeddingPipeline.EmbedPublishedEntryAsync(published, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
 
         return published;
     }

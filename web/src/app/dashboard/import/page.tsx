@@ -57,7 +57,9 @@ export default function ImportPage() {
       setStatus("ready");
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 429) {
+        if (err.aiQuotaMessage) {
+          setErrorMessage(err.aiQuotaMessage);
+        } else if (err.status === 429) {
           setErrorMessage("GitHub's rate limit was reached. Try again in a few minutes.");
         } else if (err.status === 400) {
           setErrorMessage(err.message || "Connect your GitHub account in your profile before importing.");
@@ -111,7 +113,9 @@ export default function ImportPage() {
       setResumeStatus("ready");
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 429) {
+        if (err.aiQuotaMessage) {
+          setResumeErrorMessage(err.aiQuotaMessage);
+        } else if (err.status === 429) {
           setResumeErrorMessage("Resume import limit reached. Try again in an hour.");
         } else if (err.status === 400) {
           setResumeErrorMessage(err.message || "That file couldn't be processed. Make sure it's a PDF.");
@@ -378,8 +382,26 @@ function SuggestionCard({
   exp: SuggestedExperience;
   added: boolean;
   actionLabel: string;
-  onAdd: () => void;
+  onAdd: () => Promise<void>;
 }) {
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleAdd() {
+    if (adding || added) return;
+    setAdding(true);
+    setError(null);
+    try {
+      await onAdd();
+    } catch (error) {
+      setError(error instanceof ApiError && error.aiQuotaMessage
+        ? error.aiQuotaMessage
+        : "Couldn't add this experience. Please try again.");
+    } finally {
+      setAdding(false);
+    }
+  }
+
   return (
     <article className="rounded-[1.75rem] border border-white/10 bg-white/6 p-6 transition hover:border-white/15 hover:bg-white/8">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -400,19 +422,21 @@ function SuggestionCard({
           />
         </div>
 
-<button
-  type="button"
-  onClick={onAdd}
-          disabled={added}
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={added || adding}
           className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
             added
               ? "bg-white/12 text-white/55"
               : "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400"
           }`}
         >
-          {actionLabel}
+          {adding ? "Adding..." : actionLabel}
         </button>
       </div>
+
+      {error && <p role="alert" className="mt-4 text-sm text-red-200">{error}</p>}
 
       {exp.technologies.length > 0 && (
         <div className="mt-5 flex flex-wrap gap-2">

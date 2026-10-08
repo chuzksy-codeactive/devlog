@@ -71,9 +71,8 @@ public class ExperienceController : ControllerBase
         };
 
         _db.Experiences.Add(experience);
-        await _db.SaveChangesAsync();
-
         await _embeddingPipeline.EmbedExperienceAsync(experience);
+        await _db.SaveChangesAsync();
 
         return CreatedAtAction(nameof(GetMine), new { }, ToDto(experience));
     }
@@ -95,9 +94,8 @@ public class ExperienceController : ControllerBase
         experience.Technologies = request.Technologies ?? new List<string>();
         experience.KeyAchievement = request.KeyAchievement?.Trim() ?? string.Empty;
 
-        await _db.SaveChangesAsync();
-
         await _embeddingPipeline.EmbedExperienceAsync(experience);
+        await _db.SaveChangesAsync();
 
         return Ok(ToDto(experience));
     }

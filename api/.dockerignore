@@ -1,0 +1,32 @@
+# Limit the context to the API's production dependency graph.
+*
+!DevLog.Api
+!DevLog.Domain
+!DevLog.Infrastructure
+
+# Exclude local configuration, credentials, uploads, and generated output.
+**/bin/
+**/obj/
+**/Properties/
+**/.git/
+**/.vs/
+**/.idea/
+**/.vscode/
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+**/appsettings.*.json*
+**/secrets.json
+**/secrets/
+**/*.pfx
+**/*.p12
+**/*.pem
+**/*.key
+**/*.user
+**/*.suo
+**/*.pubxml
+**/uploads/
+**/App_Data/
+**/TestResults/
+**/coverage/
