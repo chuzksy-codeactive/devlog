@@ -2,6 +2,8 @@
 
 Working checklist for taking DevLog from local dev to production on Azure. Ordered — each phase assumes the one before it is done. Check items off as you go; this file stays in the repo as the record of what's been done.
 
+> **Update (cost-capped relaunch):** the live production pipeline is now direct production deploy (no staging slot swap). Use `.github/workflows/deploy.yml` as the source of truth: `build-api` → `deploy-api-production` → `smoke-test-api` → `deploy-frontend` against `app-devlog-api-prod-ca3c`.
+
 ---
 
 ## Phase 0 — Pre-launch fixes (do first, before touching infra)
@@ -64,22 +66,21 @@ Working checklist for taking DevLog from local dev to production on Azure. Order
 - [x] Enable GitHub secret scanning / push protection on the repo. **Changed approach**: GitHub's native Secret Protection (Settings → Advanced Security) isn't available — it requires an org-owned repo on a paid plan/GHAS add-on, and `devlog` is a personal-account private repo, deliberately not moved into a paid org just for this. Substituted `gitleaks` in CI instead, which needs no license key on a personal-account repo (only org-owned repos require one):
   - `ci.yml` gained a `secret-scan` job — runs `gitleaks-action` on every PR, same practical effect as push protection (blocks a PR that introduces something secret-shaped), just enforced in CI rather than natively by GitHub.
   - New `.github/workflows/secret-scan-history.yml`, manually triggered (`workflow_dispatch`) — scans the *entire* git history, not just new commits. Worth running once now as a baseline check that nothing's ever actually leaked into this repo's history.
-- [x] Deploy to the staging slot automatically on merge to `main`. `.github/workflows/deploy.yml`, runs on `push` to `main`: publishes the API and deploys it to `devlog-api`'s `staging` slot; separately builds and deploys the frontend straight to the Static Web App (SWA has no slot/swap mechanism equivalent to App Service's, so only the API gets the staging step).
-- [x] Require manual approval before swapping staging → production. **Changed approach**: originally planned as GitHub's native "required reviewers" on a `production` environment, but that's Enterprise-only for private repos on Free/Pro/Team plans (same licensing wall as Advanced Security) — confirmed by the Azure config panel simply not showing the option at all. Split the swap into its own workflow instead: `.github/workflows/swap-to-production.yml`, triggered only by manually clicking "Run workflow" in the Actions tab (`workflow_dispatch`), with a required `confirm` text input (must type `swap`) as a second speed bump. Nothing runs — not even a paused job — until someone deliberately triggers it, which is arguably a stronger gate than an "Approve" click on an already-running job. `deploy.yml` itself now stops after `deploy-api-staging` / `smoke-test-staging` / `deploy-frontend` — no more `swap-api-to-production` job in that file.
-- Azure/GitHub setup for both workflows to actually run ✅ done — full walkthrough in the new `DevLog-Azure-OIDC-Setup-Guide.md`:
-  - Azure OIDC: App Registration `devlog-github-actions`, two federated credentials (one per GitHub **environment** — `staging` and `production`, matching the environments each job in `deploy.yml`/`swap-to-production.yml` targets), **Website Contributor** role assignment scoped to `devlog-api`.
+- [x] Deploy API directly to production on merge to `main`. `.github/workflows/deploy.yml` now publishes and deploys to `app-devlog-api-prod-ca3c` in production, then runs a production `/health` smoke test before frontend deployment.
+- [x] Removed staging slot swap workflow for the cost-capped footprint. The production health smoke test in `deploy.yml` is now the automated release gate before frontend deploy.
+- Azure/GitHub setup for deploy workflow ✅ done — full walkthrough in the new `DevLog-Azure-OIDC-Setup-Guide.md`:
+  - Azure OIDC: App Registration `devlog-github-actions`, federated credential for GitHub `production` environment, **Website Contributor** role assignment scoped to `app-devlog-api-prod-ca3c`.
   - GitHub secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `CLERK_SECRET_KEY` (real `sk_live_...` production value — see below), `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_live_...`, intentionally sourced as a secret for this pipeline due to variable resolution issues in frontend deploy runs), `AZURE_STATIC_WEB_APPS_API_TOKEN`.
   - GitHub variables: `AZURE_RESOURCE_GROUP` (confirmed `coursera_ai_learning`).
   - Along the way: created a dedicated Clerk **Production** instance (previously only had the Development instance's `pk_test_`/`sk_test_` keys) — "Primary application" for chuzksy.dev, so Clerk's API lives at `clerk.chuzksy.dev` and auth emails send from `@chuzksy.dev`. Five CNAME records added at Porkbun for it (Frontend API, Account portal, Primary email, 2 DKIM selectors).
-  - GitHub environments `staging` and `production` created (Settings → Environments) so both federated credentials' subject claims actually match something real.
-    - The `production` GitHub environment + required reviewer, per above.
+  - GitHub environment `production` created (Settings → Environments) so the federated credential subject claim matches.
 - [x] Hardening pass on both workflow files, from an external review Chika pasted in:
   - All 8 actions across both workflows pinned to commit SHAs, not version tags (`actions/checkout`, `actions/setup-dotnet`, `actions/setup-node`, `actions/upload-artifact`, `actions/download-artifact`, `azure/login`, `azure/webapps-deploy`, `Azure/static-web-apps-deploy`) — each with a `# vX.Y.Z` comment recording which released version it corresponds to. The last 4 were blocked by GitHub's unauthenticated API rate limit initially; resolved once it cleared, using each repo's public releases page as the SHA source rather than a fabricated value.
   - `timeout-minutes` added to every job.
   - `ci.yml` cancels in-progress runs on the same branch when a new commit lands (`cancel-in-progress: true`); `deploy.yml` deliberately does not (a live deploy shouldn't get killed mid-swap by a second push).
   - NuGet restore caching added to both workflows' `setup-dotnet` steps.
   - New `GET /health` endpoint on the API (`Program.cs`, deliberately dependency-free — no DB call) plus a new `smoke-test-staging` job in `deploy.yml` that polls it with retries after the staging deploy and before the swap job's dependencies are satisfied. This is a small automated tripwire in front of the swap, not a replacement for Phase 6's full manual staging smoke test.
-  - `deploy-api-staging` now targets its own `staging` GitHub environment (auto-created on first use, no setup needed, no required reviewers) purely for a distinct entry in the deployment audit trail — separate from `production`'s reviewer-gated one.
+  - Deploy workflow uses a single `production` GitHub environment for OIDC and audit trail.
   - Declined for now: a separate scheduled dependency-audit workflow for ongoing visibility beyond PR-time — worth adding later if drift between "passed audit at merge time" and "new CVE disclosed against an already-merged dependency" becomes a real concern, but it's new scope rather than a fix to what's already here.
 
 ## Phase 5 — Observability

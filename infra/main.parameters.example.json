@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "devlog-prod-xxxx"
+    },
+    "location": {
+      "value": "centralus"
+    },
+    "sessionId": {
+      "value": "REPLACE-WITH-SESSION-ID"
+    },
+    "deployedBy": {
+      "value": "REPLACE-WITH-NAME"
+    },
+    "createdAt": {
+      "value": "REPLACE-WITH-ISO-TIMESTAMP"
+    },
+    "postgresAdministratorPassword": {
+      "value": "REPLACE-WITH-STRONG-POSTGRES-ADMIN-PASSWORD"
+    },
+    "postgresRuntimePassword": {
+      "value": "REPLACE-WITH-STRONG-POSTGRES-RUNTIME-PASSWORD"
+    },
+    "clerkAuthority": {
+      "value": "https://REPLACE-WITH-YOUR-CLERK-FRONTEND-API-URL"
+    },
+    "postmarkFromAddress": {
+      "value": "REPLACE-WITH-A-VERIFIED-POSTMARK-SENDER-SIGNATURE"
+    },
+    "clerkSecretKey": {
+      "value": "REPLACE-WITH-CLERK-SECRET-KEY"
+    },
+    "openAiApiKey": {
+      "value": "REPLACE-WITH-OPENAI-API-KEY"
+    },
+    "anthropicApiKey": {
+      "value": "REPLACE-WITH-ANTHROPIC-API-KEY"
+    },
+    "postmarkApiKey": {
+      "value": "REPLACE-WITH-POSTMARK-API-KEY"
+    },
+    "ipHashingSecret": {
+      "value": "REPLACE-WITH-AT-LEAST-32-CHAR-SECRET"
+    },
+    "deployerObjectId": {
+      "value": "REPLACE-WITH-AZURE-AD-OBJECT-ID"
+    }
+  }
+}

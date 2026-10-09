@@ -24,3 +24,17 @@ web/.env*.local
 .DS_Store
 .vs/
 .vscode/
+
+# Copilot Azure session artifacts
+.copilot-azure/
+
+# Local Azure deployment artifacts
+.azure/
+api/publish/
+api/publish*.zip
+
+# Local-only infra parameters (contain real secrets)
+infra/main.parameters.json
+infra/main.parameters.local.json
+infra/main.json
+infra/modules/*.json

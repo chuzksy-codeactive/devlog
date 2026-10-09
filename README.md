@@ -28,6 +28,8 @@ See `GETTING-STARTED.md` for the full setup walkthrough (local Postgres, first m
 
 For the opt-in container and PostgreSQL AI-allowance migration, see [Budget deployment preparation and migration runbook](doc/context/DevLog-Budget-Migration.md). This preparation does not change the existing production deployment.
 
+For Azure IaC deployment, start from `infra/main.parameters.example.json`, copy it to `infra/main.parameters.json`, fill real values locally, and never commit the populated file.
+
 ## Planning docs
 
 - `DevLog-Product-Brief-v2.md` — positioning, information architecture, feature rationale
