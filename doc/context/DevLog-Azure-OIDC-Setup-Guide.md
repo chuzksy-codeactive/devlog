@@ -77,14 +77,14 @@ The federated credential only lets the app *authenticate*; it still needs a role
 
 ## Step 4 — GitHub repo secrets and variables ✅ done
 
-Also created a dedicated Clerk **Production** instance along the way (was still only using the Development instance's `pk_test_`/`sk_test_` keys) — "Primary application" for chuzksy.dev, so Clerk's API lives at `clerk.chuzksy.dev` and auth emails send from `@chuzksy.dev`. Five CNAME records added at Porkbun for that (Frontend API, Account portal, Primary email + 2 DKIM selectors), all verified.
+Also created a dedicated Clerk **Production** instance along the way (previously only the Development instance keys were in use) — "Primary application" for chuzksy.dev, so Clerk's API lives at `clerk.chuzksy.dev` and auth emails send from `@chuzksy.dev`. Five CNAME records added at Porkbun for that (Frontend API, Account portal, Primary email + 2 DKIM selectors), all verified.
 
 Repo → Settings → Secrets and variables → Actions.
 
 **Secrets** (Secrets tab → New repository secret) — all 6 added:
 - `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` — from the table above.
-- `CLERK_SECRET_KEY` — the real production value, `sk_live_...`, from Clerk's Production instance API Keys page (not the `sk_test_...` dev key).
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — the `pk_live_...` production key. Public by nature, but stored in Secrets for this repo's deploy flow to avoid empty-value variable resolution during SWA deploy.
+- `CLERK_SECRET_KEY` — the production Clerk secret key value from Clerk's Production instance API Keys page.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — the production Clerk publishable key. Public by nature, but stored in Secrets for this repo's deploy flow to avoid empty-value variable resolution during SWA deploy.
 - `AZURE_STATIC_WEB_APPS_API_TOKEN` — from the Static Web App resource: Overview → **Manage deployment token**. Scoped to just that one Static Web App — can't touch anything else in Azure, unlike the OIDC credential.
 
 **Variables** (Variables tab → New repository variable):

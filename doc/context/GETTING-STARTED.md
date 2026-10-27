@@ -967,10 +967,10 @@ Hosted-environment secrets management (env vars / Key Vault) — the other half 
 ```bash
 cd Devlog.os/api/DevLog.Api
 dotnet user-secrets init
-dotnet user-secrets set "Clerk:SecretKey" "**Redacted**"
-dotnet user-secrets set "Anthropic:ApiKey" "PASTE-YOUR-ANTHROPIC-KEY-IF-USING-Ai:GenerationProvider=Anthropic"
-dotnet user-secrets set "OpenAi:ApiKey" "**Redacted**"
-dotnet user-secrets set "Postmark:ApiKey" "7254cccd-e20c-4643-a590-af2516c5999e"
+dotnet user-secrets set "Clerk:SecretKey" "<YOUR-CLERK-SECRET-KEY>"
+dotnet user-secrets set "Anthropic:ApiKey" "<YOUR-ANTHROPIC-API-KEY-IF-USING-ANTHROPIC>"
+dotnet user-secrets set "OpenAi:ApiKey" "<YOUR-OPENAI-API-KEY>"
+dotnet user-secrets set "Postmark:ApiKey" "<YOUR-POSTMARK-API-KEY>"
 dotnet build
 dotnet run
 ```

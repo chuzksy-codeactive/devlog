@@ -179,7 +179,7 @@ public class BetaAccessServiceTests
         };
         var options = Options.Create(new ClerkOptions
         {
-            SecretKey = "sk_test_dummy"
+            SecretKey = "clerk_secret_key_dummy_test"
         });
         return new ClerkUserService(httpClient, options, NullLogger<ClerkUserService>.Instance);
     }

@@ -84,7 +84,7 @@ public class ValidationTestApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:DevLogDbRuntime"] = "Host=localhost;Port=5432;Database=devlog;Username=devlog_app;Password=devlog_app_local",
                 ["Clerk:Authority"] = "https://example.clerk.accounts.dev",
                 ["Clerk:AuthorizedParty"] = "http://localhost:3000",
-                ["Clerk:SecretKey"] = "sk_test_dummy",
+                ["Clerk:SecretKey"] = "clerk_secret_key_dummy_test",
                 ["Storage:LocalDiskPath"] = Path.Combine(Path.GetTempPath(), "devlog-test-uploads"),
                 ["Storage:PublicBaseUrl"] = "http://localhost:5000/uploads",
                 ["IpHashing:Secret"] = "D5F78A4C21E390B64FA2D8715C39BE04216A5FD3B2C91E87"
