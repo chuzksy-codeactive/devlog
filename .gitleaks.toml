@@ -1,9 +1,2 @@
 [extend]
 useDefault = true
-
-[allowlist]
-description = "Allowlist historical commits that contained example/dummy values already removed"
-commits = [
-  "a25d128af6bcf57eea9afc67c1b911fc8a79e7c5",
-  "96ebe96b656eb8affe92ebe1afa56ad9cf6be60c",
-]
